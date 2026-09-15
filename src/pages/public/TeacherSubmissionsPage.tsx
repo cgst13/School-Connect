@@ -255,8 +255,8 @@ export function TeacherSubmissionsPage() {
 
         {/* View / Print Official Template Modal */}
         {selectedSub && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-            <div className="relative w-full max-w-6xl bg-white rounded-2xl shadow-2xl overflow-hidden my-8 border border-slate-200">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto bg-slate-900/60 backdrop-blur-sm animate-fade-in print:static print:inset-auto print:p-0 print:m-0 print:bg-transparent print:overflow-visible print:block">
+            <div className="relative w-full max-w-6xl bg-white rounded-2xl shadow-2xl overflow-hidden my-8 border border-slate-200 print:static print:w-full print:max-w-none print:m-0 print:p-0 print:shadow-none print:border-none print:bg-transparent print:overflow-visible">
               {/* Modal Header */}
               <div className="flex items-center justify-between px-6 py-4 bg-slate-900 text-white no-print">
                 <div className="flex items-center gap-2">
@@ -286,7 +286,7 @@ export function TeacherSubmissionsPage() {
               </div>
 
               {/* Modal Content */}
-              <div className="p-4 sm:p-6 overflow-y-auto max-h-[80vh]">
+              <div className="p-4 sm:p-6 overflow-y-auto max-h-[80vh] print:p-0 print:overflow-visible print:max-h-none print:h-auto">
                 <OfficialTermcatTemplate submission={selectedSub} showPrintButton={false} />
               </div>
             </div>
