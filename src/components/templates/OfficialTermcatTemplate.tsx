@@ -29,6 +29,8 @@ export function OfficialTermcatTemplate({
   const allSubmissions = submissions || (submission ? [submission] : [])
   const primarySub = allSubmissions[0]
 
+  const isMultipleSubsForSameGrade = allSubmissions.length > 1 && new Set(allSubmissions.map(s => s.grade_level_id || s.grade_level?.id)).size === 1
+
   const formType: FormType = explicitFormType || primarySub?.form_type || 'ks1'
   const isKS1 = formType === 'ks1'
 
@@ -93,8 +95,14 @@ export function OfficialTermcatTemplate({
               <td className="border border-black px-2 py-1 font-semibold">{displayEps}</td>
             </tr>
             <tr className="bg-sky-100 print:bg-sky-100">
-              <td className="border border-black px-2 py-1 font-bold bg-sky-200">Learning Area</td>
-              <td className="border border-black px-2 py-1 font-semibold">{displayLearningArea}</td>
+              <td className="border border-black px-2 py-1 font-bold bg-sky-200">
+                {isMultipleSubsForSameGrade ? 'Grade' : 'Learning Area'}
+              </td>
+              <td className="border border-black px-2 py-1 font-semibold">
+                {isMultipleSubsForSameGrade
+                  ? primarySub?.grade_level?.name || `Grade ${primarySub?.grade_level?.grade_number || ''}`
+                  : displayLearningArea}
+              </td>
             </tr>
             <tr className="bg-sky-100 print:bg-sky-100">
               <td className="border border-black px-2 py-1 font-bold bg-sky-200">Term</td>
@@ -116,7 +124,13 @@ export function OfficialTermcatTemplate({
             <table className="w-full border-collapse border border-black text-[11px] print:text-[9px] text-center">
               <thead>
                 <tr className="bg-slate-200 text-black font-bold">
-                  <th rowSpan={2} className="border border-black px-1.5 py-1 w-20">Key Stage 1<br />Grade Level</th>
+                  <th rowSpan={2} className="border border-black px-1.5 py-1 w-20">
+                    {isMultipleSubsForSameGrade ? (
+                      <>Key Stage 1<br />Learning Area</>
+                    ) : (
+                      <>Key Stage 1<br />Grade Level</>
+                    )}
+                  </th>
                   <th rowSpan={2} className="border border-black px-1.5 py-1 w-16">Total Number of Learners</th>
                   <th colSpan={5} className="border border-black px-1.5 py-1">Performance Levels</th>
                   <th colSpan={4} className="border border-black px-1.5 py-1 bg-teal-100">Competency Summary</th>
@@ -153,12 +167,10 @@ export function OfficialTermcatTemplate({
               <tbody>
                   {/* Render grade rows or multi-subject rows */}
                   {(() => {
-                    const isMultipleSubsForSameGrade = allSubmissions.length > 1 && new Set(allSubmissions.map(s => s.grade_level_id || s.grade_level?.id)).size === 1
-
                     const rowsToRender: { sub: TermcatSubmission | null; label: string; key: string }[] = isMultipleSubsForSameGrade
                       ? allSubmissions.map((s, idx) => ({
                           sub: s,
-                          label: `${s.grade_level?.name || 'Grade ' + (s.grade_level?.grade_number || '')} - ${s.learning_area?.name || 'Subject'}`,
+                          label: s.learning_area?.name || 'Subject',
                           key: s.id || `sub-${idx}`,
                         }))
                       : [1, 2, 3].map(gradeNum => {
@@ -245,7 +257,9 @@ export function OfficialTermcatTemplate({
             <table className="w-full border-collapse border border-black text-[11px] print:text-[9px] text-center">
               <thead>
                 <tr className="bg-sky-200 text-black font-bold">
-                  <th className="border border-black px-1.5 py-1.5 w-20">Grade Level</th>
+                  <th className="border border-black px-1.5 py-1.5 w-20">
+                    {isMultipleSubsForSameGrade ? 'Learning Area' : 'Grade Level'}
+                  </th>
                   <th className="border border-black px-1.5 py-1.5 w-16">Total Number of Learners</th>
                   <th className="border border-black px-1.5 py-1.5 w-16 bg-blue-300">MPS</th>
                   <th className="border border-black px-1.5 py-1.5 bg-emerald-100">Total Number of Intended Competencies</th>
@@ -260,12 +274,9 @@ export function OfficialTermcatTemplate({
               </thead>
               <tbody>
                 {(() => {
-                  const isMultipleSubsForSameGrade = allSubmissions.length > 1 && new Set(allSubmissions.map(s => s.grade_level_id || s.grade_level?.id)).size === 1
-
                   if (isMultipleSubsForSameGrade) {
                     return allSubmissions.map((sub, idx) => {
-                      const gradeNum = sub.grade_level?.grade_number || idx + 1
-                      const gradeLabel = `${sub.grade_level?.name || 'Grade ' + gradeNum} - ${sub.learning_area?.name || 'Subject'}`
+                      const gradeLabel = sub.learning_area?.name || 'Subject'
                       const ks2to4Data = sub.ks2to4_learner_data
                       const compSum = sub.competency_summary
                       const comps = sub.submission_competencies || []
