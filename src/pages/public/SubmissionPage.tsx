@@ -8,11 +8,14 @@ import { Step3CompetencyData } from '@/features/submissions/steps/Step3Competenc
 import { Step4CompetencyAnalysis } from '@/features/submissions/steps/Step4CompetencyAnalysis'
 import { Step5Review } from '@/features/submissions/steps/Step5Review'
 import { saveDraft, loadDraft, clearDraft } from '@/lib/draft/draftManager'
-import { createSubmission, generateReferenceNumber, checkDuplicateSubmission } from '@/lib/supabase/queries'
+import {
+  createSubmission, generateReferenceNumber, checkDuplicateSubmission,
+  fetchSchools, fetchGradeLevels, fetchLearningAreas
+} from '@/lib/supabase/queries'
 import { saveLocalSuggestion, saveTeacherSchoolMapping } from '@/lib/supabase/suggestions'
 import { useToast } from '@/hooks/useToast'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
-import type { FullSubmissionFormData, TeacherInfo, KS1LearnerData, KS2to4LearnerData, CompetencySummary, TopCompetenciesData, InstructionalDifficulty } from '@/types'
+import type { FullSubmissionFormData, TeacherInfo, KS1LearnerData, KS2to4LearnerData, CompetencySummary, TopCompetenciesData, InstructionalDifficulty, School, GradeLevel, LearningArea } from '@/types'
 import { SuccessPage } from './SuccessPage'
 
 const STEPS = [
@@ -206,6 +209,26 @@ export function SubmissionPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [formData.teacherInfo])
 
+  const [schools, setSchools] = useState<School[]>([])
+  const [grades, setGrades] = useState<GradeLevel[]>([])
+  const [learningAreas, setLearningAreas] = useState<LearningArea[]>([])
+
+  useEffect(() => {
+    Promise.all([
+      fetchSchools(false),
+      fetchGradeLevels(),
+      fetchLearningAreas(false),
+    ]).then(([s, g, la]) => {
+      setSchools(s)
+      setGrades(g)
+      setLearningAreas(la)
+    })
+  }, [])
+
+  const selectedGrade = grades.find(g => g.id === formData.teacherInfo.grade_level_id)
+  const selectedLA = learningAreas.find(l => l.id === formData.teacherInfo.learning_area_id)
+  const selectedSchool = schools.find(s => s.id === formData.teacherInfo.school_id)
+
   // Show success page after submit
   if (submittedRef) {
     return (
@@ -232,7 +255,17 @@ export function SubmissionPage() {
 
         {/* Stepper */}
         <div className="card p-4 mb-6">
-          <FormStepper steps={STEPS} currentStep={currentStep} />
+          <FormStepper
+            steps={STEPS}
+            currentStep={currentStep}
+            selectedContext={{
+              gradeName: selectedGrade?.name,
+              learningAreaName: selectedLA?.name,
+              schoolName: selectedSchool?.name,
+              teacherName: formData.teacherInfo.teacher_name,
+            }}
+            onEditStep1={() => handleGoToStep(1)}
+          />
         </div>
 
         {/* Step content */}
