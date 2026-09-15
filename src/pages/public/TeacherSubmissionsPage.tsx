@@ -98,43 +98,43 @@ export function TeacherSubmissionsPage() {
     <PublicLayout>
       <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
         {/* Header Navigation */}
-        <div className="flex items-center justify-between gap-4 flex-wrap no-print">
+        <div className="flex items-center justify-between gap-2 flex-wrap no-print">
           <Link to="/" className="btn-sm btn-secondary inline-flex items-center gap-1.5">
             <ArrowLeft size={14} /> Home
           </Link>
 
-          <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
-            🔒 Public Teacher Submission Record (Read-Only View)
+          <span className="text-[11px] sm:text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
+            🔒 Public Teacher Submission Record (Read-Only)
           </span>
         </div>
 
         {/* Teacher Profile Card */}
-        <div className="card p-6 bg-gradient-to-r from-blue-900 via-slate-900 to-blue-950 text-white shadow-lg space-y-4 no-print">
-          <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="card p-5 sm:p-6 bg-gradient-to-r from-blue-900 via-slate-900 to-blue-950 text-white shadow-lg space-y-4 no-print">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="space-y-1">
               <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-200 text-xs font-semibold border border-blue-400/30">
                 <Sparkles size={12} className="text-amber-400" /> Public Evaluation History
               </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight flex items-center gap-2">
-                <User size={26} className="text-blue-400" />
-                {teacherName}
+              <h1 className="text-xl sm:text-3xl font-extrabold tracking-tight flex items-center gap-2">
+                <User size={24} className="text-blue-400 flex-shrink-0" />
+                <span className="truncate">{teacherName}</span>
               </h1>
               {schoolName && (
-                <p className="text-sm text-slate-300 flex items-center gap-1.5">
-                  <Building2 size={15} className="text-slate-400" />
+                <p className="text-xs sm:text-sm text-slate-300 flex items-center gap-1.5">
+                  <Building2 size={14} className="text-slate-400 flex-shrink-0" />
                   <span>{schoolName}</span>
                 </p>
               )}
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="px-4 py-2 bg-white/10 backdrop-blur-md rounded-xl border border-white/10 text-center">
-                <p className="text-[10px] uppercase font-bold text-slate-300">Total Submissions</p>
-                <p className="text-xl font-extrabold text-white">{submissions.length}</p>
+            <div className="grid grid-cols-2 gap-2 sm:gap-3 w-full sm:w-auto">
+              <div className="px-3.5 py-2.5 bg-white/10 backdrop-blur-md rounded-xl border border-white/10 text-center">
+                <p className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-300">Total Submissions</p>
+                <p className="text-lg sm:text-xl font-extrabold text-white">{submissions.length}</p>
               </div>
-              <div className="px-4 py-2 bg-white/10 backdrop-blur-md rounded-xl border border-white/10 text-center">
-                <p className="text-[10px] uppercase font-bold text-slate-300">Grades Evaluated</p>
-                <p className="text-xl font-extrabold text-blue-300">{gradeGroups.length}</p>
+              <div className="px-3.5 py-2.5 bg-white/10 backdrop-blur-md rounded-xl border border-white/10 text-center">
+                <p className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-300">Grades Evaluated</p>
+                <p className="text-lg sm:text-xl font-extrabold text-blue-300">{gradeGroups.length}</p>
               </div>
             </div>
           </div>
@@ -145,29 +145,31 @@ export function TeacherSubmissionsPage() {
           {gradeGroups.map(group => (
             <div key={group.gradeName} className="space-y-3">
               {/* Grade Level Header */}
-              <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-2 flex-wrap">
-                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <span className="w-8 h-8 rounded-lg bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-sm">
-                    <GraduationCap size={18} />
-                  </span>
-                  <span>{group.gradeName}</span>
-                </h2>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
+                <div className="flex items-center justify-between sm:justify-start gap-2.5 w-full sm:w-auto">
+                  <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <span className="w-8 h-8 rounded-lg bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-sm">
+                      <GraduationCap size={18} />
+                    </span>
+                    <span>{group.gradeName}</span>
+                  </h2>
 
-                <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">
                     {group.submissions.length} {group.submissions.length === 1 ? 'Subject Form' : 'Subject Forms'}
                   </span>
+                </div>
 
+                <div className="grid grid-cols-2 gap-2 w-full sm:w-auto">
                   <button
                     type="button"
                     onClick={() => {
                       setSelectedGroup(group)
                       setSelectedSub(null)
                     }}
-                    className="px-3 py-1 text-xs font-semibold rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/80 inline-flex items-center gap-1 transition-colors"
+                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/80 inline-flex items-center justify-center gap-1.5 transition-colors"
                     title={`Consolidate and view all ${group.gradeName} subject forms`}
                   >
-                    <Eye size={13} /> View Grade
+                    <Eye size={14} /> View Grade
                   </button>
 
                   <button
@@ -177,16 +179,17 @@ export function TeacherSubmissionsPage() {
                       setSelectedSub(null)
                       setTimeout(() => window.print(), 200)
                     }}
-                    className="px-3 py-1 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 inline-flex items-center gap-1 transition-colors"
+                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 inline-flex items-center justify-center gap-1.5 transition-colors"
                     title={`Print consolidated ${group.gradeName} evaluation report`}
                   >
-                    <Printer size={13} /> Print Grade
+                    <Printer size={14} /> Print Grade
                   </button>
                 </div>
               </div>
 
               {/* Submissions Table / Cards */}
-              <div className="card overflow-hidden bg-white">
+              <div className="card overflow-hidden bg-white border border-slate-200 shadow-xs">
+                {/* Desktop Table View */}
                 <div className="hidden sm:block">
                   <table className="data-table">
                     <thead>
@@ -247,28 +250,35 @@ export function TeacherSubmissionsPage() {
                   </table>
                 </div>
 
-                {/* Mobile Cards */}
+                {/* Mobile Cards View */}
                 <div className="sm:hidden divide-y divide-slate-100">
                   {group.submissions.map(sub => (
-                    <div key={sub.id} className="p-4 space-y-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="font-semibold text-slate-900 text-sm">{sub.learning_area?.name}</p>
-                          <p className="text-xs text-slate-500">{sub.term?.name} · {sub.school_year?.name}</p>
-                          <p className="text-xs text-slate-400 mt-0.5">{format(new Date(sub.submitted_at), 'MMM d, yyyy h:mm a')}</p>
+                    <div key={sub.id} className="p-4 space-y-3 bg-white">
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <h3 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                            <BookOpen size={14} className="text-blue-500 flex-shrink-0" />
+                            <span>{sub.learning_area?.name || '—'}</span>
+                          </h3>
                         </div>
+                        <p className="text-xs text-slate-500 font-medium">
+                          {sub.term?.name || '—'} · {sub.school_year?.name || '—'}
+                        </p>
+                        <p className="text-[11px] text-slate-400">
+                          Submitted: {format(new Date(sub.submitted_at), 'MMM d, yyyy h:mm a')}
+                        </p>
                       </div>
 
-                      <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                      <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
                         <button
                           type="button"
                           onClick={() => {
                             setSelectedSub(sub)
                             setSelectedGroup(null)
                           }}
-                          className="btn-xs btn-secondary inline-flex items-center gap-1"
+                          className="flex-1 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 inline-flex items-center justify-center gap-1 transition-colors"
                         >
-                          <Eye size={12} /> View
+                          <Eye size={13} /> View
                         </button>
                         <button
                           type="button"
@@ -277,9 +287,9 @@ export function TeacherSubmissionsPage() {
                             setSelectedGroup(null)
                             setTimeout(() => window.print(), 200)
                           }}
-                          className="btn-xs btn-primary inline-flex items-center gap-1"
+                          className="flex-1 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 inline-flex items-center justify-center gap-1 transition-colors"
                         >
-                          <Printer size={12} /> Print
+                          <Printer size={13} /> Print
                         </button>
                       </div>
                     </div>
