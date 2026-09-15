@@ -162,23 +162,16 @@ export function TeacherSubmissionsPage() {
                   <table className="data-table">
                     <thead>
                       <tr>
-                        <th>Reference No.</th>
-                        <th>Learning Area / Subject</th>
+                        <th>Learning Area</th>
                         <th>School Year</th>
-                        <th>Quarter / Term</th>
+                        <th>Quarter</th>
                         <th>Date Submitted</th>
-                        <th>Status</th>
                         <th className="text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {group.submissions.map(sub => (
                         <tr key={sub.id} className="hover:bg-slate-50 transition-colors">
-                          <td>
-                            <span className="font-mono text-xs font-bold text-blue-700">
-                              {sub.reference_number}
-                            </span>
-                          </td>
                           <td className="font-semibold text-slate-900">
                             <div className="flex items-center gap-1.5">
                               <BookOpen size={14} className="text-blue-500 flex-shrink-0" />
@@ -194,9 +187,6 @@ export function TeacherSubmissionsPage() {
                           <td className="text-slate-500 text-xs">
                             {format(new Date(sub.submitted_at), 'MMM d, yyyy h:mm a')}
                           </td>
-                          <td>
-                            <StatusBadge status={sub.status} size="sm" />
-                          </td>
                           <td className="text-right">
                             <div className="flex items-center justify-end gap-1.5">
                               <button
@@ -204,13 +194,13 @@ export function TeacherSubmissionsPage() {
                                 onClick={() => setSelectedSub(sub)}
                                 className="px-3 py-1 text-xs font-semibold rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/80 inline-flex items-center gap-1 transition-colors"
                               >
-                                <Eye size={13} /> View Form
+                                <Eye size={13} /> View
                               </button>
                               <button
                                 type="button"
                                 onClick={() => {
                                   setSelectedSub(sub)
-                                  setTimeout(() => window.print(), 300)
+                                  setTimeout(() => window.print(), 200)
                                 }}
                                 className="px-3 py-1 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 inline-flex items-center gap-1 transition-colors"
                               >
@@ -230,11 +220,10 @@ export function TeacherSubmissionsPage() {
                     <div key={sub.id} className="p-4 space-y-2">
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <p className="font-mono text-xs font-bold text-blue-700">{sub.reference_number}</p>
                           <p className="font-semibold text-slate-900 text-sm">{sub.learning_area?.name}</p>
                           <p className="text-xs text-slate-500">{sub.term?.name} · {sub.school_year?.name}</p>
+                          <p className="text-xs text-slate-400 mt-0.5">{format(new Date(sub.submitted_at), 'MMM d, yyyy h:mm a')}</p>
                         </div>
-                        <StatusBadge status={sub.status} size="sm" />
                       </div>
 
                       <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
@@ -243,13 +232,13 @@ export function TeacherSubmissionsPage() {
                           onClick={() => setSelectedSub(sub)}
                           className="btn-xs btn-secondary inline-flex items-center gap-1"
                         >
-                          <Eye size={12} /> View Form
+                          <Eye size={12} /> View
                         </button>
                         <button
                           type="button"
                           onClick={() => {
                             setSelectedSub(sub)
-                            setTimeout(() => window.print(), 300)
+                            setTimeout(() => window.print(), 200)
                           }}
                           className="btn-xs btn-primary inline-flex items-center gap-1"
                         >
