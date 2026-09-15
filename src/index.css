@@ -1,0 +1,322 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply font-sans bg-surface-light text-content-primary selection:bg-deped-blue-accent/20 selection:text-deped-blue;
+    min-height: 100dvh;
+  }
+
+  * {
+    @apply box-border border-surface-border;
+  }
+
+  /* Focus styles */
+  :focus-visible {
+    @apply outline-none ring-2 ring-deped-blue-accent/60 ring-offset-2 ring-offset-white;
+  }
+
+  /* Sleek modern Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-300/60 rounded-full hover:bg-slate-400/80 transition-colors;
+  }
+  .sidebar-scroll::-webkit-scrollbar-thumb {
+    @apply bg-white/10 hover:bg-white/20;
+  }
+
+  /* Input base reset */
+  input, select, textarea {
+    @apply font-sans;
+  }
+}
+
+@layer components {
+  /* ---- BUTTONS ---- */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 font-medium
+           rounded-lg transition-all duration-200 select-none cursor-pointer
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-deped-blue-accent focus-visible:ring-offset-1
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none;
+  }
+
+  .btn-sm {
+    @apply inline-flex items-center justify-center gap-1.5 font-medium
+           rounded-lg transition-all duration-200 select-none cursor-pointer
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-deped-blue-accent focus-visible:ring-offset-1
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none
+           px-3 py-1.5 text-xs;
+  }
+
+  .btn-md {
+    @apply inline-flex items-center justify-center gap-2 font-medium
+           rounded-lg transition-all duration-200 select-none cursor-pointer
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-deped-blue-accent focus-visible:ring-offset-1
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none
+           px-4 py-2 text-sm;
+  }
+
+  .btn-lg {
+    @apply inline-flex items-center justify-center gap-2 font-semibold
+           rounded-lg transition-all duration-200 select-none cursor-pointer
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-deped-blue-accent focus-visible:ring-offset-1
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none
+           px-5 py-2.5 text-sm;
+  }
+
+  .btn-pill {
+    @apply rounded-full;
+  }
+
+  .btn-primary {
+    @apply bg-deped-blue text-white hover:bg-deped-blue-dark active:scale-[0.98] shadow-sm hover:shadow-card-md;
+  }
+
+  .btn-accent {
+    @apply bg-deped-blue-accent text-white hover:bg-blue-700 active:scale-[0.98] shadow-sm hover:shadow-glow;
+  }
+
+  .btn-secondary {
+    @apply bg-white text-content-primary border border-surface-border hover:bg-surface-soft hover:border-slate-300 active:scale-[0.98] shadow-card;
+  }
+
+  .btn-danger {
+    @apply bg-deped-red text-white hover:bg-red-700 active:scale-[0.98] shadow-sm;
+  }
+
+  .btn-ghost {
+    @apply text-content-secondary hover:bg-surface-soft hover:text-content-primary active:scale-[0.98];
+  }
+
+  .btn-success {
+    @apply bg-deped-green text-white hover:bg-green-700 active:scale-[0.98] shadow-sm;
+  }
+
+  /* ---- FORM ELEMENTS ---- */
+  .form-input {
+    @apply w-full px-3.5 py-2.5 rounded-lg border border-slate-200
+           bg-white text-content-primary placeholder-slate-400
+           text-sm transition-all duration-150
+           focus:outline-none focus:ring-2 focus:ring-deped-blue-accent/20 focus:border-deped-blue-accent
+           disabled:bg-surface-soft disabled:text-content-secondary disabled:border-slate-200;
+  }
+
+  .form-select {
+    @apply w-full px-3.5 py-2.5 rounded-lg border border-slate-200
+           bg-white text-content-primary placeholder-slate-400
+           text-sm transition-all duration-150
+           focus:outline-none focus:ring-2 focus:ring-deped-blue-accent/20 focus:border-deped-blue-accent
+           disabled:bg-surface-soft disabled:text-content-secondary disabled:border-slate-200
+           appearance-none cursor-pointer pr-10;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+  }
+
+  .form-textarea {
+    @apply w-full px-3.5 py-2.5 rounded-lg border border-slate-200
+           bg-white text-content-primary placeholder-slate-400
+           text-sm transition-all duration-150
+           focus:outline-none focus:ring-2 focus:ring-deped-blue-accent/20 focus:border-deped-blue-accent
+           disabled:bg-surface-soft disabled:text-content-secondary disabled:border-slate-200
+           resize-none leading-relaxed;
+  }
+
+  .form-label {
+    @apply block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5;
+  }
+
+  .form-error {
+    @apply text-xs font-medium text-deped-red mt-1 flex items-center gap-1;
+  }
+
+  .form-hint {
+    @apply text-xs text-content-tertiary mt-1;
+  }
+
+  /* ---- CARDS ---- */
+  .card {
+    @apply bg-white rounded-xl border border-slate-200/80 shadow-card transition-all duration-200;
+  }
+
+  .card-hover {
+    @apply hover:border-slate-300 hover:shadow-card-md;
+  }
+
+  .card-glass {
+    @apply bg-white/80 backdrop-blur-md rounded-xl border border-white/40 shadow-card-md;
+  }
+
+  .card-flat {
+    @apply bg-surface-soft rounded-xl border border-slate-200/60;
+  }
+
+  /* ---- BADGES / STATUS ---- */
+  .badge {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold tracking-tight;
+  }
+
+  .badge-submitted {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold tracking-tight bg-blue-50 text-blue-700 border border-blue-200/60;
+  }
+
+  .badge-reviewed {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold tracking-tight bg-amber-50 text-amber-700 border border-amber-200/60;
+  }
+
+  .badge-returned {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold tracking-tight bg-red-50 text-red-700 border border-red-200/60;
+  }
+
+  .badge-finalized {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold tracking-tight bg-emerald-50 text-emerald-700 border border-emerald-200/60;
+  }
+
+  /* ---- TABLES ---- */
+  .table-container {
+    @apply w-full overflow-x-auto rounded-xl border border-slate-200 bg-white;
+  }
+
+  .data-table {
+    @apply w-full text-sm text-left border-collapse;
+  }
+
+  .data-table thead tr {
+    @apply bg-slate-50/80 border-b border-slate-200;
+  }
+
+  .data-table thead th {
+    @apply px-4 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap;
+  }
+
+  .data-table tbody tr {
+    @apply border-b border-slate-100 last:border-0 hover:bg-slate-50/60 transition-colors duration-150;
+  }
+
+  .data-table tbody td {
+    @apply px-4 py-3.5 text-content-primary align-middle;
+  }
+
+  /* ---- HEADINGS ---- */
+  .section-title {
+    @apply text-base font-bold text-content-primary tracking-tight;
+  }
+
+  .page-title {
+    @apply text-2xl font-extrabold text-slate-900 tracking-tight;
+  }
+
+  /* ---- DIVIDER ---- */
+  .divider {
+    @apply border-t border-slate-200;
+  }
+
+  /* ---- SKELETON ---- */
+  .skeleton {
+    @apply bg-slate-200/70 rounded-md animate-pulse;
+  }
+}
+
+/* ---- PRINT STYLES (8.5 x 13 Landscape, 0.5in margins) ---- */
+@page {
+  size: 13in 8.5in landscape;
+  margin: 0.5in;
+}
+
+@media print {
+  @page {
+    size: 13in 8.5in landscape;
+    margin: 0.5in;
+  }
+
+  html, body {
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    color: black !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .no-print,
+  header,
+  footer,
+  nav,
+  aside,
+  .sidebar-scroll {
+    display: none !important;
+  }
+
+  /* Reset layout margins & paddings (removes sidebar offsets) */
+  div, main, section {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  /* Hide body background content by default, isolate data print area */
+  body > * {
+    visibility: hidden;
+  }
+
+  .official-termcat-print-area,
+  .official-termcat-print-area * {
+    visibility: visible !important;
+  }
+
+  .official-termcat-print-area {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 8.5pt !important;
+    line-height: 1.25 !important;
+  }
+
+  .card {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+  }
+
+  .official-termcat-print-area table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  .official-termcat-print-area th,
+  .official-termcat-print-area td {
+    word-break: break-word;
+  }
+}
+
+/* ---- OFFLINE INDICATOR ---- */
+.offline-bar {
+  @apply fixed top-0 left-0 right-0 z-50 bg-amber-500 text-white text-center py-2 text-sm font-medium shadow-md;
+}
