@@ -151,19 +151,26 @@ export function OfficialTermcatTemplate({
                 </tr>
               </thead>
               <tbody>
-                  {/* Only render grades that have actual submission data */}
+                  {/* Render grade rows or multi-subject rows */}
                   {(() => {
-                    const ks1GradesToRender = [1, 2, 3].filter(gradeNum => {
-                      const sub = getSubForGrade(gradeNum) || (primarySub?.grade_level?.grade_number === gradeNum ? primarySub : null)
-                      return !!sub
-                    })
+                    const isMultipleSubsForSameGrade = allSubmissions.length > 1 && new Set(allSubmissions.map(s => s.grade_level_id || s.grade_level?.id)).size === 1
 
-                    const activeKs1Grades = ks1GradesToRender.length > 0
-                      ? ks1GradesToRender
-                      : (primarySub?.grade_level?.grade_number ? [primarySub.grade_level.grade_number] : [1, 2, 3])
+                    const rowsToRender: { sub: TermcatSubmission | null; label: string; key: string }[] = isMultipleSubsForSameGrade
+                      ? allSubmissions.map((s, idx) => ({
+                          sub: s,
+                          label: `${s.grade_level?.name || 'Grade ' + (s.grade_level?.grade_number || '')} - ${s.learning_area?.name || 'Subject'}`,
+                          key: s.id || `sub-${idx}`,
+                        }))
+                      : [1, 2, 3].map(gradeNum => {
+                          const s = getSubForGrade(gradeNum) || (primarySub?.grade_level?.grade_number === gradeNum ? primarySub : null)
+                          return {
+                            sub: s,
+                            label: `Grade ${gradeNum}`,
+                            key: `grade-${gradeNum}`,
+                          }
+                        }).filter(item => !!item.sub || allSubmissions.length === 0)
 
-                    return activeKs1Grades.map(gradeNum => {
-                      const sub = getSubForGrade(gradeNum) || (primarySub?.grade_level?.grade_number === gradeNum ? primarySub : null)
+                    return rowsToRender.map(({ sub, label, key }) => {
                       const ks1Data = sub?.ks1_learner_data
                       const compSum = sub?.competency_summary
                       const comps = sub?.submission_competencies || []
@@ -174,8 +181,8 @@ export function OfficialTermcatTemplate({
                       const md = comps.filter(c => c.category === 'most_difficult_to_teach').sort((a, b) => a.rank - b.rank)
 
                       return (
-                        <tr key={gradeNum} className="hover:bg-slate-50">
-                          <td className="border border-black px-1.5 py-2 font-bold bg-slate-100">Grade {gradeNum}</td>
+                        <tr key={key} className="hover:bg-slate-50">
+                          <td className="border border-black px-1.5 py-2 font-bold bg-slate-100">{label}</td>
                           <td className="border border-black px-1.5 py-2 font-bold">{ks1Data?.total_learners ?? '—'}</td>
                           <td className="border border-black px-1.5 py-2 bg-emerald-50/50">{ks1Data?.advancing ?? '—'}</td>
                           <td className="border border-black px-1.5 py-2 bg-amber-50/50">{ks1Data?.benchmarking ?? '—'}</td>
@@ -253,6 +260,71 @@ export function OfficialTermcatTemplate({
               </thead>
               <tbody>
                 {(() => {
+                  const isMultipleSubsForSameGrade = allSubmissions.length > 1 && new Set(allSubmissions.map(s => s.grade_level_id || s.grade_level?.id)).size === 1
+
+                  if (isMultipleSubsForSameGrade) {
+                    return allSubmissions.map((sub, idx) => {
+                      const gradeNum = sub.grade_level?.grade_number || idx + 1
+                      const gradeLabel = `${sub.grade_level?.name || 'Grade ' + gradeNum} - ${sub.learning_area?.name || 'Subject'}`
+                      const ks2to4Data = sub.ks2to4_learner_data
+                      const compSum = sub.competency_summary
+                      const comps = sub.submission_competencies || []
+                      const diff = sub.instructional_difficulty?.factors_text || ''
+
+                      const ml = comps.filter(c => c.category === 'most_learned').sort((a, b) => a.rank - b.rank)
+                      const lm = comps.filter(c => c.category === 'least_mastered').sort((a, b) => a.rank - b.rank)
+                      const md = comps.filter(c => c.category === 'most_difficult_to_teach').sort((a, b) => a.rank - b.rank)
+
+                      return (
+                        <tr key={sub.id || idx} className="hover:bg-slate-50">
+                          <td className="border border-black px-1.5 py-2 font-bold bg-slate-100">{gradeLabel}</td>
+                          <td className="border border-black px-1.5 py-2 font-bold">{ks2to4Data?.total_learners ?? '—'}</td>
+                          <td className="border border-black px-1.5 py-2 font-bold bg-blue-50 text-blue-900">
+                            {ks2to4Data?.mps !== null && ks2to4Data?.mps !== undefined ? `${ks2to4Data.mps}%` : '—'}
+                          </td>
+                          <td className="border border-black px-1.5 py-2">{compSum?.total_intended_competencies ?? '—'}</td>
+                          <td className="border border-black px-1.5 py-2">{compSum?.competencies_taught ?? '—'}</td>
+                          <td className="border border-black px-1.5 py-2">{compSum?.competencies_not_taught ?? '—'}</td>
+                          <td className="border border-black px-1.5 py-2 text-left max-w-xs">{compSum?.reasons_for_untaught || '—'}</td>
+
+                          <td className="border border-black px-1.5 py-2 text-left align-top max-w-xs">
+                            {ml.length > 0 ? (
+                              <ol className="list-decimal list-inside space-y-0.5">
+                                {ml.map(c => (
+                                  <li key={c.id || c.rank}>{c.competency_text}</li>
+                                ))}
+                              </ol>
+                            ) : '—'}
+                          </td>
+
+                          <td className="border border-black px-1.5 py-2 text-left align-top max-w-xs">
+                            {lm.length > 0 ? (
+                              <ol className="list-decimal list-inside space-y-0.5">
+                                {lm.map(c => (
+                                  <li key={c.id || c.rank}>{c.competency_text}</li>
+                                ))}
+                              </ol>
+                            ) : '—'}
+                          </td>
+
+                          <td className="border border-black px-1.5 py-2 text-left align-top max-w-xs">
+                            {md.length > 0 ? (
+                              <ol className="list-decimal list-inside space-y-0.5">
+                                {md.map(c => (
+                                  <li key={c.id || c.rank}>{c.competency_text}</li>
+                                ))}
+                              </ol>
+                            ) : '—'}
+                          </td>
+
+                          <td className="border border-black px-1.5 py-2 text-left align-top max-w-xs whitespace-pre-wrap">
+                            {diff || '—'}
+                          </td>
+                        </tr>
+                      )
+                    })
+                  }
+
                   const keyStageGroups = [
                     { keyStage: 'Key Stage 2', grades: [4, 5, 6] },
                     { keyStage: 'Key Stage 3', grades: [7, 8, 9, 10] },

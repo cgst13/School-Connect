@@ -25,8 +25,9 @@ export function TeacherSubmissionsPage() {
   const [submissions, setSubmissions] = useState<TermcatSubmission[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Modal for Viewing / Printing an individual submission form
+  // Modal for Viewing / Printing an individual submission form or entire grade consolidation
   const [selectedSub, setSelectedSub] = useState<TermcatSubmission | null>(null)
+  const [selectedGroup, setSelectedGroup] = useState<GradeGroup | null>(null)
 
   useEffect(() => {
     if (!teacherName) {
@@ -144,16 +145,44 @@ export function TeacherSubmissionsPage() {
           {gradeGroups.map(group => (
             <div key={group.gradeName} className="space-y-3">
               {/* Grade Level Header */}
-              <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-2">
+              <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-2 flex-wrap">
                 <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                   <span className="w-8 h-8 rounded-lg bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-sm">
                     <GraduationCap size={18} />
                   </span>
                   <span>{group.gradeName}</span>
                 </h2>
-                <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">
-                  {group.submissions.length} {group.submissions.length === 1 ? 'Subject Form' : 'Subject Forms'}
-                </span>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">
+                    {group.submissions.length} {group.submissions.length === 1 ? 'Subject Form' : 'Subject Forms'}
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedGroup(group)
+                      setSelectedSub(null)
+                    }}
+                    className="px-3 py-1 text-xs font-semibold rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/80 inline-flex items-center gap-1 transition-colors"
+                    title={`Consolidate and view all ${group.gradeName} subject forms`}
+                  >
+                    <Eye size={13} /> View Grade
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedGroup(group)
+                      setSelectedSub(null)
+                      setTimeout(() => window.print(), 200)
+                    }}
+                    className="px-3 py-1 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 inline-flex items-center gap-1 transition-colors"
+                    title={`Print consolidated ${group.gradeName} evaluation report`}
+                  >
+                    <Printer size={13} /> Print Grade
+                  </button>
+                </div>
               </div>
 
               {/* Submissions Table / Cards */}
@@ -191,7 +220,10 @@ export function TeacherSubmissionsPage() {
                             <div className="flex items-center justify-end gap-1.5">
                               <button
                                 type="button"
-                                onClick={() => setSelectedSub(sub)}
+                                onClick={() => {
+                                  setSelectedSub(sub)
+                                  setSelectedGroup(null)
+                                }}
                                 className="px-3 py-1 text-xs font-semibold rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/80 inline-flex items-center gap-1 transition-colors"
                               >
                                 <Eye size={13} /> View
@@ -200,6 +232,7 @@ export function TeacherSubmissionsPage() {
                                 type="button"
                                 onClick={() => {
                                   setSelectedSub(sub)
+                                  setSelectedGroup(null)
                                   setTimeout(() => window.print(), 200)
                                 }}
                                 className="px-3 py-1 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 inline-flex items-center gap-1 transition-colors"
@@ -229,7 +262,10 @@ export function TeacherSubmissionsPage() {
                       <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
                         <button
                           type="button"
-                          onClick={() => setSelectedSub(sub)}
+                          onClick={() => {
+                            setSelectedSub(sub)
+                            setSelectedGroup(null)
+                          }}
                           className="btn-xs btn-secondary inline-flex items-center gap-1"
                         >
                           <Eye size={12} /> View
@@ -238,6 +274,7 @@ export function TeacherSubmissionsPage() {
                           type="button"
                           onClick={() => {
                             setSelectedSub(sub)
+                            setSelectedGroup(null)
                             setTimeout(() => window.print(), 200)
                           }}
                           className="btn-xs btn-primary inline-flex items-center gap-1"
@@ -254,7 +291,7 @@ export function TeacherSubmissionsPage() {
         </div>
 
         {/* View / Print Official Template Modal */}
-        {selectedSub && (
+        {(selectedSub || selectedGroup) && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto bg-slate-900/60 backdrop-blur-sm animate-fade-in print:static print:inset-auto print:p-0 print:m-0 print:bg-transparent print:overflow-visible print:block">
             <div className="relative w-full max-w-6xl bg-white rounded-2xl shadow-2xl overflow-hidden my-8 border border-slate-200 print:static print:w-full print:max-w-none print:m-0 print:p-0 print:shadow-none print:border-none print:bg-transparent print:overflow-visible">
               {/* Modal Header */}
@@ -262,8 +299,16 @@ export function TeacherSubmissionsPage() {
                 <div className="flex items-center gap-2">
                   <FileText size={20} className="text-blue-400" />
                   <div>
-                    <h3 className="font-bold text-base">Official Submitted Form View</h3>
-                    <p className="text-xs text-slate-400 font-mono">Ref: {selectedSub.reference_number}</p>
+                    <h3 className="font-bold text-base">
+                      {selectedGroup
+                        ? `Consolidated ${selectedGroup.gradeName} Evaluation Report`
+                        : 'Official Submitted Form View'}
+                    </h3>
+                    <p className="text-xs text-slate-400 font-mono">
+                      {selectedGroup
+                        ? `Consolidating ${selectedGroup.submissions.length} Subject Forms`
+                        : `Ref: ${selectedSub?.reference_number}`}
+                    </p>
                   </div>
                 </div>
 
@@ -273,11 +318,14 @@ export function TeacherSubmissionsPage() {
                     onClick={() => window.print()}
                     className="btn-sm btn-primary inline-flex items-center gap-1.5"
                   >
-                    <Printer size={14} /> Print Form
+                    <Printer size={14} /> {selectedGroup ? 'Print Grade Report' : 'Print Form'}
                   </button>
                   <button
                     type="button"
-                    onClick={() => setSelectedSub(null)}
+                    onClick={() => {
+                      setSelectedSub(null)
+                      setSelectedGroup(null)
+                    }}
                     className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
                   >
                     <X size={20} />
@@ -287,7 +335,11 @@ export function TeacherSubmissionsPage() {
 
               {/* Modal Content */}
               <div className="p-4 sm:p-6 overflow-y-auto max-h-[80vh] print:p-0 print:overflow-visible print:max-h-none print:h-auto">
-                <OfficialTermcatTemplate submission={selectedSub} showPrintButton={false} />
+                {selectedGroup ? (
+                  <OfficialTermcatTemplate submissions={selectedGroup.submissions} showPrintButton={false} />
+                ) : (
+                  <OfficialTermcatTemplate submission={selectedSub!} showPrintButton={false} />
+                )}
               </div>
             </div>
           </div>
