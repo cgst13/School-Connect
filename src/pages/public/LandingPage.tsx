@@ -91,6 +91,7 @@ export function LandingPage() {
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'complete' | 'incomplete' | 'pending'>('all')
   const [expandedSchoolIds, setExpandedSchoolIds] = useState<Set<string>>(new Set())
+  const [expandedGradeKeys, setExpandedGradeKeys] = useState<Set<string>>(new Set())
 
   const [loading, setLoading] = useState<boolean>(true)
   const [fetchingSubmissions, setFetchingSubmissions] = useState<boolean>(false)
@@ -292,11 +293,48 @@ export function LandingPage() {
     })
   }
 
+  const toggleGradeAccordion = (schoolId: string, gradeId: string) => {
+    const key = `${schoolId}_${gradeId}`
+    setExpandedGradeKeys(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) {
+        next.delete(key)
+      } else {
+        next.add(key)
+      }
+      return next
+    })
+  }
+
+  const toggleExpandAllGradesForSchool = (schoolItem: SchoolStatus) => {
+    const allGradeKeys = schoolItem.gradeStatuses.map(gs => `${schoolItem.school.id}_${gs.gradeLevel.id}`)
+    const areAllExpanded = allGradeKeys.every(k => expandedGradeKeys.has(k))
+
+    setExpandedGradeKeys(prev => {
+      const next = new Set(prev)
+      if (areAllExpanded) {
+        allGradeKeys.forEach(k => next.delete(k))
+      } else {
+        allGradeKeys.forEach(k => next.add(k))
+      }
+      return next
+    })
+  }
+
   const toggleExpandAll = () => {
     if (expandedSchoolIds.size === filteredSchoolStatuses.length && filteredSchoolStatuses.length > 0) {
       setExpandedSchoolIds(new Set())
+      setExpandedGradeKeys(new Set())
     } else {
       setExpandedSchoolIds(new Set(filteredSchoolStatuses.map(s => s.school.id)))
+      // Also expand all grades
+      const allKeys = new Set<string>()
+      filteredSchoolStatuses.forEach(s => {
+        s.gradeStatuses.forEach(gs => {
+          allKeys.add(`${s.school.id}_${gs.gradeLevel.id}`)
+        })
+      })
+      setExpandedGradeKeys(allKeys)
     }
   }
 
@@ -396,7 +434,7 @@ export function LandingPage() {
                 School Submission Status
               </h2>
               <p className="text-xs sm:text-sm text-content-secondary mt-0.5">
-                Click any school to expand its grade levels and inspect subject completion status.
+                Click any school to view its grade levels, then click a grade level to expand its subject completion status.
               </p>
             </div>
 
@@ -543,6 +581,9 @@ export function LandingPage() {
                 const isExpanded = expandedSchoolIds.has(school.id)
                 const completionPercentage = totalSubjects > 0 ? Math.round((submittedSubjects / totalSubjects) * 100) : 0
 
+                const allGradeKeys = gradeStatuses.map(gs => `${school.id}_${gs.gradeLevel.id}`)
+                const areAllGradesExpanded = allGradeKeys.every(k => expandedGradeKeys.has(k))
+
                 return (
                   <div
                     key={school.id}
@@ -550,7 +591,7 @@ export function LandingPage() {
                       isExpanded ? 'border-deped-blue/40 shadow-md' : 'border-slate-200 hover:border-slate-300'
                     }`}
                   >
-                    {/* School Header Row (Accordion trigger) */}
+                    {/* School Header Row (Level 1 Accordion trigger) */}
                     <div
                       onClick={() => toggleSchoolAccordion(school.id)}
                       className="p-4 sm:p-5 bg-white hover:bg-slate-50/80 cursor-pointer transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4"
@@ -611,105 +652,157 @@ export function LandingPage() {
                       </div>
                     </div>
 
-                    {/* Expanded Grade & Subject Matrix */}
+                    {/* Expanded Grade Level Accordions List */}
                     {isExpanded && (
-                      <div className="border-t border-slate-200 bg-slate-50/60 p-4 sm:p-6 space-y-6 animate-fade-in">
-                        <div className="flex items-center justify-between gap-2 border-b border-slate-200 pb-3">
-                          <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
-                            <GraduationCap size={16} className="text-deped-blue" />
-                            Grade Level Submission Breakdown
-                          </h4>
-                          <span className="text-xs text-slate-500 font-medium">
-                            {school.name}
-                          </span>
+                      <div className="border-t border-slate-200 bg-slate-50/60 p-4 sm:p-6 space-y-4 animate-fade-in">
+                        <div className="flex items-center justify-between gap-2 border-b border-slate-200 pb-3 flex-wrap">
+                          <div>
+                            <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                              <GraduationCap size={16} className="text-deped-blue" />
+                              Grade Levels in {school.name}
+                            </h4>
+                            <p className="text-[11px] text-slate-500 mt-0.5">
+                              Click any grade level to view its list of subjects and submission status.
+                            </p>
+                          </div>
+
+                          <button
+                            onClick={e => {
+                              e.stopPropagation()
+                              toggleExpandAllGradesForSchool(item)
+                            }}
+                            className="btn-xs btn-secondary text-xs font-semibold"
+                          >
+                            {areAllGradesExpanded ? 'Collapse All Grades' : 'Expand All Grades'}
+                          </button>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {gradeStatuses.map(gs => (
-                            <div
-                              key={gs.gradeLevel.id}
-                              className={`card p-4 bg-white border ${
-                                gs.isComplete
-                                  ? 'border-emerald-200 bg-emerald-50/20'
-                                  : gs.isPending
-                                  ? 'border-slate-200'
-                                  : 'border-amber-200 bg-amber-50/10'
-                              }`}
-                            >
-                              {/* Grade Header */}
-                              <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
-                                <div className="flex items-center gap-2">
-                                  <span className="w-7 h-7 rounded-lg bg-deped-blue-light text-deped-blue text-xs font-bold flex items-center justify-center">
-                                    G{gs.gradeLevel.grade_number}
-                                  </span>
-                                  <div>
-                                    <h5 className="text-sm font-bold text-slate-900">{gs.gradeLevel.name}</h5>
-                                    <span className="text-[10px] text-slate-400 uppercase font-semibold">
-                                      Key Stage {gs.gradeLevel.key_stage.replace('ks', '')}
+                        <div className="space-y-3">
+                          {gradeStatuses.map(gs => {
+                            const gradeKey = `${school.id}_${gs.gradeLevel.id}`
+                            const isGradeExpanded = expandedGradeKeys.has(gradeKey)
+
+                            return (
+                              <div
+                                key={gs.gradeLevel.id}
+                                className={`card border transition-all duration-150 overflow-hidden bg-white ${
+                                  isGradeExpanded
+                                    ? 'border-deped-blue/30 shadow-sm'
+                                    : 'border-slate-200 hover:border-slate-300'
+                                }`}
+                              >
+                                {/* Grade Header (Level 2 Accordion Trigger) */}
+                                <div
+                                  onClick={() => toggleGradeAccordion(school.id, gs.gradeLevel.id)}
+                                  className="p-3.5 sm:p-4 cursor-pointer flex items-center justify-between gap-3 hover:bg-slate-50 transition-colors"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <span
+                                      className={`w-8 h-8 rounded-lg font-bold text-xs flex items-center justify-center flex-shrink-0 ${
+                                        gs.isComplete
+                                          ? 'bg-emerald-100 text-emerald-800'
+                                          : gs.isPending
+                                          ? 'bg-slate-100 text-slate-700'
+                                          : 'bg-amber-100 text-amber-900'
+                                      }`}
+                                    >
+                                      G{gs.gradeLevel.grade_number}
                                     </span>
+                                    <div>
+                                      <div className="flex items-center gap-2">
+                                        <h5 className="text-sm font-bold text-slate-900">{gs.gradeLevel.name}</h5>
+                                        <span className="text-[10px] text-slate-500 uppercase font-bold px-1.5 py-0.5 bg-slate-100 rounded">
+                                          Key Stage {gs.gradeLevel.key_stage.replace('ks', '')}
+                                        </span>
+                                      </div>
+                                      <p className="text-xs text-slate-500 mt-0.5">
+                                        {gs.submittedSubjects} of {gs.totalSubjects} subjects submitted
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-3">
+                                    <span
+                                      className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${
+                                        gs.isComplete
+                                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                          : gs.isPending
+                                          ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                          : 'bg-amber-50 text-amber-800 border-amber-200'
+                                      }`}
+                                    >
+                                      {gs.isComplete
+                                        ? '🟢 Complete'
+                                        : gs.isPending
+                                        ? '🔴 Not Started'
+                                        : `🟡 ${gs.submittedSubjects}/${gs.totalSubjects} Submitted`}
+                                    </span>
+
+                                    <div className="w-7 h-7 rounded-md bg-slate-100 text-slate-600 flex items-center justify-center">
+                                      {isGradeExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                    </div>
                                   </div>
                                 </div>
 
-                                <span
-                                  className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${
-                                    gs.isComplete
-                                      ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                                      : gs.isPending
-                                      ? 'bg-rose-50 text-rose-700 border-rose-200'
-                                      : 'bg-amber-100 text-amber-800 border-amber-300'
-                                  }`}
-                                >
-                                  {gs.submittedSubjects} / {gs.totalSubjects} Subjects
-                                </span>
-                              </div>
-
-                              {/* Subjects List */}
-                              <div className="space-y-2">
-                                {gs.subjects.length === 0 ? (
-                                  <p className="text-xs text-slate-400 italic">No learning areas configured for this grade level.</p>
-                                ) : (
-                                  gs.subjects.map(sub => (
-                                    <div
-                                      key={sub.learningArea.id}
-                                      className={`flex items-center justify-between p-2 rounded-lg text-xs font-medium border ${
-                                        sub.isSubmitted
-                                          ? 'bg-emerald-50/80 border-emerald-200/80 text-emerald-900'
-                                          : 'bg-slate-50 border-slate-200 text-slate-600'
-                                      }`}
-                                    >
-                                      <div className="flex items-center gap-2 overflow-hidden">
-                                        {sub.isSubmitted ? (
-                                          <Check size={14} className="text-emerald-600 flex-shrink-0" />
-                                        ) : (
-                                          <XCircle size={14} className="text-slate-400 flex-shrink-0" />
-                                        )}
-                                        <span className="truncate">{sub.learningArea.name}</span>
-                                      </div>
-
-                                      <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                                        {sub.isSubmitted ? (
-                                          <div className="text-right">
-                                            <span className="inline-block px-2 py-0.5 rounded bg-emerald-600 text-white text-[10px] font-bold">
-                                              Submitted
-                                            </span>
-                                            {sub.teacherName && (
-                                              <p className="text-[10px] text-emerald-700 font-semibold truncate max-w-[120px]">
-                                                {sub.teacherName}
-                                              </p>
-                                            )}
-                                          </div>
-                                        ) : (
-                                          <span className="inline-block px-2 py-0.5 rounded bg-slate-200 text-slate-600 text-[10px] font-bold">
-                                            Missing
-                                          </span>
-                                        )}
-                                      </div>
+                                {/* Subjects List (Visible when Grade is expanded) */}
+                                {isGradeExpanded && (
+                                  <div className="border-t border-slate-100 bg-slate-50/50 p-4 space-y-2 animate-fade-in">
+                                    <div className="flex items-center justify-between text-xs font-semibold text-slate-500 pb-1">
+                                      <span>Learning Area / Subject</span>
+                                      <span>Status & Teacher</span>
                                     </div>
-                                  ))
+
+                                    {gs.subjects.length === 0 ? (
+                                      <p className="text-xs text-slate-400 italic py-2">
+                                        No learning areas configured for this grade level.
+                                      </p>
+                                    ) : (
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        {gs.subjects.map(sub => (
+                                          <div
+                                            key={sub.learningArea.id}
+                                            className={`flex items-center justify-between p-2.5 rounded-lg text-xs font-medium border ${
+                                              sub.isSubmitted
+                                                ? 'bg-emerald-50/90 border-emerald-200/90 text-emerald-950'
+                                                : 'bg-white border-slate-200 text-slate-600'
+                                            }`}
+                                          >
+                                            <div className="flex items-center gap-2 overflow-hidden pr-2">
+                                              {sub.isSubmitted ? (
+                                                <Check size={15} className="text-emerald-600 flex-shrink-0" />
+                                              ) : (
+                                                <XCircle size={15} className="text-slate-400 flex-shrink-0" />
+                                              )}
+                                              <span className="truncate font-semibold">{sub.learningArea.name}</span>
+                                            </div>
+
+                                            <div className="flex items-center gap-2 flex-shrink-0">
+                                              {sub.isSubmitted ? (
+                                                <div className="text-right">
+                                                  <span className="inline-block px-2 py-0.5 rounded bg-emerald-600 text-white text-[10px] font-bold">
+                                                    Submitted
+                                                  </span>
+                                                  {sub.teacherName && (
+                                                    <p className="text-[10px] text-emerald-800 font-bold truncate max-w-[130px] mt-0.5">
+                                                      {sub.teacherName}
+                                                    </p>
+                                                  )}
+                                                </div>
+                                              ) : (
+                                                <span className="inline-block px-2 py-0.5 rounded bg-slate-200 text-slate-600 text-[10px] font-bold">
+                                                  Missing
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
                                 )}
                               </div>
-                            </div>
-                          ))}
+                            )
+                          })}
                         </div>
                       </div>
                     )}
@@ -723,4 +816,5 @@ export function LandingPage() {
     </PublicLayout>
   )
 }
+
 
