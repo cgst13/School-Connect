@@ -3,9 +3,9 @@ import { AuthProvider } from '@/features/auth/useAuth'
 import { ToastProvider } from '@/hooks/useToast'
 import { ProtectedRoute } from '@/features/auth/ProtectedRoute'
 
-// Public pages
 import { LandingPage } from '@/pages/public/LandingPage'
 import { SubmissionPage } from '@/pages/public/SubmissionPage'
+import { TeacherSubmissionsPage } from '@/pages/public/TeacherSubmissionsPage'
 
 // Admin pages
 import { AdminLoginPage } from '@/pages/admin/LoginPage'
@@ -30,6 +30,7 @@ export default function App() {
             {/* Public */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/submit" element={<SubmissionPage />} />
+            <Route path="/teacher-submissions" element={<TeacherSubmissionsPage />} />
 
             {/* Admin Auth */}
             <Route path="/admin/login" element={<AdminLoginPage />} />

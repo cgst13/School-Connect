@@ -373,6 +373,30 @@ export async function unlockSubmission(id: string): Promise<void> {
   if (error) throw error
 }
 
+export async function fetchSubmissionsByTeacher(teacherName: string): Promise<TermcatSubmission[]> {
+  if (!teacherName || !teacherName.trim()) return []
+  const { data, error } = await supabase
+    .from('termcat_submissions')
+    .select(`
+      *,
+      school:termcat_schools(*),
+      grade_level:termcat_grade_levels(*),
+      learning_area:termcat_learning_areas(*),
+      school_year:termcat_school_years(*),
+      term:termcat_terms(*),
+      ks1_learner_data:termcat_ks1_learner_data(*),
+      ks2to4_learner_data:termcat_ks2to4_learner_data(*),
+      competency_summary:termcat_competency_summary(*),
+      submission_competencies:termcat_submission_competencies(*),
+      instructional_difficulty:termcat_instructional_difficulty(*)
+    `)
+    .ilike('teacher_name', teacherName.trim())
+    .order('submitted_at', { ascending: false })
+
+  if (error) throw error
+  return data || []
+}
+
 export async function deleteSubmission(id: string): Promise<void> {
   const { error } = await supabase.from('termcat_submissions').delete().eq('id', id)
   if (error) throw error

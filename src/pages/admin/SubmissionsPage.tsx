@@ -17,7 +17,7 @@ import type {
 } from '@/types'
 import {
   Search, Filter, ChevronUp, ChevronDown, X, FileText, CheckCircle2,
-  AlertCircle, Building2, BookOpen, Clock, Calendar, Sparkles, RefreshCw, Pencil, Trash2, Eye
+  AlertCircle, Building2, BookOpen, Clock, Calendar, Sparkles, RefreshCw, Pencil, Trash2, Eye, ExternalLink
 } from 'lucide-react'
 import { format } from 'date-fns'
 
@@ -483,7 +483,18 @@ export function SubmissionsPage() {
                       {submissions.map(sub => (
                         <tr key={sub.id}>
                           <td><span className="font-mono text-xs font-semibold text-deped-blue">{sub.reference_number}</span></td>
-                          <td className="font-medium">{sub.teacher_name}</td>
+                          <td className="font-semibold">
+                            <a
+                              href={`/teacher-submissions?name=${encodeURIComponent(sub.teacher_name)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-700 hover:text-blue-900 hover:underline inline-flex items-center gap-1"
+                              title={`Click to view all public submissions by ${sub.teacher_name} (opens in new tab)`}
+                            >
+                              {sub.teacher_name}
+                              <ExternalLink size={12} className="text-blue-500 opacity-60" />
+                            </a>
+                          </td>
                           <td className="max-w-[160px]"><span className="truncate block">{sub.school?.name}</span></td>
                           <td>{sub.grade_level?.name}</td>
                           <td>{sub.learning_area?.name}</td>
@@ -847,7 +858,16 @@ export function SubmissionsPage() {
                           <td>
                             {item.isSubmitted && item.submission ? (
                               <div>
-                                <p className="font-semibold text-slate-900 text-xs">{item.submission.teacher_name}</p>
+                                <a
+                                  href={`/teacher-submissions?name=${encodeURIComponent(item.submission.teacher_name)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="font-semibold text-blue-700 hover:text-blue-900 hover:underline text-xs inline-flex items-center gap-1"
+                                  title={`Click to view all public submissions by ${item.submission.teacher_name} (opens in new tab)`}
+                                >
+                                  {item.submission.teacher_name}
+                                  <ExternalLink size={11} className="text-blue-500 opacity-60" />
+                                </a>
                                 <p className="font-mono text-[11px] font-bold text-blue-600">
                                   {item.submission.reference_number}
                                 </p>
