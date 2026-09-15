@@ -29,7 +29,11 @@ jobs:
         run: npm ci
 
       - name: Build project
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://vsysihbzjwbpvzuoaqrv.supabase.co' }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzeXNpaGJ6andicHZ6dW9hcXJ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0OTg2NjgsImV4cCI6MjEwNDA3NDY2OH0.swdJEM-HbMXAL11TApceWehAjFlraSuvbcjU-wIMg14' }}
         run: npm run build
+
 
       - name: Deploy to gh-pages branch
         uses: JamesIves/github-pages-deploy-action@v4
