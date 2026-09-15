@@ -588,6 +588,16 @@ export async function setLearningAreaGrades(learningAreaId: string, gradeIds: st
   }
 }
 
+export async function setGradeLearningAreas(gradeLevelId: string, learningAreaIds: string[]): Promise<void> {
+  await supabase.from('termcat_learning_area_grades').delete().eq('grade_level_id', gradeLevelId)
+  if (learningAreaIds.length > 0) {
+    const inserts = learningAreaIds.map(laId => ({ learning_area_id: laId, grade_level_id: gradeLevelId }))
+    const { error } = await supabase.from('termcat_learning_area_grades').insert(inserts)
+    if (error) throw error
+  }
+}
+
+
 // School Years
 export async function upsertSchoolYear(sy: Partial<SchoolYear>): Promise<SchoolYear> {
   const { data, error } = sy.id
