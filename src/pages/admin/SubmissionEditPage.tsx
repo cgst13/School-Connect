@@ -4,6 +4,8 @@ import { AdminLayout } from '@/components/layouts/AdminLayout'
 import { PageLoader } from '@/components/ui/EmptyState'
 import { SuggestionInput } from '@/components/forms/SuggestionInput'
 import { SuggestionTextarea } from '@/components/forms/SuggestionTextarea'
+import { parseFactorsText, formatFactorsList } from '@/features/submissions/steps/Step4CompetencyAnalysis'
+
 import {
   fetchSubmissionById,
   updateSubmissionData,
@@ -558,18 +560,45 @@ export function SubmissionEditPage() {
             <div className="divider" />
 
             {/* Factors Contributing to Instructional Difficulty */}
-            <div>
-              <label className="form-label text-xs font-semibold">Factors Contributing to Instructional Difficulty</label>
-              <SuggestionTextarea
-                suggestions={diffSuggestions}
-                value={formData.instructionalDifficulty.factors_text}
-                onChange={e => setFormData(p => ({ ...p, instructionalDifficulty: { factors_text: e.target.value } }))}
-                onSelectSuggestion={selected => setFormData(p => ({ ...p, instructionalDifficulty: { factors_text: selected } }))}
-                placeholder="e.g., Lack of learning materials, high student-to-teacher ratio..."
-                className="form-textarea min-h-[90px]"
-              />
+            <div className="space-y-3">
+              <div>
+                <label className="form-label text-xs font-semibold">Top 5 Factors Contributing to Instructional Difficulty</label>
+                <p className="text-xs text-content-tertiary">List up to 5 factors that contributed to instructional difficulty.</p>
+              </div>
+
+              {parseFactorsText(formData.instructionalDifficulty.factors_text).map((factorVal, idx) => (
+                <div key={idx} className="flex items-center gap-3">
+                  <span className="w-6 h-6 rounded-full bg-deped-blue-light text-deped-blue text-xs font-bold flex items-center justify-center flex-shrink-0">
+                    {idx + 1}
+                  </span>
+                  <div className="flex-1">
+                    <SuggestionInput
+                      suggestions={diffSuggestions}
+                      value={factorVal}
+                      onChange={e => {
+                        const currentList = parseFactorsText(formData.instructionalDifficulty.factors_text)
+                        currentList[idx] = e.target.value
+                        setFormData(p => ({
+                          ...p,
+                          instructionalDifficulty: { factors_text: formatFactorsList(currentList) },
+                        }))
+                      }}
+                      onSelectSuggestion={selected => {
+                        const currentList = parseFactorsText(formData.instructionalDifficulty.factors_text)
+                        currentList[idx] = selected
+                        setFormData(p => ({
+                          ...p,
+                          instructionalDifficulty: { factors_text: formatFactorsList(currentList) },
+                        }))
+                      }}
+                      placeholder={`Instructional difficulty factor ${idx + 1}...`}
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
+
 
           {/* Bottom Save Action Bar */}
           <div className="flex items-center justify-end gap-3 pt-2">

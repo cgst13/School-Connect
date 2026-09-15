@@ -58,9 +58,28 @@ function RankedList({ label, description, values, suggestions = [], onChange, id
   )
 }
 
+export function parseFactorsText(text: string): string[] {
+  if (!text) return ['', '', '', '', '']
+  const lines = text
+    .split('\n')
+    .map(line => line.replace(/^\d+[\.\)]\s*/, '').trim())
+    .filter(Boolean)
+  while (lines.length < 5) {
+    lines.push('')
+  }
+  return lines.slice(0, 5)
+}
+
+export function formatFactorsList(items: string[]): string {
+  const nonEmp = items.map(i => i.trim()).filter(Boolean)
+  if (nonEmp.length === 0) return ''
+  return nonEmp.map((item, idx) => `${idx + 1}. ${item}`).join('\n')
+}
+
 export function Step4CompetencyAnalysis({ topCompetencies, instructionalDifficulty, onNext, onBack }: Props) {
   const [tc, setTc] = useState<TopCompetenciesData>(topCompetencies)
   const [id, setId] = useState<InstructionalDifficulty>(instructionalDifficulty)
+  const [factorsList, setFactorsList] = useState<string[]>(() => parseFactorsText(instructionalDifficulty.factors_text))
   const [compSuggestions, setCompSuggestions] = useState<string[]>([])
   const [diffSuggestions, setDiffSuggestions] = useState<string[]>([])
 
@@ -76,7 +95,8 @@ export function Step4CompetencyAnalysis({ topCompetencies, instructionalDifficul
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    onNext(tc, id)
+    const formatted = formatFactorsList(factorsList)
+    onNext(tc, { ...id, factors_text: formatted })
   }
 
   return (
@@ -115,21 +135,17 @@ export function Step4CompetencyAnalysis({ topCompetencies, instructionalDifficul
 
         <div className="divider" />
 
-        <FormSection
-          title="Factors Contributing to Instructional Difficulty"
-          description="Describe the factors that made teaching difficult during this term."
-        >
-          <FormField label="Instructional Difficulty Factors" id="instructional_difficulty">
-            <SuggestionTextarea
-              id="instructional_difficulty"
-              placeholder="e.g., Limited reference materials, large class size, varied learning levels, absence of learners during key lessons..."
-              suggestions={diffSuggestions}
-              value={id.factors_text}
-              onChange={e => setId({ factors_text: e.target.value })}
-              onSelectSuggestion={selectedVal => setId({ factors_text: selectedVal })}
-            />
-          </FormField>
-        </FormSection>
+        <RankedList
+          label="Top 5 Factors Contributing to Instructional Difficulty"
+          description="List up to 5 factors that contributed to instructional difficulty during this term."
+          values={factorsList}
+          suggestions={diffSuggestions}
+          onChange={v => {
+            setFactorsList(v)
+            setId({ factors_text: formatFactorsList(v) })
+          }}
+          idPrefix="instructional-difficulty"
+        />
       </div>
 
       <div className="flex justify-between mt-4">
@@ -143,4 +159,5 @@ export function Step4CompetencyAnalysis({ topCompetencies, instructionalDifficul
     </form>
   )
 }
+
 
