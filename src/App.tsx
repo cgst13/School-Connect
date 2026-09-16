@@ -10,6 +10,7 @@ import { TeacherSubmissionsPage } from '@/pages/public/TeacherSubmissionsPage'
 // School Connect Portal pages
 import { SchoolConnectHubPage } from '@/pages/portal/SchoolConnectHubPage'
 import { SchoolConnectLoginPage } from '@/pages/portal/SchoolConnectLoginPage'
+import { FacultyStaffPage } from '@/pages/portal/FacultyStaffPage'
 
 // Admin pages
 import { AdminLoginPage } from '@/pages/admin/LoginPage'
@@ -48,6 +49,14 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/portal/staff"
+              element={
+                <ProtectedRoute>
+                  <FacultyStaffPage />
+                </ProtectedRoute>
+              }
+            />
 
             {/* Opening TERMCAT redirects directly to TERMCAT Admin Dashboard */}
             <Route
@@ -74,6 +83,15 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/admin/staff"
+              element={
+                <ProtectedRoute>
+                  <FacultyStaffPage />
+                </ProtectedRoute>
+              }
+            />
+
             <Route
               path="/admin/submissions"
               element={

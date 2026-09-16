@@ -34,7 +34,7 @@ interface StatusMatrixItem {
 }
 
 export function SubmissionsPage() {
-  const { admin } = useAuth()
+  const { admin, getPermittedSchoolIds } = useAuth()
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState<'submissions' | 'status'>('submissions')
   
@@ -212,9 +212,12 @@ export function SubmissionsPage() {
     const allItems: StatusMatrixItem[] = []
     const schoolComplianceCounts = new Map<string, { total: number; submitted: number }>()
 
-    const activeSchools = schools.filter(s => s.is_active)
+    const allSchoolIds = schools.map(s => s.id)
+    const permittedSchoolIds = getPermittedSchoolIds(allSchoolIds)
+    const activeSchools = schools.filter(s => s.is_active && permittedSchoolIds.includes(s.id))
 
     activeSchools.forEach(school => {
+
       let schoolTotal = 0
       let schoolSubmitted = 0
 

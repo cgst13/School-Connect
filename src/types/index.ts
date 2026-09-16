@@ -7,7 +7,9 @@ export type KeyStage = 'ks1' | 'ks2' | 'ks3' | 'ks4';
 export type FormType = 'ks1' | 'ks2to4';
 export type SubmissionStatus = 'submitted' | 'reviewed' | 'returned' | 'finalized';
 export type CompetencyCategory = 'most_learned' | 'least_mastered' | 'most_difficult_to_teach';
-export type AdminRole = 'admin' | 'superadmin';
+export type AdminRole = 'admin' | 'superadmin' | 'teacher' | 'school_head' | 'psds' | 'ao_2';
+export type UserRole = AdminRole;
+export type TeacherCategory = 'kindergarten' | 'grade_1_6';
 
 // ---- MASTER DATA ----
 
@@ -62,12 +64,20 @@ export interface Term {
 export interface AdminProfile {
   id: string;
   email: string;
+  password?: string;
   full_name: string;
-  role: AdminRole;
+  role: UserRole;
   is_active: boolean;
+  teacher_category?: TeacherCategory;
+  assigned_school_ids?: string[];
+  assigned_grade_ids?: string[];
+  district_name?: string;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
 }
+
+export type UserProfile = AdminProfile;
+
 
 // ---- SUBMISSION DATA ----
 

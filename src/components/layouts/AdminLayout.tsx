@@ -42,6 +42,7 @@ const navGroups: NavGroup[] = [
   {
     title: 'Administration',
     items: [
+      { to: '/admin/staff', label: 'Faculty & Staff', icon: <Users size={18} /> },
       { to: '/admin/administrators', label: 'Administrators', icon: <Shield size={18} /> },
       { to: '/admin/audit-log', label: 'Audit Logs', icon: <ScrollText size={18} /> },
       { to: '/admin/settings', label: 'System Settings', icon: <Settings size={18} /> },

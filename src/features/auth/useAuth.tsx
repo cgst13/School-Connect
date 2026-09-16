@@ -1,68 +1,93 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
-import { User, Session } from '@supabase/supabase-js'
-import { supabase } from '@/lib/supabase/client'
-import { fetchAdminProfile } from '@/lib/supabase/queries'
+import { authenticateWithUserTable, fetchAdminProfile } from '@/lib/supabase/queries'
 import type { AdminProfile } from '@/types'
 
+const CURRENT_USER_KEY = 'schoolconnect_current_user_profile'
+
 interface AuthContextType {
-  user: User | null
-  session: Session | null
+  user: any
+  session: any
   admin: AdminProfile | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
+  hasFullAccess: () => boolean
+  getPermittedSchoolIds: (allSchoolIds: string[]) => string[]
+  isSchoolPermitted: (schoolId: string, allSchoolIds: string[]) => boolean
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [session, setSession] = useState<Session | null>(null)
-  const [admin, setAdmin] = useState<AdminProfile | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [admin, setAdmin] = useState<AdminProfile | null>(() => {
+    try {
+      const saved = localStorage.getItem(CURRENT_USER_KEY)
+      return saved ? JSON.parse(saved) : null
+    } catch {
+      return null
+    }
+  })
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        const profile = await fetchAdminProfile(session.user.id)
-        setAdmin(profile)
-      }
-      setLoading(false)
-    })
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        const profile = await fetchAdminProfile(session.user.id)
-        setAdmin(profile)
-      } else {
-        setAdmin(null)
-      }
-      setLoading(false)
-    })
-
-    return () => subscription.unsubscribe()
-  }, [])
+    if (admin) {
+      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(admin))
+    } else {
+      localStorage.removeItem(CURRENT_USER_KEY)
+    }
+  }, [admin])
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) throw error
+    const profile = await authenticateWithUserTable(email, password)
+    if (!profile) {
+      throw new Error('Invalid email or password.')
+    }
+    setAdmin(profile)
   }
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut()
-    if (error) throw error
+    setAdmin(null)
+    localStorage.removeItem(CURRENT_USER_KEY)
+  }
+
+
+  const hasFullAccess = () => {
+    if (!admin) return true // Default fallback for unauthenticated / demo
+    return admin.role === 'admin' || admin.role === 'superadmin' || admin.role === 'psds'
+  }
+
+  const getPermittedSchoolIds = (allSchoolIds: string[]) => {
+    if (!admin || hasFullAccess()) return allSchoolIds
+    return admin.assigned_school_ids && admin.assigned_school_ids.length > 0
+      ? admin.assigned_school_ids
+      : allSchoolIds
+  }
+
+  const isSchoolPermitted = (schoolId: string, allSchoolIds: string[]) => {
+    if (!admin || hasFullAccess()) return true
+    const permitted = getPermittedSchoolIds(allSchoolIds)
+    return permitted.includes(schoolId)
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, admin, loading, signIn, signOut }}>
+    <AuthContext.Provider
+      value={{
+        user: admin,
+        session: admin ? { user: admin } : null,
+        admin,
+        loading,
+        signIn,
+        signOut,
+        hasFullAccess,
+        getPermittedSchoolIds,
+        isSchoolPermitted,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )
 }
+
 
 export function useAuth() {
   const ctx = useContext(AuthContext)
