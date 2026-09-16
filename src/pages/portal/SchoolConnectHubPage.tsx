@@ -107,29 +107,29 @@ export function SchoolConnectHubPage() {
 
       {/* Main Content */}
       <main className="relative z-10 flex-1 w-full px-4 sm:px-6 md:px-8 py-8 space-y-8">
-        {/* Hero Welcome Banner */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-900 text-white p-6 sm:p-8 shadow-xl">
-          <div className="relative z-10 max-w-5xl space-y-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-xs font-medium">
-              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-              School Connect Ecosystem Hub
+        {/* Sleek Minimal Welcome Bar */}
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-900 text-white p-4 sm:p-5 shadow-sm">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 relative z-10">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/15 border border-white/20 text-[10px] font-bold tracking-wider uppercase text-blue-100">
+                  <Sparkles className="w-3 h-3 text-amber-300" /> Unified Portal Hub
+                </span>
+              </div>
+              <h1 className="text-lg sm:text-xl font-extrabold text-white tracking-tight">
+                Welcome to School Connect Portal
+              </h1>
+              <p className="text-xs text-blue-100 max-w-2xl">
+                Access school administrative systems, teacher evaluation tools, learner records, and compliance engines.
+              </p>
             </div>
-            <h1 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
-              Welcome to School Connect Portal
-            </h1>
-            <p className="text-sm sm:text-base text-blue-100 leading-relaxed">
-              Access all school administrative systems, teacher evaluation tools, learner records, and compliance engines from one single unified dashboard.
-            </p>
 
-            <div className="pt-2 flex flex-wrap items-center gap-4 text-xs font-medium text-blue-100">
-              <span className="flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-md border border-white/15">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" /> Single Sign-On (SSO) Active
+            <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold text-blue-100 flex-shrink-0">
+              <span className="flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-lg border border-white/15">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" /> SSO Active
               </span>
-              <span className="flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-md border border-white/15">
-                <Building2 className="w-3.5 h-3.5 text-blue-200" /> Multi-School Scope
-              </span>
-              <span className="flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-md border border-white/15">
-                <Layers className="w-3.5 h-3.5 text-purple-200" /> Modular Architecture
+              <span className="flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-lg border border-white/15">
+                <Building2 className="w-3.5 h-3.5 text-blue-200" /> Multi-School
               </span>
             </div>
           </div>
