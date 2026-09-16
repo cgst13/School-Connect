@@ -355,6 +355,88 @@ export function SubmissionsPage() {
     }
   }, [statusSchoolId, gradeGroups.length])
 
+  // Expanded School Accordion State for All Schools View (when no school filter is selected)
+  const [expandedSchools, setExpandedSchools] = useState<Set<string>>(new Set())
+
+  // Calculate Grouped Schools when NO specific school filter is selected
+  const schoolGroups = useMemo(() => {
+    if (statusSchoolId || !statusMatrix.length) return []
+
+    const map = new Map<string, { school: School; items: StatusMatrixItem[] }>()
+    statusMatrix.forEach(item => {
+      const sid = item.school.id
+      if (!map.has(sid)) {
+        map.set(sid, { school: item.school, items: [] })
+      }
+      map.get(sid)!.items.push(item)
+    })
+
+    const result = Array.from(map.values()).map(({ school, items }) => {
+      const total = items.length
+      const submitted = items.filter(i => i.isSubmitted).length
+      const missing = total - submitted
+      const rate = total > 0 ? Math.round((submitted / total) * 100) : 0
+
+      let status: 'complete' | 'partial' | 'none' = 'none'
+      if (submitted === total && total > 0) {
+        status = 'complete'
+      } else if (submitted > 0) {
+        status = 'partial'
+      }
+
+      // Group items by grade level inside this school
+      const gradeMap = new Map<string, StatusMatrixItem[]>()
+      items.forEach(item => {
+        const gid = item.gradeLevel.id
+        if (!gradeMap.has(gid)) {
+          gradeMap.set(gid, [])
+        }
+        gradeMap.get(gid)!.push(item)
+      })
+
+      const sortedGradeIds = Array.from(gradeMap.keys()).sort((a, b) => {
+        const gA = grades.find(g => g.id === a)?.grade_number || 0
+        const gB = grades.find(g => g.id === b)?.grade_number || 0
+        return gA - gB
+      })
+
+      const schoolGradeGroups = sortedGradeIds.map(gid => {
+        const gradeLevel = grades.find(g => g.id === gid) || items.find(i => i.gradeLevel.id === gid)!.gradeLevel
+        const gradeItems = gradeMap.get(gid)!
+        const gTotal = gradeItems.length
+        const gSubmitted = gradeItems.filter(i => i.isSubmitted).length
+        const gRate = gTotal > 0 ? Math.round((gSubmitted / gTotal) * 100) : 0
+        let gStatus: 'complete' | 'partial' | 'none' = 'none'
+        if (gSubmitted === gTotal && gTotal > 0) gStatus = 'complete'
+        else if (gSubmitted > 0) gStatus = 'partial'
+
+        return {
+          gradeLevel,
+          items: gradeItems,
+          total: gTotal,
+          submitted: gSubmitted,
+          missing: gTotal - gSubmitted,
+          rate: gRate,
+          status: gStatus,
+        }
+      })
+
+      return {
+        school,
+        items,
+        total,
+        submitted,
+        missing,
+        rate,
+        status,
+        gradeGroups: schoolGradeGroups,
+      }
+    })
+
+    return result.sort((a, b) => a.school.name.localeCompare(b.school.name))
+  }, [statusSchoolId, statusMatrix, grades])
+
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -1082,110 +1164,248 @@ export function SubmissionsPage() {
               </div>
             ) : (
               /* ============================================================ */
-              /* ALL SCHOOLS FLAT MATRIX TABLE                                */
+              /* ALL SCHOOLS COLLAPSIBLE VIEW (No School Filter Selected)      */
               /* ============================================================ */
-              <div className="card overflow-hidden bg-white">
-                <div className="overflow-x-auto">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>School Name</th>
-                        <th>Grade Level</th>
-                        <th>Learning Area / Subject</th>
-                        <th>Compliance Status</th>
-                        <th>Assigned Teacher / Ref No.</th>
-                        <th>Date Logged</th>
-                        <th className="text-right">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {statusMatrix.map(item => (
-                        <tr
-                          key={item.id}
-                          className={item.isSubmitted ? 'hover:bg-slate-50' : 'bg-red-50/20 hover:bg-red-50/40'}
-                        >
-                          <td className="font-semibold text-slate-900">
-                            <div className="flex items-center gap-2">
-                              <Building2 size={16} className="text-slate-400 flex-shrink-0" />
-                              <div>
-                                <span>{item.school.name}</span>
-                                <span className="text-[10px] font-bold text-slate-400 uppercase block">
-                                  {item.school.school_type}
-                                </span>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="text-slate-700 font-medium">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs font-semibold">
-                              {item.gradeLevel.name}
-                            </span>
-                          </td>
-                          <td className="text-slate-700 font-medium">
-                            <div className="flex items-center gap-1.5">
-                              <BookOpen size={14} className="text-blue-500 flex-shrink-0" />
-                              <span>{item.learningArea.name}</span>
-                            </div>
-                          </td>
-                          <td>
-                            {item.isSubmitted ? (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                <CheckCircle2 size={13} className="text-emerald-500" />
-                                Submitted
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200">
-                                <AlertCircle size={13} className="text-red-500" />
-                                Not Submitted
-                              </span>
-                            )}
-                          </td>
-                          <td>
-                            {item.isSubmitted && item.submission ? (
-                              <div>
-                                <a
-                                  href={`/teacher-submissions?name=${encodeURIComponent(item.submission.teacher_name)}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="font-semibold text-blue-700 hover:text-blue-900 hover:underline text-xs inline-flex items-center gap-1"
-                                  title={`Click to view all public submissions by ${item.submission.teacher_name} (opens in new tab)`}
-                                >
-                                  {item.submission.teacher_name}
-                                  <ExternalLink size={11} className="text-blue-500 opacity-60" />
-                                </a>
-                                <p className="font-mono text-[11px] font-bold text-blue-600">
-                                  {item.submission.reference_number}
-                                </p>
-                              </div>
-                            ) : (
-                              <span className="text-xs text-red-500 italic font-medium">No teacher data logged</span>
-                            )}
-                          </td>
-                          <td className="text-slate-500 text-xs">
-                            {item.isSubmitted && item.submission ? (
-                              format(new Date(item.submission.submitted_at), 'MMM d, yyyy')
-                            ) : (
-                              <span className="text-slate-400">—</span>
-                            )}
-                          </td>
-                          <td className="text-right">
-                            {item.isSubmitted && item.submission ? (
-                              <Link
-                                to={`/admin/submissions/${item.submission.id}`}
-                                className="btn-sm btn-secondary font-semibold"
-                              >
-                                Review Form
-                              </Link>
-                            ) : (
-                              <span className="text-xs font-semibold text-red-600 bg-red-100/80 px-2 py-1 rounded border border-red-200">
-                                Pending
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              <div className="space-y-3 animate-fade-in">
+                {/* Control bar for Expand / Collapse All Schools */}
+                <div className="flex items-center justify-between px-4 py-2.5 bg-slate-900 text-white rounded-xl text-xs shadow-xs">
+                  <div className="flex items-center gap-2 font-bold">
+                    <Building2 size={16} className="text-blue-400" />
+                    <span>Schools Submission & Compliance Directory</span>
+                    <span className="px-2 py-0.5 rounded-full bg-blue-500/30 text-blue-200 text-[10px] font-extrabold border border-blue-400/30">
+                      {schoolGroups.length} Schools Listed
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedSchools(new Set(schoolGroups.map(s => s.school.id)))}
+                      className="text-[11px] font-bold text-blue-300 hover:text-white hover:underline cursor-pointer"
+                    >
+                      Expand All Schools
+                    </button>
+                    <span className="text-slate-600">|</span>
+                    <button
+                      type="button"
+                      onClick={() => setExpandedSchools(new Set())}
+                      className="text-[11px] font-bold text-slate-400 hover:text-slate-200 hover:underline cursor-pointer"
+                    >
+                      Collapse All Schools
+                    </button>
+                  </div>
                 </div>
+
+                {/* School Accordion Cards */}
+                {schoolGroups.map(sGroup => {
+                  const isExpanded = expandedSchools.has(sGroup.school.id)
+                  const toggleExpand = () => {
+                    setExpandedSchools(prev => {
+                      const next = new Set(prev)
+                      if (next.has(sGroup.school.id)) {
+                        next.delete(sGroup.school.id)
+                      } else {
+                        next.add(sGroup.school.id)
+                      }
+                      return next
+                    })
+                  }
+
+                  return (
+                    <div
+                      key={sGroup.school.id}
+                      className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs transition-all hover:border-slate-300"
+                    >
+                      {/* School Accordion Header */}
+                      <div
+                        onClick={toggleExpand}
+                        className={`px-5 py-4 flex items-center justify-between cursor-pointer select-none transition-colors ${
+                          sGroup.status === 'complete'
+                            ? 'bg-emerald-50/40 hover:bg-emerald-50/70 border-l-4 border-l-emerald-500'
+                            : sGroup.status === 'partial'
+                            ? 'bg-amber-50/40 hover:bg-amber-50/70 border-l-4 border-l-amber-500'
+                            : 'bg-red-50/30 hover:bg-red-50/60 border-l-4 border-l-red-500'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-8 h-8 rounded-lg flex items-center justify-center text-slate-700 transition-transform ${
+                              isExpanded ? 'rotate-180 bg-slate-200/80' : 'bg-slate-100'
+                            }`}
+                          >
+                            <ChevronDown size={18} />
+                          </div>
+
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <Building2 size={16} className="text-slate-500 shrink-0" />
+                              <h3 className="text-base font-extrabold text-slate-900">
+                                {sGroup.school.name}
+                              </h3>
+                              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                                {sGroup.school.school_type}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              {sGroup.submitted} of {sGroup.total} expected forms submitted ({sGroup.rate}% completed) • {sGroup.gradeGroups.length} Grade Levels
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          {/* Compliance Status Badge */}
+                          {sGroup.status === 'complete' ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                              <CheckCircle2 size={13} className="text-emerald-600" />
+                              Fully Compliant ({sGroup.submitted}/{sGroup.total})
+                            </span>
+                          ) : sGroup.status === 'partial' ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                              <AlertCircle size={13} className="text-amber-600" />
+                              Partial ({sGroup.submitted}/{sGroup.total} Submitted)
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-300">
+                              <AlertCircle size={13} className="text-red-600" />
+                              No Submissions (0/{sGroup.total})
+                            </span>
+                          )}
+
+                          {/* Progress bar pill */}
+                          <div className="hidden sm:flex items-center gap-2 w-28 bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200">
+                            <div
+                              className={`h-full transition-all duration-300 ${
+                                sGroup.status === 'complete' ? 'bg-emerald-500' : sGroup.status === 'partial' ? 'bg-amber-500' : 'bg-red-500'
+                              }`}
+                              style={{ width: `${sGroup.rate}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Expanded Content: Grade Levels for this School */}
+                      {isExpanded && (
+                        <div className="border-t border-slate-200 p-4 space-y-4 bg-slate-50/50 animate-fade-in">
+                          {sGroup.gradeGroups.map(gGroup => (
+                            <div key={gGroup.gradeLevel.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
+                              {/* Grade Header */}
+                              <div className="px-4 py-2.5 bg-slate-100/90 border-b border-slate-200 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-bold text-slate-800">
+                                    {gGroup.gradeLevel.name}
+                                  </span>
+                                  <span className="text-[10px] font-bold text-slate-500 uppercase px-1.5 py-0.5 bg-slate-200/70 rounded">
+                                    KS {gGroup.gradeLevel.key_stage.toUpperCase()}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[11px] font-medium text-slate-500">
+                                    {gGroup.submitted}/{gGroup.total} Submitted ({gGroup.rate}%)
+                                  </span>
+                                  {gGroup.status === 'complete' ? (
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">Complete</span>
+                                  ) : gGroup.status === 'partial' ? (
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">Partial</span>
+                                  ) : (
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800">Missing</span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Learning Area Table */}
+                              <div className="overflow-x-auto">
+                                <table className="data-table text-xs">
+                                  <thead className="bg-slate-50 text-slate-600">
+                                    <tr>
+                                      <th className="pl-5">Learning Area / Subject</th>
+                                      <th>Status</th>
+                                      <th>Assigned Teacher</th>
+                                      <th>Reference Number</th>
+                                      <th>Date Logged</th>
+                                      <th className="text-right pr-5">Action</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {gGroup.items.map(item => (
+                                      <tr
+                                        key={item.id}
+                                        className={item.isSubmitted ? 'hover:bg-slate-50' : 'bg-red-50/10 hover:bg-red-50/30'}
+                                      >
+                                        <td className="pl-5 font-bold text-slate-900">
+                                          <div className="flex items-center gap-2">
+                                            <BookOpen size={14} className="text-blue-500 shrink-0" />
+                                            <span>{item.learningArea.name}</span>
+                                          </div>
+                                        </td>
+                                        <td>
+                                          {item.isSubmitted ? (
+                                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800">
+                                              <CheckCircle2 size={11} className="text-emerald-600" />
+                                              Submitted
+                                            </span>
+                                          ) : (
+                                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-red-100 text-red-800">
+                                              <AlertCircle size={11} className="text-red-600" />
+                                              Missing
+                                            </span>
+                                          )}
+                                        </td>
+                                        <td>
+                                          {item.isSubmitted && item.submission ? (
+                                            <a
+                                              href={`/teacher-submissions?name=${encodeURIComponent(item.submission.teacher_name)}`}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="font-semibold text-blue-700 hover:text-blue-900 hover:underline inline-flex items-center gap-1"
+                                            >
+                                              {item.submission.teacher_name}
+                                              <ExternalLink size={11} className="text-blue-500 opacity-60" />
+                                            </a>
+                                          ) : (
+                                            <span className="text-slate-400 italic">No teacher data</span>
+                                          )}
+                                        </td>
+                                        <td>
+                                          {item.isSubmitted && item.submission ? (
+                                            <span className="font-mono text-[11px] font-bold text-blue-600">
+                                              {item.submission.reference_number}
+                                            </span>
+                                          ) : (
+                                            <span className="text-slate-400">—</span>
+                                          )}
+                                        </td>
+                                        <td className="text-slate-500 text-xs">
+                                          {item.isSubmitted && item.submission ? (
+                                            format(new Date(item.submission.submitted_at), 'MMM d, yyyy')
+                                          ) : (
+                                            <span className="text-slate-400">—</span>
+                                          )}
+                                        </td>
+                                        <td className="text-right pr-5">
+                                          {item.isSubmitted && item.submission ? (
+                                            <Link
+                                              to={`/admin/submissions/${item.submission.id}`}
+                                              className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 inline-flex items-center gap-1"
+                                            >
+                                              Review Form
+                                            </Link>
+                                          ) : (
+                                            <span className="text-[10px] font-bold text-red-600 bg-red-100/80 px-2 py-0.5 rounded border border-red-200">
+                                              Pending
+                                            </span>
+                                          )}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
