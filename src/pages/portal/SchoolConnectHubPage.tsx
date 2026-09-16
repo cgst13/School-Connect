@@ -138,16 +138,16 @@ export function SchoolConnectHubPage() {
 
 
         {/* Systems & Applications Section */}
-        <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <Grid className="w-5 h-5 text-blue-600" />
-                School Systems & Applications
-              </h2>
-              <p className="text-xs text-slate-500">
-                Select an application below to launch or view system details
-              </p>
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-2xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-lg bg-blue-100 text-blue-700">
+                <Grid className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-extrabold text-slate-900">School Systems & Applications</h3>
+                <p className="text-[11px] text-slate-500">Core educational applications, evaluation engines & record systems</p>
+              </div>
             </div>
 
             {/* Search Input */}
@@ -158,13 +158,13 @@ export function SchoolConnectHubPage() {
                 placeholder="Search systems..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-3 py-1.5 rounded-lg text-xs bg-white border border-slate-300 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-xs"
+                className="w-full pl-9 pr-3 py-1.5 rounded-lg text-xs bg-slate-50 border border-slate-200 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-2xs"
               />
             </div>
           </div>
 
           {/* Systems Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {filteredSystems.map((sys) => {
               const Icon = sys.icon
               const isActive = sys.enabled
@@ -172,52 +172,41 @@ export function SchoolConnectHubPage() {
               return (
                 <div
                   key={sys.id}
-                  className={`group relative rounded-2xl border transition-all duration-200 p-6 flex flex-col justify-between ${
-                    isActive
-                      ? 'bg-white border-slate-200 hover:border-[#0B1F3A] hover:shadow-md cursor-pointer'
-                      : 'bg-slate-100/60 border-slate-200 opacity-75'
-                  }`}
                   onClick={() => handleLaunchSystem(sys)}
+                  className={`p-3.5 rounded-xl border transition-all flex items-center justify-between gap-3 group ${
+                    isActive
+                      ? 'bg-white border-slate-200 hover:border-blue-500 hover:bg-blue-50/40 cursor-pointer'
+                      : 'bg-slate-50/60 border-slate-200 opacity-75 cursor-not-allowed'
+                  }`}
                 >
-                  <div className="space-y-4">
-                    {/* Top Row: Icon + Badge */}
-                    <div className="flex items-center justify-between">
-                      <div className="p-3 rounded-xl bg-[#0B1F3A] text-white shadow-xs">
-                        <Icon className="w-6 h-6" />
-                      </div>
-                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${
-                        isActive
-                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                          : 'bg-slate-100 text-slate-600 border-slate-200'
-                      }`}>
-                        {sys.badgeText || (isActive ? 'Operational' : 'Coming Soon')}
-                      </span>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`p-2 rounded-lg flex-shrink-0 ${
+                      isActive ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-500'
+                    }`}>
+                      <Icon className="w-4 h-4" />
                     </div>
-
-                    {/* App Title & Description */}
-                    <div>
-                      <div className="text-[10px] font-bold text-[#64748B] tracking-wider uppercase mb-1">
-                        {sys.category}
-                      </div>
-                      <h3 className="text-base font-extrabold text-[#111827] group-hover:text-[#0B1F3A] transition-colors">
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-bold text-slate-900 group-hover:text-blue-700 truncate">
                         {sys.name}
-                      </h3>
-                      <p className="text-xs text-[#64748B] mt-1.5 leading-relaxed">
+                      </h4>
+                      <p className="text-[11px] text-slate-500 truncate">
                         {sys.description}
                       </p>
                     </div>
                   </div>
 
-                  {/* Action Footer */}
-                  <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-semibold">
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${
+                      isActive
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-slate-100 text-slate-500 border-slate-200'
+                    }`}>
+                      {sys.badgeText || (isActive ? 'Active' : 'Soon')}
+                    </span>
                     {isActive ? (
-                      <span className="text-[#0B1F3A] font-bold flex items-center gap-1.5 group-hover:translate-x-1 transition-transform">
-                        Launch Application <ArrowRight className="w-4 h-4" />
-                      </span>
+                      <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition-transform group-hover:translate-x-0.5" />
                     ) : (
-                      <span className="text-[#64748B] flex items-center gap-1.5">
-                        <Lock className="w-3.5 h-3.5" /> System under preparation
-                      </span>
+                      <Lock className="w-3.5 h-3.5 text-slate-400" />
                     )}
                   </div>
                 </div>
@@ -227,138 +216,162 @@ export function SchoolConnectHubPage() {
         </div>
 
         {/* Global Governance & Master Data Section */}
-        <div className="space-y-6 pt-6 border-t border-slate-200">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-indigo-600" />
-              Global Platform Governance & Master Data
-            </h2>
-            <p className="text-xs text-slate-500">
-              Platform-wide administration, academic structure configurations, personnel records, and security controls
-            </p>
-          </div>
-
+        <div className="space-y-6 pt-2">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* 1. Academic Structure & Master Data */}
             <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-2xs space-y-4">
-              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-                <Building2 className="w-5 h-5 text-blue-600" />
-                <h3 className="text-sm font-extrabold text-slate-900">Academic Structure & Master Data</h3>
+              <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3">
+                <div className="p-2 rounded-lg bg-blue-100 text-blue-700">
+                  <Building2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-900">Academic Structure & Master Data</h3>
+                  <p className="text-[11px] text-slate-500">Schools, learning areas, and academic calendars</p>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Link
                   to="/admin/schools"
-                  className="p-3.5 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/40 transition-all flex items-center gap-3 group"
+                  className="p-3.5 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/40 transition-all flex items-center justify-between gap-3 group"
                 >
-                  <div className="p-2 rounded-lg bg-blue-100 text-blue-700">
-                    <Building2 className="w-4 h-4" />
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="p-2 rounded-lg bg-blue-100 text-blue-700 flex-shrink-0">
+                      <Building2 className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-bold text-slate-900 group-hover:text-blue-700 truncate">Schools Directory</h4>
+                      <p className="text-[11px] text-slate-500 truncate">School list & type setup</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-900 group-hover:text-blue-700">Schools Directory</h4>
-                    <p className="text-[11px] text-slate-500">School list & type setup</p>
-                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition-transform group-hover:translate-x-0.5 flex-shrink-0" />
                 </Link>
 
                 <Link
                   to="/admin/learning-areas"
-                  className="p-3.5 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/40 transition-all flex items-center gap-3 group"
+                  className="p-3.5 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/40 transition-all flex items-center justify-between gap-3 group"
                 >
-                  <div className="p-2 rounded-lg bg-emerald-100 text-emerald-700">
-                    <BookOpen className="w-4 h-4" />
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="p-2 rounded-lg bg-emerald-100 text-emerald-700 flex-shrink-0">
+                      <BookOpen className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-bold text-slate-900 group-hover:text-blue-700 truncate">Learning Areas</h4>
+                      <p className="text-[11px] text-slate-500 truncate">Subjects & grade mapping</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-900 group-hover:text-blue-700">Learning Areas</h4>
-                    <p className="text-[11px] text-slate-500">Subjects & grade mapping</p>
-                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition-transform group-hover:translate-x-0.5 flex-shrink-0" />
                 </Link>
 
                 <Link
                   to="/admin/school-years"
-                  className="p-3.5 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/40 transition-all flex items-center gap-3 group"
+                  className="p-3.5 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/40 transition-all flex items-center justify-between gap-3 group"
                 >
-                  <div className="p-2 rounded-lg bg-purple-100 text-purple-700">
-                    <Calendar className="w-4 h-4" />
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="p-2 rounded-lg bg-purple-100 text-purple-700 flex-shrink-0">
+                      <Calendar className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-bold text-slate-900 group-hover:text-blue-700 truncate">School Years</h4>
+                      <p className="text-[11px] text-slate-500 truncate">Academic calendar years</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-900 group-hover:text-blue-700">School Years</h4>
-                    <p className="text-[11px] text-slate-500">Academic calendar years</p>
-                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition-transform group-hover:translate-x-0.5 flex-shrink-0" />
                 </Link>
 
                 <Link
                   to="/admin/terms"
-                  className="p-3.5 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/40 transition-all flex items-center gap-3 group"
+                  className="p-3.5 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/40 transition-all flex items-center justify-between gap-3 group"
                 >
-                  <div className="p-2 rounded-lg bg-amber-100 text-amber-700">
-                    <Clock className="w-4 h-4" />
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="p-2 rounded-lg bg-amber-100 text-amber-700 flex-shrink-0">
+                      <Clock className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-bold text-slate-900 group-hover:text-blue-700 truncate">Terms & Quarters</h4>
+                      <p className="text-[11px] text-slate-500 truncate">Active evaluation terms</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-900 group-hover:text-blue-700">Terms & Quarters</h4>
-                    <p className="text-[11px] text-slate-500">Active evaluation terms</p>
-                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition-transform group-hover:translate-x-0.5 flex-shrink-0" />
                 </Link>
               </div>
             </div>
 
             {/* 2. Platform Administration & Security */}
             <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-2xs space-y-4">
-              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-                <Users className="w-5 h-5 text-indigo-600" />
-                <h3 className="text-sm font-extrabold text-slate-900">Platform Administration & Staff</h3>
+              <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3">
+                <div className="p-2 rounded-lg bg-indigo-100 text-indigo-700">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-900">Platform Administration & Staff</h3>
+                  <p className="text-[11px] text-slate-500">Personnel, superadmins, audit logs & settings</p>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Link
                   to="/portal/staff"
-                  className="p-3.5 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/40 transition-all flex items-center gap-3 group"
+                  className="p-3.5 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/40 transition-all flex items-center justify-between gap-3 group"
                 >
-                  <div className="p-2 rounded-lg bg-indigo-100 text-indigo-700">
-                    <Users className="w-4 h-4" />
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="p-2 rounded-lg bg-indigo-100 text-indigo-700 flex-shrink-0">
+                      <Users className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-bold text-slate-900 group-hover:text-indigo-700 truncate">Faculty & Staff</h4>
+                      <p className="text-[11px] text-slate-500 truncate">Personnel & assignments</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-900 group-hover:text-indigo-700">Faculty & Staff</h4>
-                    <p className="text-[11px] text-slate-500">Personnel & assignments</p>
-                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 transition-transform group-hover:translate-x-0.5 flex-shrink-0" />
                 </Link>
 
                 <Link
                   to="/admin/administrators"
-                  className="p-3.5 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/40 transition-all flex items-center gap-3 group"
+                  className="p-3.5 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/40 transition-all flex items-center justify-between gap-3 group"
                 >
-                  <div className="p-2 rounded-lg bg-purple-100 text-purple-700">
-                    <ShieldCheck className="w-4 h-4" />
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="p-2 rounded-lg bg-purple-100 text-purple-700 flex-shrink-0">
+                      <ShieldCheck className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-bold text-slate-900 group-hover:text-indigo-700 truncate">Administrators</h4>
+                      <p className="text-[11px] text-slate-500 truncate">Superadmin accounts</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-900 group-hover:text-indigo-700">Administrators</h4>
-                    <p className="text-[11px] text-slate-500">Superadmin accounts</p>
-                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 transition-transform group-hover:translate-x-0.5 flex-shrink-0" />
                 </Link>
 
                 <Link
                   to="/admin/audit-log"
-                  className="p-3.5 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/40 transition-all flex items-center gap-3 group"
+                  className="p-3.5 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/40 transition-all flex items-center justify-between gap-3 group"
                 >
-                  <div className="p-2 rounded-lg bg-teal-100 text-teal-700">
-                    <ScrollText className="w-4 h-4" />
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="p-2 rounded-lg bg-teal-100 text-teal-700 flex-shrink-0">
+                      <ScrollText className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-bold text-slate-900 group-hover:text-indigo-700 truncate">Audit Logs</h4>
+                      <p className="text-[11px] text-slate-500 truncate">Platform activity log</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-900 group-hover:text-indigo-700">Audit Logs</h4>
-                    <p className="text-[11px] text-slate-500">Platform activity log</p>
-                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 transition-transform group-hover:translate-x-0.5 flex-shrink-0" />
                 </Link>
 
                 <Link
                   to="/admin/settings"
-                  className="p-3.5 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/40 transition-all flex items-center gap-3 group"
+                  className="p-3.5 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/40 transition-all flex items-center justify-between gap-3 group"
                 >
-                  <div className="p-2 rounded-lg bg-slate-100 text-slate-700">
-                    <Settings className="w-4 h-4" />
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="p-2 rounded-lg bg-slate-100 text-slate-700 flex-shrink-0">
+                      <Settings className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-bold text-slate-900 group-hover:text-indigo-700 truncate">System Settings</h4>
+                      <p className="text-[11px] text-slate-500 truncate">Configuration & backups</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-900 group-hover:text-indigo-700">System Settings</h4>
-                    <p className="text-[11px] text-slate-500">Configuration & backups</p>
-                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 transition-transform group-hover:translate-x-0.5 flex-shrink-0" />
                 </Link>
               </div>
             </div>
