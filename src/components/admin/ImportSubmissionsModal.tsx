@@ -947,8 +947,8 @@ export function ImportSubmissionsModal({
 
       {/* OFFICIAL TERMCAT PRINTABLE TEMPLATE OVERLAY MODAL */}
       {showOfficialPreview && (
-        <div className="fixed inset-0 z-[60] overflow-y-auto bg-slate-900/80 backdrop-blur-xs flex flex-col items-center p-4 sm:p-6 animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-300 w-full max-w-5xl overflow-hidden flex flex-col my-auto max-h-[92vh]">
+        <div className="fixed inset-0 z-[60] overflow-y-auto bg-slate-900/80 backdrop-blur-md flex flex-col items-center p-2 sm:p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-300 w-full max-w-[98vw] overflow-hidden flex flex-col my-auto max-h-[94vh]">
             {/* Header Controls */}
             <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between no-print shrink-0">
               <div className="flex items-center gap-3">
@@ -984,8 +984,8 @@ export function ImportSubmissionsModal({
             </div>
 
             {/* Template Render Area */}
-            <div className="p-6 overflow-y-auto flex-1 bg-slate-100">
-              <div className="max-w-4xl mx-auto">
+            <div className="p-4 sm:p-6 overflow-y-auto overflow-x-auto flex-1 bg-slate-100">
+              <div className="w-full">
                 <OfficialTermcatTemplate
                   submissions={previewSubmissions}
                   formType={previewSubmissions[0]?.form_type || (selectedGrade && selectedGrade.grade_number <= 3 ? 'ks1' : 'ks2to4')}

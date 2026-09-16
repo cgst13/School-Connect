@@ -302,12 +302,14 @@ export function TeacherSubmissionsPage() {
 
         {/* View / Print Official Template Modal */}
         {(selectedSub || selectedGroup) && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto bg-slate-900/60 backdrop-blur-sm animate-fade-in print:static print:inset-auto print:p-0 print:m-0 print:bg-transparent print:overflow-visible print:block">
-            <div className="relative w-full max-w-6xl bg-white rounded-2xl shadow-2xl overflow-hidden my-8 border border-slate-200 print:static print:w-full print:max-w-none print:m-0 print:p-0 print:shadow-none print:border-none print:bg-transparent print:overflow-visible">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-1 sm:p-3 overflow-y-auto bg-slate-900/70 backdrop-blur-md animate-fade-in print:static print:inset-auto print:p-0 print:m-0 print:bg-transparent print:overflow-visible print:block">
+            <div className="relative w-full max-w-[98vw] bg-white rounded-2xl shadow-2xl overflow-hidden my-2 sm:my-4 border border-slate-200 print:static print:w-full print:max-w-none print:m-0 print:p-0 print:shadow-none print:border-none print:bg-transparent print:overflow-visible flex flex-col max-h-[94vh]">
               {/* Modal Header */}
-              <div className="flex items-center justify-between px-6 py-4 bg-slate-900 text-white no-print">
-                <div className="flex items-center gap-2">
-                  <FileText size={20} className="text-blue-400" />
+              <div className="flex items-center justify-between px-6 py-3.5 bg-slate-900 text-white no-print shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-lg bg-blue-500/20 text-blue-400">
+                    <FileText size={20} />
+                  </div>
                   <div>
                     <h3 className="font-bold text-base">
                       {selectedGroup
@@ -326,7 +328,7 @@ export function TeacherSubmissionsPage() {
                   <button
                     type="button"
                     onClick={() => window.print()}
-                    className="btn-sm btn-primary inline-flex items-center gap-1.5"
+                    className="btn-sm btn-primary inline-flex items-center gap-1.5 font-bold shadow-md"
                   >
                     <Printer size={14} /> {selectedGroup ? 'Print Grade Report' : 'Print Form'}
                   </button>
@@ -343,13 +345,15 @@ export function TeacherSubmissionsPage() {
                 </div>
               </div>
 
-              {/* Modal Content */}
-              <div className="p-4 sm:p-6 overflow-y-auto max-h-[80vh] print:p-0 print:overflow-visible print:max-h-none print:h-auto">
-                {selectedGroup ? (
-                  <OfficialTermcatTemplate submissions={selectedGroup.submissions} showPrintButton={false} />
-                ) : (
-                  <OfficialTermcatTemplate submission={selectedSub!} showPrintButton={false} />
-                )}
+              {/* Modal Content - Expanded for Full Column Visibility */}
+              <div className="p-3 sm:p-5 overflow-y-auto overflow-x-auto flex-1 bg-slate-100 print:p-0 print:overflow-visible print:max-h-none print:h-auto">
+                <div className="w-full">
+                  {selectedGroup ? (
+                    <OfficialTermcatTemplate submissions={selectedGroup.submissions} showPrintButton={false} />
+                  ) : (
+                    <OfficialTermcatTemplate submission={selectedSub!} showPrintButton={false} />
+                  )}
+                </div>
               </div>
             </div>
           </div>
