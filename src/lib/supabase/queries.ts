@@ -634,33 +634,36 @@ export async function setDefaultTerm(termId: string): Promise<void> {
 // ============================================================
 
 export async function fetchAdminProfile(userId: string): Promise<AdminProfile | null> {
-  try {
-    const { data, error } = await supabase.from('termcat_admin_profiles').select('*').eq('id', userId).single()
-    if (!error && data) return data as AdminProfile
-  } catch {
-    // Fall through to local storage backup
-  }
+  const { data, error } = await supabase
+    .from('termcat_admin_profiles')
+    .select('*')
+    .eq('id', userId)
+    .single()
+  if (!error && data) return data as AdminProfile
+  
   const localStaff = getLocalStaffProfiles()
-  const found = localStaff.find(s => s.id === userId)
-  if (found) return found
-  return null
+  return localStaff.find(s => s.id === userId) || null
 }
 
 export async function fetchAllAdmins(): Promise<AdminProfile[]> {
-  const { data, error } = await supabase.from('termcat_admin_profiles').select('*').order('full_name')
-  if (error) {
-    return getLocalStaffProfiles()
+  const { data, error } = await supabase
+    .from('termcat_admin_profiles')
+    .select('*')
+    .order('full_name')
+
+  if (!error && data) {
+    const dbProfiles = data as AdminProfile[]
+    const localProfiles = getLocalStaffProfiles()
+    const merged = [...dbProfiles]
+    localProfiles.forEach(lp => {
+      if (!merged.some(m => m.id === lp.id)) {
+        merged.push(lp)
+      }
+    })
+    return merged
   }
-  const dbAdmins = (data || []) as AdminProfile[]
-  const localStaff = getLocalStaffProfiles()
-  // Merge local staff profiles that aren't in DB
-  const merged = [...dbAdmins]
-  localStaff.forEach(ls => {
-    if (!merged.some(m => m.id === ls.id)) {
-      merged.push(ls)
-    }
-  })
-  return merged
+
+  return getLocalStaffProfiles()
 }
 
 const LOCAL_STAFF_KEY = 'schoolconnect_staff_profiles_v1'
@@ -668,10 +671,10 @@ const LOCAL_STAFF_KEY = 'schoolconnect_staff_profiles_v1'
 export function getLocalStaffProfiles(): AdminProfile[] {
   try {
     const raw = localStorage.getItem(LOCAL_STAFF_KEY)
-    if (!raw) return DEFAULT_DEMO_STAFF
+    if (!raw) return []
     return JSON.parse(raw) as AdminProfile[]
   } catch {
-    return DEFAULT_DEMO_STAFF
+    return []
   }
 }
 
@@ -696,7 +699,7 @@ export async function authenticateWithUserTable(email: string, password: string)
   const normEmail = email.trim().toLowerCase()
   const normPass = password.trim()
 
-  // 1. Try querying Supabase termcat_admin_profiles table directly
+  // Query Supabase termcat_admin_profiles table directly
   try {
     const { data, error } = await supabase
       .from('termcat_admin_profiles')
@@ -706,7 +709,6 @@ export async function authenticateWithUserTable(email: string, password: string)
 
     if (!error && data && data.length > 0) {
       const user = data[0] as AdminProfile
-      // If password column exists and matches or password is empty/default
       if (!user.password || user.password === normPass || normPass === 'admin123' || normPass === 'password123') {
         saveLocalStaffProfile(user)
         return user
@@ -716,7 +718,7 @@ export async function authenticateWithUserTable(email: string, password: string)
     console.warn('Database user auth check failed, checking local profiles:', err)
   }
 
-  // 2. Local profiles fallback check
+  // Local fallback check
   const localUsers = getLocalStaffProfiles()
   const match = localUsers.find(
     u => u.email.toLowerCase() === normEmail && (u.password === normPass || normPass === 'admin123' || normPass === 'password123')
@@ -724,19 +726,19 @@ export async function authenticateWithUserTable(email: string, password: string)
 
   if (match) return match
 
-  // 3. Fallback for any admin user attempting login with default password
-  if (normPass === 'admin123' || normPass === 'password123') {
-    const fallbackUser: AdminProfile = {
-      id: `user_${Date.now()}`,
-      email: normEmail,
-      password: normPass,
-      full_name: normEmail.split('@')[0].toUpperCase(),
-      role: normEmail.includes('ao2') ? 'ao_2' : normEmail.includes('psds') ? 'psds' : 'admin',
+  // Fallback for default admin
+  if (normEmail === 'admin@deped.gov.ph' && normPass === 'admin123') {
+    const adminUser: AdminProfile = {
+      id: 'admin-default-1',
+      email: 'admin@deped.gov.ph',
+      password: 'admin123',
+      full_name: 'System Administrator',
+      role: 'admin',
       is_active: true,
       created_at: new Date().toISOString()
     }
-    saveLocalStaffProfile(fallbackUser)
-    return fallbackUser
+    saveLocalStaffProfile(adminUser)
+    return adminUser
   }
 
   return null
@@ -758,7 +760,7 @@ export async function upsertStaffProfile(profile: Partial<AdminProfile>): Promis
     updated_at: new Date().toISOString(),
   }
 
-  // Attempt database save first
+  // Database save in Supabase
   try {
     const { data, error } = await supabase
       .from('termcat_admin_profiles')
@@ -777,37 +779,6 @@ export async function upsertStaffProfile(profile: Partial<AdminProfile>): Promis
   return newProfile
 }
 
-export const DEFAULT_DEMO_STAFF: AdminProfile[] = [
-  {
-    id: 'staff-admin-1',
-    email: 'admin@deped.gov.ph',
-    password: 'admin123',
-    full_name: 'System Administrator',
-    role: 'admin',
-    is_active: true,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'staff-psds-1',
-    email: 'psds.concepcion@deped.gov.ph',
-    password: 'password123',
-    full_name: 'Dr. Maria Santos',
-    role: 'psds',
-    district_name: 'Concepcion District',
-    is_active: true,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'staff-ao2-1',
-    email: 'ao2.sibale@deped.gov.ph',
-    password: 'password123',
-    full_name: 'Juan Dela Cruz (AO II)',
-    role: 'ao_2',
-    assigned_school_ids: [],
-    is_active: true,
-    created_at: new Date().toISOString(),
-  },
-]
 
 
 
