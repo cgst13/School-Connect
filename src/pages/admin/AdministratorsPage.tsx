@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { AdminLayout } from '@/components/layouts/AdminLayout'
+import { SchoolConnectLayout } from '@/components/layouts/SchoolConnectLayout'
 import { fetchAllAdmins, insertAuditLog } from '@/lib/supabase/queries'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/features/auth/useAuth'
@@ -43,7 +43,7 @@ export function AdministratorsPage() {
   }
 
   return (
-    <AdminLayout>
+    <SchoolConnectLayout systemTitle="System Administrators Master Data">
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h1 className="page-title">Administrators</h1>
@@ -108,6 +108,6 @@ export function AdministratorsPage() {
           )}
         </div>
       </div>
-    </AdminLayout>
+    </SchoolConnectLayout>
   )
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { AdminLayout } from '@/components/layouts/AdminLayout'
+import { SchoolConnectLayout } from '@/components/layouts/SchoolConnectLayout'
 import { fetchAuditLogs } from '@/lib/supabase/queries'
 import { Pagination } from '@/components/ui/Pagination'
 import { TableSkeleton } from '@/components/ui/EmptyState'
@@ -27,7 +27,7 @@ export function AuditLogPage() {
     action.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 
   return (
-    <AdminLayout>
+    <SchoolConnectLayout systemTitle="Platform Audit Logs">
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h1 className="page-title">Audit Log</h1>
@@ -107,6 +107,6 @@ export function AuditLogPage() {
           )}
         </div>
       </div>
-    </AdminLayout>
+    </SchoolConnectLayout>
   )
 }

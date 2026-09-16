@@ -11,7 +11,7 @@ import {
   Lock,
   CheckCircle2
 } from 'lucide-react'
-import { AdminLayout } from '@/components/layouts/AdminLayout'
+import { SchoolConnectLayout } from '@/components/layouts/SchoolConnectLayout'
 import { PageContainer, PageHeader, PageTitle, PageDescription, Section, SectionHeader } from '@/components/layout/PageLayout'
 import { PrimaryButton, SecondaryButton } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
@@ -32,7 +32,7 @@ export function TermcatSettingsPage() {
   }
 
   return (
-    <AdminLayout>
+    <SchoolConnectLayout systemTitle="Global System Settings">
       <PageContainer>
       <PageHeader>
         <div>
@@ -195,6 +195,6 @@ export function TermcatSettingsPage() {
         </div>
       </div>
     </PageContainer>
-    </AdminLayout>
+    </SchoolConnectLayout>
   )
 }

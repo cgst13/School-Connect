@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
-import { AdminLayout } from '@/components/layouts/AdminLayout'
+import { SchoolConnectLayout } from '@/components/layouts/SchoolConnectLayout'
 import { EmptyState } from '@/components/ui/EmptyState'
 import {
   fetchLearningAreas,
@@ -385,7 +385,7 @@ export function LearningAreasPage() {
   const selectedGradeObj = grades.find(g => g.id === selectedGradeId)
 
   return (
-    <AdminLayout>
+    <SchoolConnectLayout systemTitle="Learning Areas Master Data">
       <div className="space-y-6 w-full">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -787,7 +787,7 @@ export function LearningAreasPage() {
           </div>
         </div>
       )}
-    </AdminLayout>
+    </SchoolConnectLayout>
   )
 }
 

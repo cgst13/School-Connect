@@ -8,7 +8,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   ShieldCheck,
-  ChevronRight
+  ChevronRight,
+  ArrowLeft
 } from 'lucide-react'
 import { useAuth } from '@/features/auth/useAuth'
 import { useToast } from '@/hooks/useToast'
@@ -125,12 +126,22 @@ export function AppLayout({
 
         {/* Right Header Actions & User Info */}
         <div className="flex items-center gap-3">
+          <Link
+            to="/portal"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-all shadow-2xs"
+            title="Go back to School Connect Portal Hub"
+          >
+            <ArrowLeft size={14} />
+            <span>Back to Portal</span>
+          </Link>
+
           <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 rounded-full text-[11px] font-semibold text-[#64748B] border border-[#E2E8F0]">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             System Active
           </div>
 
           <div className="h-4 w-[1px] bg-[#E2E8F0] hidden sm:block" />
+
 
           {admin ? (
             <div className="flex items-center gap-2.5">

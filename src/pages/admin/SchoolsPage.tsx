@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { AdminLayout } from '@/components/layouts/AdminLayout'
+import { SchoolConnectLayout } from '@/components/layouts/SchoolConnectLayout'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog'
 import { fetchSchools, upsertSchool, insertAuditLog } from '@/lib/supabase/queries'
@@ -95,7 +95,7 @@ export function SchoolsPage() {
   const secondary = schools.filter(s => s.school_type === 'secondary')
 
   return (
-    <AdminLayout>
+    <SchoolConnectLayout systemTitle="Schools Directory & Master Data">
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h1 className="page-title">Schools</h1>
@@ -156,6 +156,6 @@ export function SchoolsPage() {
           isLoading={saving}
         />
       )}
-    </AdminLayout>
+    </SchoolConnectLayout>
   )
 }

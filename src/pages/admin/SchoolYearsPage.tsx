@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { AdminLayout } from '@/components/layouts/AdminLayout'
+import { SchoolConnectLayout } from '@/components/layouts/SchoolConnectLayout'
 import { fetchSchoolYears, fetchTerms, upsertSchoolYear, upsertTerm, setDefaultTerm, insertAuditLog } from '@/lib/supabase/queries'
 import { useAuth } from '@/features/auth/useAuth'
 import { useToast } from '@/hooks/useToast'
@@ -221,13 +221,13 @@ function TermsSection() {
 
 export function SchoolYearsPage() {
   return (
-    <AdminLayout>
+    <SchoolConnectLayout systemTitle="Academic Calendar & Terms Master Data">
       <div className="space-y-6">
-        <h1 className="page-title">Settings</h1>
+        <h1 className="page-title">Academic Calendar & Terms Setup</h1>
         <SchoolYearsSection />
         <TermsSection />
       </div>
-    </AdminLayout>
+    </SchoolConnectLayout>
   )
 }
 
