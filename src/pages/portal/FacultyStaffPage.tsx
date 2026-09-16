@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { SchoolConnectLayout } from '@/components/layouts/SchoolConnectLayout'
+import { DepEdSpinner } from '@/components/ui/DepEdSpinner'
 import {
   Users,
   Plus,
@@ -288,7 +289,7 @@ export function FacultyStaffPage() {
 
         {/* Staff Cards / Directory */}
         {loading ? (
-          <div className="p-12 text-center text-slate-400 font-medium">Loading faculty & staff directory...</div>
+          <DepEdSpinner size="lg" label="Loading Faculty & Staff Directory..." subtitle="Fetching assigned schools and grade scope from Supabase" />
         ) : filteredStaff.length === 0 ? (
           <div className="card p-12 text-center bg-white border border-slate-200 rounded-2xl">
             <Users size={36} className="mx-auto text-slate-300 mb-2" />

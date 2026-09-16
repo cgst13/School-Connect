@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { SchoolConnectLayout } from '@/components/layouts/SchoolConnectLayout'
+import { DepEdSpinner } from '@/components/ui/DepEdSpinner'
 import { fetchAllAdmins, insertAuditLog } from '@/lib/supabase/queries'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/features/auth/useAuth'
@@ -74,7 +75,7 @@ export function AdministratorsPage() {
 
         <div className="card overflow-hidden">
           {loading ? (
-            <div className="p-8 text-center text-content-tertiary">Loading...</div>
+            <DepEdSpinner size="lg" label="Loading Platform Administrators..." subtitle="Fetching administrator accounts from Supabase" />
           ) : admins.length === 0 ? (
             <EmptyState title="No administrators" icon={<Shield size={28} />} />
           ) : (

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { SchoolConnectLayout } from '@/components/layouts/SchoolConnectLayout'
+import { DepEdSpinner } from '@/components/ui/DepEdSpinner'
 import { fetchSchoolYears, fetchTerms, upsertSchoolYear, upsertTerm, setDefaultTerm, insertAuditLog } from '@/lib/supabase/queries'
 import { useAuth } from '@/features/auth/useAuth'
 import { useToast } from '@/hooks/useToast'
@@ -38,7 +39,7 @@ function SchoolYearsSection() {
         </button>
       </div>
       <div className="divide-y divide-surface-border">
-        {loading && <div className="p-4 text-center text-content-tertiary text-sm">Loading...</div>}
+        {loading && <DepEdSpinner size="md" label="Loading School Years..." />}
         {items.map(sy => (
           <div key={sy.id} className="flex items-center justify-between px-4 py-3">
             <div>
@@ -148,7 +149,7 @@ function TermsSection() {
         </button>
       </div>
       <div className="divide-y divide-surface-border">
-        {loading && <div className="p-4 text-center text-content-tertiary text-sm">Loading...</div>}
+        {loading && <DepEdSpinner size="md" label="Loading Terms & Quarters..." />}
         {items.map(t => {
           const isDefault = t.is_default || t.id === defaultTermId || (!defaultTermId && t.sort_order === 1)
           return (

@@ -21,25 +21,28 @@ export function EmptyState({ title, description, icon, action }: EmptyStateProps
   )
 }
 
-export function LoadingSpinner({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
-  const sizes = { sm: 'w-4 h-4', md: 'w-8 h-8', lg: 'w-12 h-12' }
-  return (
-    <div className="flex items-center justify-center">
-      <div
-        className={`${sizes[size]} border-2 border-surface-border border-t-deped-blue rounded-full animate-spin`}
-        role="status"
-        aria-label="Loading"
-      />
-    </div>
-  )
+import { DepEdSpinner, DepEdPageLoader } from './DepEdSpinner'
+
+export function LoadingSpinner({
+  size = 'md',
+  label,
+  subtitle
+}: {
+  size?: 'sm' | 'md' | 'lg' | 'xl'
+  label?: string
+  subtitle?: string
+}) {
+  return <DepEdSpinner size={size} label={label} subtitle={subtitle} />
 }
 
-export function PageLoader() {
-  return (
-    <div className="min-h-[400px] flex items-center justify-center">
-      <LoadingSpinner size="lg" />
-    </div>
-  )
+export function PageLoader({
+  label = 'Loading System Data...',
+  subtitle = 'Department of Education - School Connect Suite'
+}: {
+  label?: string
+  subtitle?: string
+}) {
+  return <DepEdPageLoader label={label} subtitle={subtitle} />
 }
 
 export function TableSkeleton({ rows = 5, cols = 6 }: { rows?: number; cols?: number }) {

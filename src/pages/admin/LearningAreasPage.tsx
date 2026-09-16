@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { SchoolConnectLayout } from '@/components/layouts/SchoolConnectLayout'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { DepEdSpinner } from '@/components/ui/DepEdSpinner'
 import {
   fetchLearningAreas,
   fetchGradeLevels,
@@ -470,10 +471,7 @@ export function LearningAreasPage() {
             {/* List / Table */}
             <div className="card overflow-hidden bg-white border border-slate-200 shadow-xs">
               {loading ? (
-                <div className="p-12 text-center text-slate-500 flex flex-col items-center gap-2">
-                  <Loader2 size={28} className="animate-spin text-deped-blue" />
-                  <span className="text-xs font-semibold">Loading learning areas...</span>
-                </div>
+                <DepEdSpinner size="lg" label="Loading Learning Areas Master Data..." subtitle="Fetching subject mappings & grade level assignments from Supabase" />
               ) : filteredLearningAreas.length === 0 ? (
                 <div className="p-8 text-center text-slate-500">
                   <EmptyState

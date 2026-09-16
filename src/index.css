@@ -368,3 +368,33 @@
 .offline-bar {
   @apply fixed top-0 left-0 right-0 z-50 bg-amber-500 text-white text-center py-2 text-sm font-medium shadow-md;
 }
+
+/* ---- DEPED SPINNER ANIMATIONS ---- */
+@keyframes spinReverse {
+  from {
+    transform: rotate(360deg);
+  }
+  to {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes depedGlow {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 10px rgba(11, 31, 58, 0.25));
+  }
+  50% {
+    transform: scale(1.06);
+    filter: drop-shadow(0 0 18px rgba(37, 99, 235, 0.5));
+  }
+}
+
+.animate-spin-reverse {
+  animation: spinReverse 3s linear infinite;
+}
+
+.animate-deped-glow {
+  animation: depedGlow 2.2s ease-in-out infinite;
+}
+

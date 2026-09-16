@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { SchoolConnectLayout } from '@/components/layouts/SchoolConnectLayout'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { DepEdSpinner } from '@/components/ui/DepEdSpinner'
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog'
 import { fetchSchools, upsertSchool, insertAuditLog } from '@/lib/supabase/queries'
 import { useAuth } from '@/features/auth/useAuth'
@@ -105,7 +106,7 @@ export function SchoolsPage() {
         </div>
 
         {loading ? (
-          <div className="card p-8 text-center text-content-tertiary">Loading...</div>
+          <DepEdSpinner size="lg" label="Loading Schools Directory..." subtitle="Fetching active elementary & secondary school master data" />
         ) : schools.length === 0 ? (
           <div className="card"><EmptyState title="No schools found" icon={<Building2 size={28} />} /></div>
         ) : (
