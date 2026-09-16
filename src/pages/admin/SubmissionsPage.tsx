@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { AdminLayout } from '@/components/layouts/AdminLayout'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog'
+import { ImportSubmissionsModal } from '@/components/admin/ImportSubmissionsModal'
 import { EmptyState, TableSkeleton } from '@/components/ui/EmptyState'
 import { Pagination } from '@/components/ui/Pagination'
 import {
@@ -17,7 +18,7 @@ import type {
 } from '@/types'
 import {
   Search, Filter, ChevronUp, ChevronDown, X, FileText, CheckCircle2,
-  AlertCircle, Building2, BookOpen, Clock, Calendar, Sparkles, RefreshCw, Pencil, Trash2, Eye, ExternalLink
+  AlertCircle, Building2, BookOpen, Clock, Calendar, Sparkles, RefreshCw, Pencil, Trash2, Eye, ExternalLink, FileSpreadsheet
 } from 'lucide-react'
 import { format } from 'date-fns'
 
@@ -44,6 +45,7 @@ export function SubmissionsPage() {
   const [showFilters, setShowFilters] = useState(false)
   const [subToDelete, setSubToDelete] = useState<TermcatSubmission | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false)
 
   const handleDeleteSubmission = async () => {
     if (!subToDelete || !admin) return
@@ -297,6 +299,62 @@ export function SubmissionsPage() {
     }
   }, [schools, grades, learningAreas, learningAreaGrades, statusSubmissions, statusSchoolId, statusGradeId, statusLAId, statusSearch, complianceFilter])
 
+  // Expanded Grade Accordion State for School Filtered View
+  const [expandedGrades, setExpandedGrades] = useState<Set<string>>(new Set())
+
+  // Calculate Grouped Grade Levels when Filtered by School
+  const gradeGroups = useMemo(() => {
+    if (!statusSchoolId || !statusMatrix.length) return []
+
+    const groupMap = new Map<string, StatusMatrixItem[]>()
+    statusMatrix.forEach(item => {
+      const gid = item.gradeLevel.id
+      if (!groupMap.has(gid)) {
+        groupMap.set(gid, [])
+      }
+      groupMap.get(gid)!.push(item)
+    })
+
+    const sortedGradeIds = Array.from(groupMap.keys()).sort((a, b) => {
+      const gA = grades.find(g => g.id === a)?.grade_number || 0
+      const gB = grades.find(g => g.id === b)?.grade_number || 0
+      return gA - gB
+    })
+
+    return sortedGradeIds.map(gid => {
+      const gradeLevel = grades.find(g => g.id === gid) || statusMatrix.find(i => i.gradeLevel.id === gid)!.gradeLevel
+      const items = groupMap.get(gid)!
+      const totalSubjects = items.length
+      const submittedSubjects = items.filter(i => i.isSubmitted).length
+      const missingSubjects = totalSubjects - submittedSubjects
+      const compliancePercentage = totalSubjects > 0 ? Math.round((submittedSubjects / totalSubjects) * 100) : 0
+
+      let status: 'complete' | 'partial' | 'none' = 'none'
+      if (submittedSubjects === totalSubjects && totalSubjects > 0) {
+        status = 'complete'
+      } else if (submittedSubjects > 0) {
+        status = 'partial'
+      }
+
+      return {
+        gradeLevel,
+        items,
+        totalSubjects,
+        submittedSubjects,
+        missingSubjects,
+        compliancePercentage,
+        status,
+      }
+    })
+  }, [statusSchoolId, statusMatrix, grades])
+
+  // Auto-expand all grades when school filter changes
+  useEffect(() => {
+    if (statusSchoolId && gradeGroups.length > 0) {
+      setExpandedGrades(new Set(gradeGroups.map(g => g.gradeLevel.id)))
+    }
+  }, [statusSchoolId, gradeGroups.length])
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -312,38 +370,48 @@ export function SubmissionsPage() {
             </p>
           </div>
 
-          {/* Navigation Tabs */}
-          <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200/80 self-start sm:self-auto">
+          {/* Navigation Tabs & Import Action */}
+          <div className="flex items-center gap-3 self-start sm:self-auto flex-wrap">
             <button
-              onClick={() => setActiveTab('submissions')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                activeTab === 'submissions'
-                  ? 'bg-white text-blue-700 shadow-sm border border-slate-200'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
+              onClick={() => setIsImportModalOpen(true)}
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs hover:shadow-sm transition-all"
             >
-              <FileText size={16} />
-              <span>Submissions List</span>
-              <span className="ml-1 px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold">
-                {total}
-              </span>
+              <FileSpreadsheet size={16} />
+              <span>Import Submission (Excel)</span>
             </button>
-            <button
-              onClick={() => setActiveTab('status')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                activeTab === 'status'
-                  ? 'bg-white text-blue-700 shadow-sm border border-slate-200'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <CheckCircle2 size={16} />
-              <span>Status & Compliance</span>
-              {summaryStats.missing > 0 && (
-                <span className="ml-1 px-1.5 py-0.2 rounded-full bg-red-100 text-red-700 text-[10px] font-bold border border-red-200">
-                  {summaryStats.missing} Missing
+
+            <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200/80">
+              <button
+                onClick={() => setActiveTab('submissions')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                  activeTab === 'submissions'
+                    ? 'bg-white text-blue-700 shadow-sm border border-slate-200'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <FileText size={16} />
+                <span>Submissions List</span>
+                <span className="ml-1 px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold">
+                  {total}
                 </span>
-              )}
-            </button>
+              </button>
+              <button
+                onClick={() => setActiveTab('status')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                  activeTab === 'status'
+                    ? 'bg-white text-blue-700 shadow-sm border border-slate-200'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <CheckCircle2 size={16} />
+                <span>Status & Compliance</span>
+                {summaryStats.missing > 0 && (
+                  <span className="ml-1 px-1.5 py-0.2 rounded-full bg-red-100 text-red-700 text-[10px] font-bold border border-red-200">
+                    {summaryStats.missing} Missing
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -786,21 +854,237 @@ export function SubmissionsPage() {
               </span>
             </div>
 
-            {/* Status Matrix Table */}
-            <div className="card overflow-hidden bg-white">
-              {statusLoading ? (
-                <div className="p-8">
-                  <TableSkeleton rows={8} cols={6} />
+            {/* Status Matrix Area: Expandable Grade-level View when Filtered by School, Flat Table otherwise */}
+            {statusLoading ? (
+              <div className="card overflow-hidden bg-white p-8">
+                <TableSkeleton rows={8} cols={6} />
+              </div>
+            ) : statusMatrix.length === 0 ? (
+              <div className="card overflow-hidden bg-white p-8">
+                <EmptyState
+                  title="No compliance entries match your filters"
+                  description="Adjust your search query, grade level, or school filters above."
+                  icon={<CheckCircle2 size={32} />}
+                />
+              </div>
+            ) : statusSchoolId ? (
+              /* ============================================================ */
+              /* SCHOOL-FILTERED VIEW: EXPANDABLE GRADE LEVEL ACCORDIONS      */
+              /* ============================================================ */
+              <div className="space-y-3 animate-fade-in">
+                {/* Control bar for Expand / Collapse All */}
+                <div className="flex items-center justify-between px-4 py-2.5 bg-blue-50/70 border border-blue-200/80 rounded-xl text-xs">
+                  <div className="flex items-center gap-2 text-blue-900 font-bold">
+                    <Building2 size={16} className="text-blue-600" />
+                    <span>{schools.find(s => s.id === statusSchoolId)?.name} — Grade Level Compliance Breakdown</span>
+                    <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 text-[10px] font-extrabold border border-blue-200">
+                      {gradeGroups.length} Grades Listed
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedGrades(new Set(gradeGroups.map(g => g.gradeLevel.id)))}
+                      className="text-[11px] font-bold text-blue-700 hover:text-blue-900 hover:underline"
+                    >
+                      Expand All
+                    </button>
+                    <span className="text-slate-300">|</span>
+                    <button
+                      type="button"
+                      onClick={() => setExpandedGrades(new Set())}
+                      className="text-[11px] font-bold text-slate-500 hover:text-slate-700 hover:underline"
+                    >
+                      Collapse All
+                    </button>
+                  </div>
                 </div>
-              ) : statusMatrix.length === 0 ? (
-                <div className="p-8">
-                  <EmptyState
-                    title="No compliance entries match your filters"
-                    description="Adjust your search query, grade level, or school filters above."
-                    icon={<CheckCircle2 size={32} />}
-                  />
-                </div>
-              ) : (
+
+                {/* Grade Accordion Cards */}
+                {gradeGroups.map(group => {
+                  const isExpanded = expandedGrades.has(group.gradeLevel.id)
+                  const toggleExpand = () => {
+                    setExpandedGrades(prev => {
+                      const next = new Set(prev)
+                      if (next.has(group.gradeLevel.id)) {
+                        next.delete(group.gradeLevel.id)
+                      } else {
+                        next.add(group.gradeLevel.id)
+                      }
+                      return next
+                    })
+                  }
+
+                  return (
+                    <div
+                      key={group.gradeLevel.id}
+                      className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs transition-all"
+                    >
+                      {/* Grade Accordion Header */}
+                      <div
+                        onClick={toggleExpand}
+                        className={`px-5 py-4 flex items-center justify-between cursor-pointer select-none transition-colors ${
+                          group.status === 'complete'
+                            ? 'bg-emerald-50/40 hover:bg-emerald-50/70 border-l-4 border-l-emerald-500'
+                            : group.status === 'partial'
+                            ? 'bg-amber-50/40 hover:bg-amber-50/70 border-l-4 border-l-amber-500'
+                            : 'bg-red-50/30 hover:bg-red-50/60 border-l-4 border-l-red-500'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-7 h-7 rounded-lg flex items-center justify-center text-slate-600 transition-transform ${
+                              isExpanded ? 'rotate-180 bg-slate-200/70' : 'bg-slate-100'
+                            }`}
+                          >
+                            <ChevronDown size={16} />
+                          </div>
+
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-sm font-extrabold text-slate-900">
+                                {group.gradeLevel.name}
+                              </h3>
+                              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                                Key Stage {group.gradeLevel.key_stage.toUpperCase()}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              {group.submittedSubjects} of {group.totalSubjects} subjects submitted ({group.compliancePercentage}% completed)
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          {/* Compliance Status Badge */}
+                          {group.status === 'complete' ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                              <CheckCircle2 size={13} className="text-emerald-600" />
+                              Fully Compliant ({group.submittedSubjects}/{group.totalSubjects})
+                            </span>
+                          ) : group.status === 'partial' ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                              <AlertCircle size={13} className="text-amber-600" />
+                              Partial ({group.submittedSubjects}/{group.totalSubjects} Submitted)
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-300">
+                              <AlertCircle size={13} className="text-red-600" />
+                              No Submissions (0/{group.totalSubjects})
+                            </span>
+                          )}
+
+                          {/* Progress bar pill */}
+                          <div className="hidden sm:flex items-center gap-2 w-28 bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200">
+                            <div
+                              className={`h-full transition-all duration-300 ${
+                                group.status === 'complete' ? 'bg-emerald-500' : group.status === 'partial' ? 'bg-amber-500' : 'bg-red-500'
+                              }`}
+                              style={{ width: `${group.compliancePercentage}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Expandable Subject Table */}
+                      {isExpanded && (
+                        <div className="border-t border-slate-200 animate-fade-in">
+                          <table className="data-table text-xs">
+                            <thead className="bg-slate-100/80 text-slate-700">
+                              <tr>
+                                <th className="pl-6">Learning Area / Subject</th>
+                                <th>Status</th>
+                                <th>Assigned Teacher</th>
+                                <th>Reference Number</th>
+                                <th>Date Logged</th>
+                                <th className="text-right pr-6">Action</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {group.items.map(item => (
+                                <tr
+                                  key={item.id}
+                                  className={item.isSubmitted ? 'hover:bg-slate-50' : 'bg-red-50/20 hover:bg-red-50/40'}
+                                >
+                                  <td className="pl-6 font-bold text-slate-900">
+                                    <div className="flex items-center gap-2">
+                                      <BookOpen size={14} className="text-blue-500 shrink-0" />
+                                      <span>{item.learningArea.name}</span>
+                                    </div>
+                                  </td>
+                                  <td>
+                                    {item.isSubmitted ? (
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800">
+                                        <CheckCircle2 size={11} className="text-emerald-600" />
+                                        Submitted
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-red-100 text-red-800">
+                                        <AlertCircle size={11} className="text-red-600" />
+                                        Missing
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td>
+                                    {item.isSubmitted && item.submission ? (
+                                      <a
+                                        href={`/teacher-submissions?name=${encodeURIComponent(item.submission.teacher_name)}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="font-semibold text-blue-700 hover:text-blue-900 hover:underline inline-flex items-center gap-1"
+                                      >
+                                        {item.submission.teacher_name}
+                                        <ExternalLink size={11} className="text-blue-500 opacity-60" />
+                                      </a>
+                                    ) : (
+                                      <span className="text-slate-400 italic">No teacher data</span>
+                                    )}
+                                  </td>
+                                  <td>
+                                    {item.isSubmitted && item.submission ? (
+                                      <span className="font-mono text-[11px] font-bold text-blue-600">
+                                        {item.submission.reference_number}
+                                      </span>
+                                    ) : (
+                                      <span className="text-slate-400">—</span>
+                                    )}
+                                  </td>
+                                  <td className="text-slate-500 text-xs">
+                                    {item.isSubmitted && item.submission ? (
+                                      format(new Date(item.submission.submitted_at), 'MMM d, yyyy')
+                                    ) : (
+                                      <span className="text-slate-400">—</span>
+                                    )}
+                                  </td>
+                                  <td className="text-right pr-6">
+                                    {item.isSubmitted && item.submission ? (
+                                      <Link
+                                        to={`/admin/submissions/${item.submission.id}`}
+                                        className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 inline-flex items-center gap-1"
+                                      >
+                                        Review Form
+                                      </Link>
+                                    ) : (
+                                      <span className="text-[10px] font-bold text-red-600 bg-red-100/80 px-2 py-0.5 rounded border border-red-200">
+                                        Pending
+                                      </span>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              /* ============================================================ */
+              /* ALL SCHOOLS FLAT MATRIX TABLE                                */
+              /* ============================================================ */
+              <div className="card overflow-hidden bg-white">
                 <div className="overflow-x-auto">
                   <table className="data-table">
                     <thead>
@@ -902,8 +1186,8 @@ export function SubmissionsPage() {
                     </tbody>
                   </table>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         )}
         {/* Delete Confirmation Modal */}
@@ -916,6 +1200,21 @@ export function SubmissionsPage() {
           onConfirm={handleDeleteSubmission}
           onCancel={() => setSubToDelete(null)}
           isLoading={isDeleting}
+        />
+
+        {/* Excel Import Modal */}
+        <ImportSubmissionsModal
+          isOpen={isImportModalOpen}
+          onClose={() => setIsImportModalOpen(false)}
+          onSuccess={() => {
+            loadSubmissions()
+            if (activeTab === 'status') loadStatusData()
+          }}
+          schools={schools}
+          grades={grades}
+          learningAreas={learningAreas}
+          schoolYears={schoolYears}
+          terms={terms}
         />
       </div>
     </AdminLayout>

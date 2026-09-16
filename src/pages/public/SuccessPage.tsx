@@ -25,7 +25,7 @@ export function SuccessPage({ referenceNumber, formData, onSubmitAnother }: Prop
 
   return (
     <PublicLayout>
-      <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <div className="w-full px-4 sm:px-8 py-6 space-y-6">
         {/* Success Hero */}
         <div className="text-center no-print">
           <div className="flex justify-center mb-3">

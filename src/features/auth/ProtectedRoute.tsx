@@ -12,7 +12,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   if (loading) return <PageLoader />
 
   if (!user || !admin) {
-    return <Navigate to="/admin/login" replace />
+    return <Navigate to="/" replace />
   }
 
   if (!admin.is_active) {

@@ -228,6 +228,39 @@
   .skeleton {
     @apply bg-slate-200/70 rounded-md animate-pulse;
   }
+
+  /* ---- SCHOOL CONNECT GLOBAL DESIGN SYSTEM ---- */
+  .sc-card {
+    @apply rounded-2xl bg-white border border-slate-200/80 shadow-card transition-all duration-200;
+  }
+
+  .sc-card-interactive {
+    @apply sc-card hover:border-blue-400 hover:shadow-card-md hover:-translate-y-0.5 cursor-pointer;
+  }
+
+  .sc-glass {
+    @apply bg-white/90 backdrop-blur-md border-b border-slate-200/80;
+  }
+
+  .sc-badge {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border;
+  }
+
+  .sc-badge-active {
+    @apply sc-badge bg-emerald-50 text-emerald-700 border-emerald-200;
+  }
+
+  .sc-badge-primary {
+    @apply sc-badge bg-blue-50 text-blue-700 border-blue-200;
+  }
+
+  .sc-badge-warning {
+    @apply sc-badge bg-amber-50 text-amber-700 border-amber-200;
+  }
+
+  .sc-gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-700;
+  }
 }
 
 /* ---- PRINT STYLES (8.5 x 13 Landscape, 0.5in margins) ---- */

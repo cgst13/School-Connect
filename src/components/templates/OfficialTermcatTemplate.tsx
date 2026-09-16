@@ -29,7 +29,11 @@ export function OfficialTermcatTemplate({
   const allSubmissions = submissions || (submission ? [submission] : [])
   const primarySub = allSubmissions[0]
 
-  const isMultipleSubsForSameGrade = allSubmissions.length > 1 && new Set(allSubmissions.map(s => s.grade_level_id || s.grade_level?.id)).size === 1
+  const isMultipleSubsForSameGrade =
+    allSubmissions.length > 0 &&
+    (allSubmissions.length > 1 ||
+      !!primarySub?.learning_area?.name ||
+      new Set(allSubmissions.map(s => s.grade_level_id || s.grade_level?.id)).size === 1)
 
   const formType: FormType = explicitFormType || primarySub?.form_type || 'ks1'
   const isKS1 = formType === 'ks1'
@@ -212,7 +216,7 @@ export function OfficialTermcatTemplate({
                             {ml.length > 0 ? (
                               <ol className="list-decimal list-inside space-y-0.5">
                                 {ml.map(c => (
-                                  <li key={c.id || c.rank}>{c.competency_text}</li>
+                                  <li key={c.id || c.rank} className="whitespace-pre-wrap leading-normal mb-1">{c.competency_text}</li>
                                 ))}
                               </ol>
                             ) : '—'}
@@ -223,7 +227,7 @@ export function OfficialTermcatTemplate({
                             {lm.length > 0 ? (
                               <ol className="list-decimal list-inside space-y-0.5">
                                 {lm.map(c => (
-                                  <li key={c.id || c.rank}>{c.competency_text}</li>
+                                  <li key={c.id || c.rank} className="whitespace-pre-wrap leading-normal mb-1">{c.competency_text}</li>
                                 ))}
                               </ol>
                             ) : '—'}
@@ -234,7 +238,7 @@ export function OfficialTermcatTemplate({
                             {md.length > 0 ? (
                               <ol className="list-decimal list-inside space-y-0.5">
                                 {md.map(c => (
-                                  <li key={c.id || c.rank}>{c.competency_text}</li>
+                                  <li key={c.id || c.rank} className="whitespace-pre-wrap leading-normal mb-1">{c.competency_text}</li>
                                 ))}
                               </ol>
                             ) : '—'}
@@ -302,7 +306,7 @@ export function OfficialTermcatTemplate({
                             {ml.length > 0 ? (
                               <ol className="list-decimal list-inside space-y-0.5">
                                 {ml.map(c => (
-                                  <li key={c.id || c.rank}>{c.competency_text}</li>
+                                  <li key={c.id || c.rank} className="whitespace-pre-wrap leading-normal mb-1">{c.competency_text}</li>
                                 ))}
                               </ol>
                             ) : '—'}
@@ -312,7 +316,7 @@ export function OfficialTermcatTemplate({
                             {lm.length > 0 ? (
                               <ol className="list-decimal list-inside space-y-0.5">
                                 {lm.map(c => (
-                                  <li key={c.id || c.rank}>{c.competency_text}</li>
+                                  <li key={c.id || c.rank} className="whitespace-pre-wrap leading-normal mb-1">{c.competency_text}</li>
                                 ))}
                               </ol>
                             ) : '—'}
@@ -322,7 +326,7 @@ export function OfficialTermcatTemplate({
                             {md.length > 0 ? (
                               <ol className="list-decimal list-inside space-y-0.5">
                                 {md.map(c => (
-                                  <li key={c.id || c.rank}>{c.competency_text}</li>
+                                  <li key={c.id || c.rank} className="whitespace-pre-wrap leading-normal mb-1">{c.competency_text}</li>
                                 ))}
                               </ol>
                             ) : '—'}
@@ -398,7 +402,7 @@ export function OfficialTermcatTemplate({
                               {ml.length > 0 ? (
                                 <ol className="list-decimal list-inside space-y-0.5">
                                   {ml.map(c => (
-                                    <li key={c.id || c.rank}>{c.competency_text}</li>
+                                    <li key={c.id || c.rank} className="whitespace-pre-wrap leading-normal mb-1">{c.competency_text}</li>
                                   ))}
                                 </ol>
                               ) : '—'}
@@ -409,7 +413,7 @@ export function OfficialTermcatTemplate({
                               {lm.length > 0 ? (
                                 <ol className="list-decimal list-inside space-y-0.5">
                                   {lm.map(c => (
-                                    <li key={c.id || c.rank}>{c.competency_text}</li>
+                                    <li key={c.id || c.rank} className="whitespace-pre-wrap leading-normal mb-1">{c.competency_text}</li>
                                   ))}
                                 </ol>
                               ) : '—'}
@@ -420,7 +424,7 @@ export function OfficialTermcatTemplate({
                               {md.length > 0 ? (
                                 <ol className="list-decimal list-inside space-y-0.5">
                                   {md.map(c => (
-                                    <li key={c.id || c.rank}>{c.competency_text}</li>
+                                    <li key={c.id || c.rank} className="whitespace-pre-wrap leading-normal mb-1">{c.competency_text}</li>
                                   ))}
                                 </ol>
                               ) : '—'}

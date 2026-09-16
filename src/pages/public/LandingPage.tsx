@@ -353,9 +353,9 @@ export function LandingPage() {
 
   return (
     <PublicLayout>
-      <div className="max-w-6xl mx-auto px-4 py-8 sm:py-12 space-y-10">
+      <div className="w-full px-4 sm:px-8 py-8 sm:py-12 space-y-10">
         {/* Hero Section (Start Submission Button only) */}
-        <div className="text-center max-w-3xl mx-auto">
+        <div className="text-center max-w-5xl mx-auto">
           {/* Logo Mark */}
           <div className="flex justify-center mb-5">
             <div className="w-20 h-20 rounded-2xl bg-deped-blue flex items-center justify-center shadow-card-lg">

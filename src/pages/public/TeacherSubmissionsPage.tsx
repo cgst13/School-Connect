@@ -68,7 +68,7 @@ export function TeacherSubmissionsPage() {
   if (loading) {
     return (
       <PublicLayout>
-        <div className="w-full max-w-5xl mx-auto px-4 py-12">
+        <div className="w-full px-4 sm:px-8 py-12">
           <PageLoader />
         </div>
       </PublicLayout>
@@ -78,7 +78,7 @@ export function TeacherSubmissionsPage() {
   if (!teacherName || submissions.length === 0) {
     return (
       <PublicLayout>
-        <div className="w-full max-w-4xl mx-auto px-4 py-12 space-y-4">
+        <div className="w-full px-4 sm:px-8 py-12 space-y-4">
           <Link to="/" className="btn-sm btn-secondary inline-flex items-center gap-1.5 no-print">
             <ArrowLeft size={14} /> Back to Home
           </Link>
@@ -96,7 +96,7 @@ export function TeacherSubmissionsPage() {
 
   return (
     <PublicLayout>
-      <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+      <div className="w-full px-4 sm:px-8 py-6 sm:py-8 space-y-6">
         {/* Header Navigation */}
         <div className="flex items-center justify-between gap-2 flex-wrap no-print">
           <Link to="/" className="btn-sm btn-secondary inline-flex items-center gap-1.5">

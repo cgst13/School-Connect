@@ -244,7 +244,7 @@ export function SubmissionPage() {
 
   return (
     <PublicLayout>
-      <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <div className="w-full px-4 sm:px-8 py-6 sm:py-8">
         {/* Page header */}
         <div className="mb-6">
           <h1 className="page-title">TERMCAT Submission</h1>
