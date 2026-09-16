@@ -62,38 +62,52 @@ export function SchoolConnectLoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col justify-between font-sans relative overflow-hidden">
+    <div className="min-h-screen text-slate-800 flex flex-col justify-between font-sans relative overflow-hidden bg-slate-900">
+      {/* Responsive Background Images */}
+      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+        {/* Mobile Background (< md) */}
+        <div 
+          className="block md:hidden absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: `url('/images/bg-mobile.png')` }}
+        />
+        {/* Desktop Background (>= md) */}
+        <div 
+          className="hidden md:block absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: `url('/images/bg-desktop.png')` }}
+        />
+      </div>
+
       {/* Top Header */}
-      <header className="relative z-10 w-full px-6 py-6 flex items-center justify-between">
+      <header className="relative z-10 w-full px-6 py-5 flex items-center justify-between bg-white/70 backdrop-blur-md border-b border-white/30 shadow-xs">
         <Link to="/" className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 p-0.5 shadow-md shadow-blue-500/10">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#0B1F3A] to-blue-700 p-0.5 shadow-md">
             <div className="w-full h-full bg-white rounded-[10px] flex items-center justify-center">
-              <Grid className="w-5 h-5 text-blue-600" />
+              <Grid className="w-5 h-5 text-[#0B1F3A]" />
             </div>
           </div>
           <div>
-            <span className="text-base font-black tracking-tight text-slate-900">SCHOOL CONNECT</span>
-            <span className="block text-[10px] text-slate-500 font-medium">Unified Educational Systems</span>
+            <span className="text-base font-black tracking-tight text-[#0B1F3A]">SCHOOL CONNECT</span>
+            <span className="block text-[10px] text-[#64748B] font-semibold">Unified Educational Systems</span>
           </div>
         </Link>
       </header>
 
       {/* Login Card Form */}
-      <main className="relative z-10 flex-1 flex items-center justify-center p-4">
+      <main className="relative z-10 flex-1 flex items-center justify-center p-4 py-8 sm:py-12">
         <div className="w-full max-w-md space-y-6">
           <div className="text-center space-y-2">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 border border-[#E2E8F0] text-[#0B1F3A] text-xs font-semibold">
+            <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-white/85 backdrop-blur-md border border-white/60 text-[#0B1F3A] text-xs font-bold shadow-xs">
               <Sparkles className="w-3.5 h-3.5 text-[#0B1F3A]" /> Single Sign-On Authentication
             </div>
-            <h1 className="text-2xl font-black text-[#111827] tracking-tight">Sign In to School Connect</h1>
-            <p className="text-xs text-[#64748B]">
+            <h1 className="text-2xl sm:text-3xl font-black text-[#0B1F3A] tracking-tight">Sign In to School Connect</h1>
+            <p className="text-xs text-slate-700 font-semibold">
               Enter your official administrator or teacher credentials to access your modules.
             </p>
           </div>
 
-          <div className="rounded-2xl bg-white border border-[#E2E8F0] p-6 sm:p-8 shadow-card-md">
+          <div className="rounded-2xl bg-white/95 backdrop-blur-md border border-white/60 p-6 sm:p-8 shadow-2xl space-y-4">
             {error && (
-              <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
+              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
                 <span>{error}</span>
               </div>
@@ -112,7 +126,7 @@ export function SchoolConnectLoginPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="admin@school.edu.ph"
-                    className="w-full pl-9 pr-3 py-2.5 rounded-xl text-xs bg-[#F8FAFC] border border-[#E2E8F0] text-[#111827] placeholder-slate-400 focus:outline-none focus:border-[#0B1F3A] focus:ring-1 focus:ring-[#0B1F3A]"
+                    className="w-full pl-9 pr-3 py-2.5 rounded-xl text-xs bg-slate-50/80 border border-[#E2E8F0] text-[#111827] placeholder-slate-400 focus:outline-none focus:border-[#0B1F3A] focus:ring-1 focus:ring-[#0B1F3A]"
                   />
                 </div>
               </div>
@@ -129,7 +143,7 @@ export function SchoolConnectLoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••••••"
-                    className="w-full pl-9 pr-9 py-2.5 rounded-xl text-xs bg-[#F8FAFC] border border-[#E2E8F0] text-[#111827] placeholder-slate-400 focus:outline-none focus:border-[#0B1F3A] focus:ring-1 focus:ring-[#0B1F3A]"
+                    className="w-full pl-9 pr-9 py-2.5 rounded-xl text-xs bg-slate-50/80 border border-[#E2E8F0] text-[#111827] placeholder-slate-400 focus:outline-none focus:border-[#0B1F3A] focus:ring-1 focus:ring-[#0B1F3A]"
                   />
                   <button
                     type="button"
@@ -145,7 +159,7 @@ export function SchoolConnectLoginPage() {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-[#0B1F3A] hover:bg-[#07152A] shadow-xs transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                  className="w-full py-3 px-4 rounded-xl text-xs font-bold text-white bg-[#0B1F3A] hover:bg-[#07152A] shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
                 >
                   {isLoading ? (
                     <span className="flex items-center gap-2">
@@ -161,8 +175,8 @@ export function SchoolConnectLoginPage() {
               </div>
             </form>
 
-            <div className="mt-6 pt-4 border-t border-slate-100 text-center">
-              <span className="text-[11px] text-slate-500">
+            <div className="pt-3 border-t border-slate-100 text-center">
+              <span className="text-[11px] text-slate-500 font-medium">
                 Granting access to TERMCAT, SIS, HRIS & DepEd compliance tools.
               </span>
             </div>
@@ -171,7 +185,7 @@ export function SchoolConnectLoginPage() {
       </main>
 
       {/* Footer */}
-      <footer className="relative z-10 py-4 text-center text-xs text-slate-500 bg-white border-t border-slate-200">
+      <footer className="relative z-10 py-3.5 text-center text-xs text-slate-600 bg-white/80 backdrop-blur-md border-t border-white/40">
         School Connect &copy; {new Date().getFullYear()} DepEd Systems Portal
       </footer>
     </div>
