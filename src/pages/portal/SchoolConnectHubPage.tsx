@@ -20,7 +20,12 @@ import {
   Award,
   Activity,
   ChevronRight,
-  UserCheck
+  UserCheck,
+  BookOpen,
+  Calendar,
+  Clock,
+  ScrollText,
+  Settings
 } from 'lucide-react'
 import { useAuth } from '@/features/auth/useAuth'
 import { REGISTERED_SYSTEMS, SystemConfig } from '@/config/systems'
@@ -218,6 +223,145 @@ export function SchoolConnectHubPage() {
                 </div>
               )
             })}
+          </div>
+        </div>
+
+        {/* Global Governance & Master Data Section */}
+        <div className="space-y-6 pt-6 border-t border-slate-200">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-indigo-600" />
+              Global Platform Governance & Master Data
+            </h2>
+            <p className="text-xs text-slate-500">
+              Platform-wide administration, academic structure configurations, personnel records, and security controls
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* 1. Academic Structure & Master Data */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-2xs space-y-4">
+              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                <Building2 className="w-5 h-5 text-blue-600" />
+                <h3 className="text-sm font-extrabold text-slate-900">Academic Structure & Master Data</h3>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Link
+                  to="/admin/schools"
+                  className="p-3.5 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/40 transition-all flex items-center gap-3 group"
+                >
+                  <div className="p-2 rounded-lg bg-blue-100 text-blue-700">
+                    <Building2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-900 group-hover:text-blue-700">Schools Directory</h4>
+                    <p className="text-[11px] text-slate-500">School list & type setup</p>
+                  </div>
+                </Link>
+
+                <Link
+                  to="/admin/learning-areas"
+                  className="p-3.5 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/40 transition-all flex items-center gap-3 group"
+                >
+                  <div className="p-2 rounded-lg bg-emerald-100 text-emerald-700">
+                    <BookOpen className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-900 group-hover:text-blue-700">Learning Areas</h4>
+                    <p className="text-[11px] text-slate-500">Subjects & grade mapping</p>
+                  </div>
+                </Link>
+
+                <Link
+                  to="/admin/school-years"
+                  className="p-3.5 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/40 transition-all flex items-center gap-3 group"
+                >
+                  <div className="p-2 rounded-lg bg-purple-100 text-purple-700">
+                    <Calendar className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-900 group-hover:text-blue-700">School Years</h4>
+                    <p className="text-[11px] text-slate-500">Academic calendar years</p>
+                  </div>
+                </Link>
+
+                <Link
+                  to="/admin/terms"
+                  className="p-3.5 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/40 transition-all flex items-center gap-3 group"
+                >
+                  <div className="p-2 rounded-lg bg-amber-100 text-amber-700">
+                    <Clock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-900 group-hover:text-blue-700">Terms & Quarters</h4>
+                    <p className="text-[11px] text-slate-500">Active evaluation terms</p>
+                  </div>
+                </Link>
+              </div>
+            </div>
+
+            {/* 2. Platform Administration & Security */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-2xs space-y-4">
+              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                <Users className="w-5 h-5 text-indigo-600" />
+                <h3 className="text-sm font-extrabold text-slate-900">Platform Administration & Staff</h3>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Link
+                  to="/portal/staff"
+                  className="p-3.5 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/40 transition-all flex items-center gap-3 group"
+                >
+                  <div className="p-2 rounded-lg bg-indigo-100 text-indigo-700">
+                    <Users className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-900 group-hover:text-indigo-700">Faculty & Staff</h4>
+                    <p className="text-[11px] text-slate-500">Personnel & assignments</p>
+                  </div>
+                </Link>
+
+                <Link
+                  to="/admin/administrators"
+                  className="p-3.5 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/40 transition-all flex items-center gap-3 group"
+                >
+                  <div className="p-2 rounded-lg bg-purple-100 text-purple-700">
+                    <ShieldCheck className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-900 group-hover:text-indigo-700">Administrators</h4>
+                    <p className="text-[11px] text-slate-500">Superadmin accounts</p>
+                  </div>
+                </Link>
+
+                <Link
+                  to="/admin/audit-log"
+                  className="p-3.5 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/40 transition-all flex items-center gap-3 group"
+                >
+                  <div className="p-2 rounded-lg bg-teal-100 text-teal-700">
+                    <ScrollText className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-900 group-hover:text-indigo-700">Audit Logs</h4>
+                    <p className="text-[11px] text-slate-500">Platform activity log</p>
+                  </div>
+                </Link>
+
+                <Link
+                  to="/admin/settings"
+                  className="p-3.5 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/40 transition-all flex items-center gap-3 group"
+                >
+                  <div className="p-2 rounded-lg bg-slate-100 text-slate-700">
+                    <Settings className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-900 group-hover:text-indigo-700">System Settings</h4>
+                    <p className="text-[11px] text-slate-500">Configuration & backups</p>
+                  </div>
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </main>
