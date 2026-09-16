@@ -93,7 +93,7 @@ export function SchoolConnectLoginPage() {
       </header>
 
       {/* Login Card Form */}
-      <main className="relative z-10 flex-1 flex items-center justify-center p-4 py-8 sm:py-12">
+      <main className="relative z-10 flex-1 flex items-center justify-center md:justify-end px-4 sm:px-8 md:px-16 lg:px-24 py-8 sm:py-12 w-full">
         <div className="w-full max-w-md space-y-6">
           <div className="text-center space-y-2">
             <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-white/85 backdrop-blur-md border border-white/60 text-[#0B1F3A] text-xs font-bold shadow-xs">
