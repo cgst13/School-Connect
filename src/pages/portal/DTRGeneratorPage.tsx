@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
-import { SchoolConnectLayout } from '@/components/layouts/SchoolConnectLayout'
+import { SchoolConnectLayout, type NavGroup } from '@/components/layouts/SchoolConnectLayout'
 import { useAuth } from '@/features/auth/useAuth'
 import { useToast } from '@/hooks/useToast'
 import {
@@ -42,8 +42,28 @@ import {
   Tag,
   Plus,
   Database,
-  Loader2
+  Loader2,
+  Cloud
 } from 'lucide-react'
+
+const dtrNavGroups: NavGroup[] = [
+  {
+    title: 'CS Form 48 DTR Generator',
+    items: [
+      { to: '/dtr', label: 'DTR Main Generator', icon: <Clock size={18} /> },
+      { to: '/dtr?tab=preview', label: 'Form 48 Side-by-Side Preview', icon: <Printer size={18} /> },
+      { to: '/dtr?tab=editor', label: 'Data Sheet Editor & Times', icon: <Edit3 size={18} /> }
+    ]
+  },
+  {
+    title: 'Concepcion District Systems',
+    items: [
+      { to: '/notes', label: 'Notes & Credentials Vault', icon: <FolderOpen size={18} /> },
+      { to: '/cloud-vault', label: 'OneDrive Cloud Vault', icon: <Cloud size={18} /> },
+      { to: '/portal', label: 'Back to Portal Hub', icon: <Sparkles size={18} /> }
+    ]
+  }
+]
 import {
   fetchAllAdmins,
   fetchSchools,
@@ -694,7 +714,12 @@ export function DTRGeneratorPage() {
   }, [savedRecords, historySearch])
 
   return (
-    <SchoolConnectLayout systemTitle="Civil Service Form No. 48 DTR Generator">
+    <SchoolConnectLayout
+      activeAppId="dtr"
+      systemTitle="Civil Service Form No. 48 DTR Generator"
+      systemSubtitle="Concepcion District Non-Late DTR & Official Signatory System"
+      navGroups={dtrNavGroups}
+    >
       {/* PRINT-ONLY TWO-IN-ONE CS FORM 48 STYLES */}
       <style>{`
         @media print {
