@@ -21,8 +21,11 @@ import {
   Save,
   Coffee,
   Sun,
-  Moon
+  Moon,
+  Award,
+  ShieldCheck
 } from 'lucide-react'
+import { fetchAllAdmins, fetchSchools } from '@/lib/supabase/queries'
 
 export interface DTRDayEntry {
   dayNumber: number
@@ -82,8 +85,54 @@ export function DTRGeneratorPage() {
   )
   const [saturdaysText, setSaturdaysText] = useState<string>('')
 
-  const [supervisorName, setSupervisorName] = useState<string>('ROGER F. CAPA, CESO VI')
-  const [supervisorTitle, setSupervisorTitle] = useState<string>('Schools Division Superintendent')
+  // DTR Target Personnel Role Selector
+  const [dtrTargetRole, setDtrTargetRole] = useState<'teacher' | 'ao_2' | 'school_head' | 'psds'>(() => {
+    if (admin?.role === 'school_head') return 'school_head'
+    if (admin?.role === 'psds') return 'psds'
+    if (admin?.role === 'ao_2') return 'ao_2'
+    return 'teacher'
+  })
+
+  // School Head Signatory State (For Teacher & AO II DTRs)
+  const [schoolHeadName, setSchoolHeadName] = useState<string>('')
+  const [schoolHeadTitle, setSchoolHeadTitle] = useState<string>('School Head / Principal')
+  const [schoolHeadOptions, setSchoolHeadOptions] = useState<{ id: string; name: string; schoolNames: string }[]>([])
+
+  // Load School Heads from Supabase database
+  useEffect(() => {
+    Promise.all([fetchAllAdmins(), fetchSchools()]).then(([admins, schools]) => {
+      const heads = admins
+        .filter(a => a.role === 'school_head' || (a.role === 'admin' && a.assigned_school_ids && a.assigned_school_ids.length > 0))
+        .map(h => {
+          const sNames = schools
+            .filter(s => h.assigned_school_ids?.includes(s.id))
+            .map(s => s.name)
+            .join(', ')
+          return {
+            id: h.id,
+            name: h.full_name,
+            schoolNames: sNames ? `(${sNames})` : ''
+          }
+        })
+      setSchoolHeadOptions(heads)
+      if (heads.length > 0) {
+        setSchoolHeadName(prev => prev || heads[0].name)
+      }
+    }).catch(() => {})
+  }, [])
+
+  // Auto-derive Signatory Name & Title based on official DepEd governance rules:
+  // - Teacher & AO II -> Signatory is the School Head / Principal
+  // - School Head & PSDS -> Signatory is Schools Division Superintendent ROGER F. CAPA, CESO VI
+  const isDivisionSignatory = dtrTargetRole === 'school_head' || dtrTargetRole === 'psds'
+
+  const finalSupervisorName = isDivisionSignatory
+    ? 'ROGER F. CAPA, CESO VI'
+    : (schoolHeadName.trim() || 'SCHOOL HEAD / PRINCIPAL')
+
+  const finalSupervisorTitle = isDivisionSignatory
+    ? 'Schools Division Superintendent'
+    : (schoolHeadTitle.trim() || 'School Head')
 
   // Generator Time Range Configurations (Default: Non-late working ranges)
   const [amArrivalRange, setAmArrivalRange] = useState({ start: 15, end: 58 }) // 6:15 AM - 6:58 AM (Start at 7:00 AM)
@@ -105,8 +154,8 @@ export function DTRGeneratorPage() {
       if (saved) {
         const parsed = JSON.parse(saved)
         if (parsed.employeeName) setEmployeeName(parsed.employeeName)
-        if (parsed.supervisorName) setSupervisorName(parsed.supervisorName)
-        if (parsed.supervisorTitle) setSupervisorTitle(parsed.supervisorTitle)
+        if (parsed.dtrTargetRole) setDtrTargetRole(parsed.dtrTargetRole)
+        if (parsed.schoolHeadName) setSchoolHeadName(parsed.schoolHeadName)
         if (parsed.officialHoursText) setOfficialHoursText(parsed.officialHoursText)
       }
     } catch {}
@@ -259,8 +308,8 @@ export function DTRGeneratorPage() {
         DTR_STORAGE_KEY,
         JSON.stringify({
           employeeName,
-          supervisorName,
-          supervisorTitle,
+          dtrTargetRole,
+          schoolHeadName,
           officialHoursText
         })
       )
@@ -474,30 +523,62 @@ export function DTRGeneratorPage() {
             </div>
           </div>
 
-          {/* Supervisor / Signatory Details */}
+          {/* Signatory Governance & Role Parameters */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-[#F0E6DD]/60">
+            {/* DTR Personnel Role Selector */}
             <div>
-              <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">In-Charge / Supervisor Name</label>
-              <input
-                type="text"
-                value={supervisorName}
-                onChange={e => setSupervisorName(e.target.value)}
-                placeholder="ROGER F. CAPA, CESO VI"
+              <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">DTR Personnel Category</label>
+              <select
+                value={dtrTargetRole}
+                onChange={e => setDtrTargetRole(e.target.value as any)}
                 className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
-              />
+              >
+                <option value="teacher">Teacher (School Head Signatory)</option>
+                <option value="ao_2">Administrative Officer (AO II) (School Head Signatory)</option>
+                <option value="school_head">School Head (Division Superintendent Signatory)</option>
+                <option value="psds">PSDS (Division Superintendent Signatory)</option>
+              </select>
             </div>
 
+            {/* Official Signatory Display / Selection */}
             <div>
-              <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">Supervisor Title / Position</label>
-              <input
-                type="text"
-                value={supervisorTitle}
-                onChange={e => setSupervisorTitle(e.target.value)}
-                placeholder="Schools Division Superintendent"
-                className="w-full px-3 py-2 rounded-xl text-xs font-semibold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
-              />
+              {isDivisionSignatory ? (
+                <div>
+                  <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">Official Signatory (Fixed)</label>
+                  <div className="px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex items-center justify-between text-xs font-bold">
+                    <span>ROGER F. CAPA, CESO VI</span>
+                    <span className="text-[10px] bg-amber-200/60 px-2 py-0.5 rounded-md text-amber-950 font-black">SDS</span>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">School Head / Principal Name</label>
+                  {schoolHeadOptions.length > 0 ? (
+                    <select
+                      value={schoolHeadName}
+                      onChange={e => setSchoolHeadName(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
+                    >
+                      {schoolHeadOptions.map(h => (
+                        <option key={h.id} value={h.name}>
+                          {h.name} {h.schoolNames}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={schoolHeadName}
+                      onChange={e => setSchoolHeadName(e.target.value)}
+                      placeholder="e.g. MARIA L. SANTOS"
+                      className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
+                    />
+                  )}
+                </div>
+              )}
             </div>
 
+            {/* Action Buttons */}
             <div className="flex items-end gap-2">
               <button
                 type="button"
@@ -520,7 +601,7 @@ export function DTRGeneratorPage() {
               <button
                 type="button"
                 onClick={handleSaveConfig}
-                className="p-2.5 rounded-xl bg-white text-[#8B72F4] hover:bg-[#F6EFFF] border border-[#8B72F4]/30 transition-all cursor-pointer"
+                className="p-2.5 rounded-xl bg-[#FAF5F0] hover:bg-[#F6EFFF] text-[#8B72F4] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] transition-all cursor-pointer"
                 title="Save Employee Config"
               >
                 <Save size={16} />
@@ -741,8 +822,8 @@ export function DTRGeneratorPage() {
                 officialHoursText={officialHoursText}
                 saturdaysText={saturdaysText}
                 entries={entries}
-                supervisorName={supervisorName}
-                supervisorTitle={supervisorTitle}
+                supervisorName={finalSupervisorName}
+                supervisorTitle={finalSupervisorTitle}
               />
             </div>
           </div>
@@ -757,8 +838,8 @@ export function DTRGeneratorPage() {
           officialHoursText={officialHoursText}
           saturdaysText={saturdaysText}
           entries={entries}
-          supervisorName={supervisorName}
-          supervisorTitle={supervisorTitle}
+          supervisorName={finalSupervisorName}
+          supervisorTitle={finalSupervisorTitle}
         />
       </div>
     </SchoolConnectLayout>
