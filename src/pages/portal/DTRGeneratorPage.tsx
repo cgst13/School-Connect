@@ -1270,7 +1270,7 @@ export function DTRGeneratorPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 items-end">
                 {/* Employee Name & Proxy Personnel Picker */}
                 <div className="lg:col-span-2">
                   <div className="flex items-center justify-between mb-1">
@@ -1341,76 +1341,8 @@ export function DTRGeneratorPage() {
                   />
                 </div>
 
-                {/* Official Hours Banner String */}
-                <div>
-                  <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">Official Hours Header Text</label>
-                  <input
-                    type="text"
-                    value={officialHoursText}
-                    onChange={e => setOfficialHoursText(e.target.value)}
-                    placeholder="Regular days 7:00–11:30AM / 1:00–5:00PM"
-                    className="w-full px-3 py-2 rounded-xl text-xs font-semibold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
-                  />
-                </div>
-              </div>
-
-              {/* Signatory Governance & Role Parameters */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-[#F0E6DD]/60">
-                {/* DTR Personnel Role Selector */}
-                <div>
-                  <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">DTR Personnel Category</label>
-                  <select
-                    value={dtrTargetRole}
-                    onChange={e => setDtrTargetRole(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
-                  >
-                    <option value="teacher">Teacher (School Head Signatory)</option>
-                    <option value="ao_2">Administrative Officer (AO II) (School Head Signatory)</option>
-                    <option value="school_head">School Head (Division Superintendent Signatory)</option>
-                    <option value="psds">PSDS (Division Superintendent Signatory)</option>
-                  </select>
-                </div>
-
-                {/* Official Signatory Display / Selection */}
-                <div>
-                  {isDivisionSignatory ? (
-                    <div>
-                      <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">Official Signatory (Fixed)</label>
-                      <div className="px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex items-center justify-between text-xs font-bold">
-                        <span>ROGER F. CAPA, CESO VI</span>
-                        <span className="text-[10px] bg-amber-200/60 px-2 py-0.5 rounded-md text-amber-950 font-black">SDS</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">School Head / Principal Name</label>
-                      {schoolHeadOptions.length > 0 ? (
-                        <select
-                          value={schoolHeadName}
-                          onChange={e => setSchoolHeadName(e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
-                        >
-                          {schoolHeadOptions.map(h => (
-                            <option key={h.id} value={h.name}>
-                              {h.name} {h.schoolNames}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          type="text"
-                          value={schoolHeadName}
-                          onChange={e => setSchoolHeadName(e.target.value)}
-                          placeholder="e.g. MARIA L. SANTOS"
-                          className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
-                        />
-                      )}
-                    </div>
-                  )}
-                </div>
-
                 {/* Action Buttons */}
-                <div className="flex items-end gap-2">
+                <div className="lg:col-span-2 flex items-center gap-2">
                   <button
                     type="button"
                     onClick={handleGenerateRandomTimes}
@@ -1428,7 +1360,7 @@ export function DTRGeneratorPage() {
                     title="Save current DTR to Supabase Database"
                   >
                     {isSavingDb ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                    <span>{activeRecordId ? 'Update Supabase' : 'Save to Supabase'}</span>
+                    <span>{activeRecordId ? 'Update Supabase' : 'Save'}</span>
                   </button>
 
                   <button
