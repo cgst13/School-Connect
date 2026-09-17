@@ -5,6 +5,7 @@ import {
   FileCheck,
   NotebookPen,
   Cloud,
+  Clock,
   LucideIcon
 } from 'lucide-react'
 
@@ -51,6 +52,17 @@ export const REGISTERED_SYSTEMS: SystemConfig[] = [
     category: 'Cloud Storage & Documents',
     icon: Cloud,
     route: '/cloud-vault',
+    enabled: true,
+    badgeText: 'Active',
+  },
+  {
+    id: 'dtr-generator',
+    name: 'Civil Service Form 48 (DTR Generator)',
+    shortName: 'DTR Generator',
+    description: 'Generate, customize, and print CS Form 48 Daily Time Records with non-late time generator & 2-in-1 layout',
+    category: 'Compliance & Attendance',
+    icon: Clock,
+    route: '/dtr',
     enabled: true,
     badgeText: 'Active',
   },

@@ -13,6 +13,7 @@ import { SchoolConnectLoginPage } from '@/pages/portal/SchoolConnectLoginPage'
 import { FacultyStaffPage } from '@/pages/portal/FacultyStaffPage'
 import { NotesPage } from '@/pages/portal/NotesPage'
 import { OneDriveVaultPage } from '@/pages/portal/OneDriveVaultPage'
+import { DTRGeneratorPage } from '@/pages/portal/DTRGeneratorPage'
 
 // Admin pages
 import { AdminLoginPage } from '@/pages/admin/LoginPage'
@@ -65,6 +66,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <OneDriveVaultPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dtr"
+              element={
+                <ProtectedRoute>
+                  <DTRGeneratorPage />
                 </ProtectedRoute>
               }
             />
