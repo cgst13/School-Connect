@@ -21,6 +21,7 @@ import {
   X, Upload, Download, FileSpreadsheet, CheckCircle2, AlertTriangle, RefreshCw,
   User, Building2, GraduationCap, Calendar, Clock, AlertCircle, Layers, Eye, Printer, Sparkles
 } from 'lucide-react'
+import { useGenieModal } from '@/utils/genieAnimation'
 
 interface ImportSubmissionsModalProps {
   isOpen: boolean
@@ -46,6 +47,7 @@ export function ImportSubmissionsModal({
   const { admin } = useAuth()
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { shouldRender, triggerClose, containerClass, backdropClass } = useGenieModal(isOpen, onClose)
 
   // Tagging parameters
   const [teacherName, setTeacherName] = useState('')
@@ -246,38 +248,23 @@ export function ImportSubmissionsModal({
         return lower.includes('ks1') || lower.includes('ks 1') || lower.includes('key stage 1')
       })
       return match || sheets[0]
-    } else if (expectedType === 'ks2to4') {
+    }
+    if (expectedType === 'ks2to4') {
       const match = sheets.find(s => {
         const lower = s.toLowerCase()
-        return lower.includes('ks2') || lower.includes('ks 2') || lower.includes('key stage 2') || lower.includes('ks2-4') || lower.includes('ks 2-4')
+        return lower.includes('ks2') || lower.includes('ks3') || lower.includes('ks4') || lower.includes('ks 2') || lower.includes('key stage 2')
       })
-      return match || (sheets.length > 1 ? sheets[1] : sheets[0])
+      return match || sheets[0]
     }
     return sheets[0]
   }
 
-  const handleGradeLevelSelect = async (newGradeId: string) => {
-    setGradeLevelId(newGradeId)
-    const newGrade = grades.find(g => g.id === newGradeId)
-    if (fileBuffer && sheetNames.length > 0 && newGrade) {
-      const newExpectedType = newGrade.grade_number <= 3 ? 'ks1' : 'ks2to4'
-      const bestSheet = findBestSheetForGrade(sheetNames, newExpectedType)
-      if (bestSheet && bestSheet !== selectedSheet) {
-        setSelectedSheet(bestSheet)
-        await parseSheetData(fileBuffer, bestSheet)
-      }
-    }
-  }
-
   const processFile = async (file: File) => {
-    if (!file.name.match(/\.(xlsx|xls)$/i)) {
-      setParseError('Please select a valid Excel file (.xlsx or .xls).')
-      return
-    }
-
+    setFileName(file.name)
     setIsParsing(true)
     setParseError(null)
-    setFileName(file.name)
+    setParsedRows([])
+    setDuplicateMap({})
 
     try {
       const buffer = await file.arrayBuffer()
@@ -286,64 +273,88 @@ export function ImportSubmissionsModal({
       const sheets = await getExcelSheetNames(buffer)
       setSheetNames(sheets)
 
+      if (sheets.length === 0) {
+        throw new Error('No worksheets found in the uploaded Excel file.')
+      }
+
       const initialSheet = findBestSheetForGrade(sheets, expectedFormType)
       setSelectedSheet(initialSheet)
 
-      await parseSheetData(buffer, initialSheet)
+      await parseSheet(buffer, initialSheet)
     } catch (err: any) {
-      setParseError(err?.message || 'Failed to parse Excel file. Make sure it is not corrupted.')
-      setParsedRows([])
+      console.error(err)
+      setParseError(err.message || 'Failed to parse Excel file.')
+      toast(err.message || 'Failed to parse Excel file.', 'error')
     } finally {
       setIsParsing(false)
     }
   }
 
-  const parseSheetData = async (buffer: ArrayBuffer, sheetName: string) => {
-    setIsParsing(true)
-    setParseError(null)
-    try {
-      const rows = await parseSubjectImportExcel(buffer, learningAreas, sheetName)
-      if (rows.length === 0) {
-        setParseError(`No subject data rows found in worksheet "${sheetName}". Try selecting another sheet or check template headers.`)
-        setParsedRows([])
-      } else {
-        setParsedRows(rows)
-        if (teacherName && schoolId && gradeLevelId && schoolYearId && termId) {
-          checkDuplicates(rows)
-        }
+  const handleGradeLevelSelect = async (gId: string) => {
+    setGradeLevelId(gId)
+    const newGrade = grades.find(g => g.id === gId)
+    const newExpectedType: 'ks1' | 'ks2to4' | null = newGrade
+      ? newGrade.grade_number <= 3
+        ? 'ks1'
+        : 'ks2to4'
+      : null
+
+    if (fileBuffer && sheetNames.length > 0) {
+      const bestSheet = findBestSheetForGrade(sheetNames, newExpectedType)
+      if (bestSheet && bestSheet !== selectedSheet) {
+        setSelectedSheet(bestSheet)
+        setIsParsing(true)
+        await parseSheet(fileBuffer, bestSheet)
+        setIsParsing(false)
       }
-    } catch (err: any) {
-      setParseError(err?.message || `Failed to parse worksheet "${sheetName}".`)
-      setParsedRows([])
-    } finally {
-      setIsParsing(false)
     }
   }
 
   const handleSheetChange = async (sheetName: string) => {
     setSelectedSheet(sheetName)
-    if (fileBuffer) {
-      await parseSheetData(fileBuffer, sheetName)
+    if (!fileBuffer) return
+    setIsParsing(true)
+    setParseError(null)
+    await parseSheet(fileBuffer, sheetName)
+    setIsParsing(false)
+  }
+
+  const parseSheet = async (buffer: ArrayBuffer, sheetName: string) => {
+    try {
+      const rows = await parseSubjectImportExcel(buffer, learningAreas, sheetName)
+      setParsedRows(rows)
+
+      if (rows.length === 0) {
+        toast(`No valid subject data rows found in worksheet "${sheetName}".`, 'info')
+      } else {
+        toast(`Successfully parsed ${rows.length} subject block(s) from sheet "${sheetName}".`, 'success')
+        await checkDuplicatesForRows(rows)
+      }
+    } catch (err: any) {
+      console.error(err)
+      setParseError(err.message || `Failed to parse sheet "${sheetName}".`)
+      toast(err.message || `Failed to parse sheet "${sheetName}".`, 'error')
     }
   }
 
-  const checkDuplicates = async (rows: ParsedSubjectRow[]) => {
+  const checkDuplicatesForRows = async (rows: ParsedSubjectRow[]) => {
+    if (!schoolId || !gradeLevelId || !schoolYearId || !termId) return
     const dupes: Record<number, boolean> = {}
-    for (const r of rows) {
-      if (r.learningAreaId) {
-        try {
-          const existing = await checkDuplicateSubmission(
-            teacherName,
-            schoolId,
-            gradeLevelId,
-            r.learningAreaId,
-            schoolYearId,
-            termId
-          )
-          dupes[r.rowIndex] = !!existing
-        } catch {
-          dupes[r.rowIndex] = false
-        }
+
+    for (const row of rows) {
+      if (!row.learningAreaId) continue
+      try {
+        const isDup = await checkDuplicateSubmission(
+          schoolId,
+          gradeLevelId,
+          row.learningAreaId,
+          schoolYearId,
+          termId,
+          teacherName.trim()
+        )
+        dupes[row.rowIndex] = Boolean(isDup)
+      } catch {
+        // ignore duplicate check error
       }
     }
     setDuplicateMap(dupes)
@@ -496,51 +507,57 @@ export function ImportSubmissionsModal({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
-        <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-4xl overflow-hidden my-8">
-          {/* Header */}
-          <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-600/30 border border-blue-400/30 flex items-center justify-center text-blue-300">
-                <FileSpreadsheet size={22} />
+      <div className={`fixed inset-0 z-50 overflow-y-auto bg-black/40 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 ${backdropClass}`}>
+        <div className={`bg-[#FAF5F0] rounded-[36px] border-4 border-white shadow-[0_25px_60px_-15px_rgba(139,114,244,0.3)] w-full max-w-4xl overflow-hidden my-6 ${containerClass}`}>
+          {/* 3D Soft Pastel Clay Header */}
+          <div className="bg-gradient-to-r from-[#8B72F4] via-[#9F85F7] to-[#A88BEB] text-white px-6 py-5 flex items-center justify-between border-b-2 border-white/20 shadow-xs">
+            <div className="flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-2xl bg-white/20 border border-white/30 text-white flex items-center justify-center shadow-xs shrink-0">
+                <FileSpreadsheet size={24} />
               </div>
               <div>
-                <h2 className="text-lg font-extrabold flex items-center gap-2">
-                  Import Submissions per Subject
-                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-400/30">
+                <h2 className="text-lg sm:text-xl font-black font-display tracking-tight text-white flex items-center gap-2.5">
+                  <span>Import Submissions per Subject</span>
+                  <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-white/20 text-white border border-white/30">
                     Excel Batch
                   </span>
                 </h2>
-                <p className="text-xs text-slate-300">
-                  Upload Excel template with single or multiple learning areas. Each subject block automatically creates its own separate submission upon import.
+                <p className="text-xs text-purple-100 font-medium">
+                  Upload Excel template with single or multiple learning areas. Each subject block creates its own submission.
                 </p>
               </div>
             </div>
             <button
-              onClick={onClose}
-              className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition-colors"
+              onClick={triggerClose}
+              className="w-9 h-9 rounded-2xl bg-white/20 border border-white/30 text-white hover:bg-white/40 flex items-center justify-center font-extrabold text-lg shadow-xs transition-all cursor-pointer"
+              title="Close dialog"
             >
               <X size={20} />
             </button>
           </div>
 
           {/* Content Body */}
-          <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+          <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto bg-[#FAF5F0]">
             {/* STEP 1: TAGGING PARAMETERS FORM */}
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80 space-y-3">
-              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                <User size={14} className="text-blue-600" />
-                1. Tagging Parameters (Target Context)
-              </h3>
+            <div className="bg-white/90 rounded-[28px] border-2 border-white p-5 shadow-[0_8px_20px_rgba(185,170,210,0.12)] space-y-4">
+              <div className="flex items-center justify-between border-b border-purple-100 pb-3">
+                <h3 className="text-xs font-black text-[#2D2638] uppercase tracking-wider flex items-center gap-2">
+                  <User size={15} className="text-[#8B72F4]" />
+                  <span>1. Tagging Parameters (Target Context)</span>
+                </h3>
+                <span className="text-[10px] font-bold text-[#8B72F4] bg-[#F6EFFF] px-2.5 py-0.5 rounded-full border border-[#8B72F4]/20">
+                  Required Information
+                </span>
+              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {/* Teacher Name */}
                 <div className="sm:col-span-2 lg:col-span-1">
-                  <label className="form-label text-xs">
-                    Teacher's Name <span className="text-red-500">*</span>
+                  <label className="block text-xs font-bold text-[#2D2638] mb-1">
+                    Teacher's Name <span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
-                    <User size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 z-10" />
+                    <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A39BAF] z-10" />
                     <SuggestionInput
                       id="import_teacher_name"
                       placeholder="e.g. Maria Santos"
@@ -548,21 +565,21 @@ export function ImportSubmissionsModal({
                       value={teacherName}
                       onChange={e => handleTeacherNameSelect(e.target.value)}
                       onSelectSuggestion={val => handleTeacherNameSelect(val)}
-                      className="form-input text-xs pl-8 py-2 font-medium"
+                      className="w-full pl-9 pr-3 py-2.5 rounded-2xl bg-[#FAF5F0]/70 border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40"
                     />
                   </div>
                 </div>
 
                 {/* School */}
                 <div>
-                  <label className="form-label text-xs">
-                    School <span className="text-red-500">*</span>
+                  <label className="block text-xs font-bold text-[#2D2638] mb-1">
+                    School <span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
-                    <Building2 size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10" />
+                    <Building2 size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A39BAF] pointer-events-none z-10" />
                     <select
                       required
-                      className="form-select text-xs pl-8 py-2 font-medium"
+                      className="w-full pl-9 pr-3 py-2.5 rounded-2xl bg-[#FAF5F0]/70 border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40"
                       value={schoolId}
                       onChange={e => {
                         setSchoolId(e.target.value)
@@ -578,23 +595,23 @@ export function ImportSubmissionsModal({
                     </select>
                   </div>
                   {autoSelectedSchoolName && schoolId && (
-                    <p className="text-[10px] font-semibold text-emerald-700 mt-1 flex items-center gap-1 animate-fade-in">
+                    <p className="text-[10px] font-bold text-emerald-700 mt-1 flex items-center gap-1 animate-fade-in">
                       <Sparkles size={11} className="text-amber-500 shrink-0" />
-                      <span>Auto-filled from teacher's previous records (editable).</span>
+                      <span>Auto-filled from teacher's previous records.</span>
                     </p>
                   )}
                 </div>
 
                 {/* Grade Level */}
                 <div>
-                  <label className="form-label text-xs">
-                    Grade Level <span className="text-red-500">*</span>
+                  <label className="block text-xs font-bold text-[#2D2638] mb-1">
+                    Grade Level <span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
-                    <GraduationCap size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <GraduationCap size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A39BAF] pointer-events-none" />
                     <select
                       required
-                      className="form-select text-xs pl-8 py-2 font-medium"
+                      className="w-full pl-9 pr-3 py-2.5 rounded-2xl bg-[#FAF5F0]/70 border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40"
                       value={gradeLevelId}
                       onChange={e => handleGradeLevelSelect(e.target.value)}
                     >
@@ -610,11 +627,11 @@ export function ImportSubmissionsModal({
 
                 {/* School Year */}
                 <div>
-                  <label className="form-label text-xs">School Year</label>
+                  <label className="block text-xs font-bold text-[#2D2638] mb-1">School Year</label>
                   <div className="relative">
-                    <Calendar size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A39BAF] pointer-events-none" />
                     <select
-                      className="form-select text-xs pl-8 py-2"
+                      className="w-full pl-9 pr-3 py-2.5 rounded-2xl bg-[#FAF5F0]/70 border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40"
                       value={schoolYearId}
                       onChange={e => setSchoolYearId(e.target.value)}
                     >
@@ -630,11 +647,11 @@ export function ImportSubmissionsModal({
 
                 {/* Term / Quarter */}
                 <div>
-                  <label className="form-label text-xs">Term / Quarter</label>
+                  <label className="block text-xs font-bold text-[#2D2638] mb-1">Term / Quarter</label>
                   <div className="relative">
-                    <Clock size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <Clock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A39BAF] pointer-events-none" />
                     <select
-                      className="form-select text-xs pl-8 py-2"
+                      className="w-full pl-9 pr-3 py-2.5 rounded-2xl bg-[#FAF5F0]/70 border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40"
                       value={termId}
                       onChange={e => setTermId(e.target.value)}
                     >
@@ -651,22 +668,20 @@ export function ImportSubmissionsModal({
             </div>
 
             {/* STEP 2: FILE SELECTION & DOWNLOAD TEMPLATE */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                  <FileSpreadsheet size={14} className="text-emerald-600" />
-                  2. Select Excel Data File
+            <div className="bg-white/90 rounded-[28px] border-2 border-white p-5 shadow-[0_8px_20px_rgba(185,170,210,0.12)] space-y-4">
+              <div className="flex items-center justify-between flex-wrap gap-2 border-b border-purple-100 pb-3">
+                <h3 className="text-xs font-black text-[#2D2638] uppercase tracking-wider flex items-center gap-2">
+                  <FileSpreadsheet size={15} className="text-emerald-600" />
+                  <span>2. Select Excel Data File</span>
                 </h3>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={() => downloadImportTemplate()}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg border border-emerald-300 shadow-2xs transition-colors"
-                  >
-                    <Download size={13} />
-                    Download Combined Excel Template (KS1 & KS2–4)
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => downloadImportTemplate()}
+                  className="px-3.5 py-2 rounded-2xl bg-gradient-to-r from-[#86EFAC] to-[#34D399] text-[#065F46] text-xs font-bold shadow-xs hover:shadow-md transition-all flex items-center gap-1.5 cursor-pointer border border-white"
+                >
+                  <Download size={14} />
+                  <span>Download Combined Excel Template</span>
+                </button>
               </div>
 
               {/* Dropzone */}
@@ -674,10 +689,10 @@ export function ImportSubmissionsModal({
                 onDragOver={e => e.preventDefault()}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
-                className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all ${
+                className={`border-2 border-dashed rounded-[28px] p-6 text-center cursor-pointer transition-all ${
                   fileName
-                    ? 'border-emerald-300 bg-emerald-50/40 hover:bg-emerald-50/70'
-                    : 'border-slate-300 bg-slate-50 hover:bg-slate-100/80'
+                    ? 'border-[#8B72F4] bg-[#F6EFFF]'
+                    : 'border-purple-200 bg-[#FAF5F0]/60 hover:bg-[#F6EFFF]/60'
                 }`}
               >
                 <input
@@ -688,35 +703,35 @@ export function ImportSubmissionsModal({
                   onChange={handleFileChange}
                 />
                 <div className="flex flex-col items-center justify-center space-y-2">
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${fileName ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-50 text-blue-600'}`}>
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border border-white shadow-xs ${fileName ? 'bg-[#8B72F4] text-white' : 'bg-white text-[#8B72F4]'}`}>
                     {isParsing ? <RefreshCw size={24} className="animate-spin" /> : fileName ? <FileSpreadsheet size={24} /> : <Upload size={24} />}
                   </div>
                   {fileName ? (
                     <div>
-                      <p className="text-sm font-bold text-slate-800">{fileName}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">Click or drag a new file to replace</p>
+                      <p className="text-sm font-black text-[#2D2638]">{fileName}</p>
+                      <p className="text-xs text-[#7A7289] font-medium mt-0.5">Click or drag a new file to replace</p>
                     </div>
                   ) : (
                     <div>
-                      <p className="text-sm font-semibold text-slate-700">
+                      <p className="text-sm font-bold text-[#2D2638]">
                         Click to upload or drag & drop your Excel file here
                       </p>
-                      <p className="text-xs text-slate-400 mt-0.5">Single file contains both Key Stage 1 (KS1) and Key Stages 2–4 (KS2–4) template sheets</p>
+                      <p className="text-xs text-[#7A7289] font-medium mt-0.5">File contains Key Stage 1 (KS1) and Key Stages 2–4 (KS2–4) template sheets</p>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Worksheet / Tab Selector */}
+              {/* Worksheet Selector */}
               {sheetNames.length > 0 && (
-                <div className="bg-blue-50/60 p-3 rounded-xl border border-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center">
-                      <Layers size={14} />
+                <div className="p-4 rounded-2xl bg-[#F6EFFF] border border-[#8B72F4]/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-[#8B72F4] text-white flex items-center justify-center shrink-0 shadow-xs">
+                      <Layers size={16} />
                     </div>
                     <div>
-                      <label className="text-xs font-bold text-blue-900 block">Select Worksheet / Sheet Tab</label>
-                      <p className="text-[11px] text-blue-700">Choose which tab in your Excel file contains the subject data</p>
+                      <label className="text-xs font-bold text-[#2D2638] block">Worksheet / Sheet Tab</label>
+                      <p className="text-[10px] text-[#7A7289] font-medium">Choose tab containing subject evaluation data</p>
                     </div>
                   </div>
 
@@ -724,7 +739,7 @@ export function ImportSubmissionsModal({
                     value={selectedSheet}
                     onChange={e => handleSheetChange(e.target.value)}
                     disabled={isParsing}
-                    className="form-select text-xs font-bold text-blue-900 bg-white border border-blue-300 py-1.5 px-3 min-w-[200px]"
+                    className="px-3 py-2 rounded-xl bg-white border border-[#8B72F4]/30 text-xs font-bold text-[#8B72F4] focus:outline-none min-w-[200px]"
                   >
                     {sheetNames.map(name => (
                       <option key={name} value={name}>
@@ -737,164 +752,123 @@ export function ImportSubmissionsModal({
 
               {/* TEMPLATE MISMATCH ERROR BANNER */}
               {isTemplateMismatch && (
-                <div className="p-4 bg-red-50 border-2 border-red-300 rounded-xl text-xs text-red-800 space-y-2 shadow-sm animate-fade-in">
-                  <div className="flex items-center gap-2 text-red-900 font-extrabold text-sm">
-                    <AlertTriangle size={18} className="text-red-600 shrink-0" />
+                <div className="p-4 bg-rose-50 border-2 border-rose-200 rounded-2xl text-xs text-rose-900 space-y-2 shadow-xs animate-fade-in">
+                  <div className="flex items-center gap-2 font-black text-sm text-rose-800">
+                    <AlertTriangle size={18} className="text-rose-600 shrink-0" />
                     <span>Incorrect Template Sheet Selected for Grade Level</span>
                   </div>
-                  <p className="text-xs text-red-700 leading-relaxed">
+                  <p className="text-xs text-rose-700 leading-relaxed font-medium">
                     Selected Grade Level <strong>{selectedGrade?.name}</strong> requires the{' '}
-                    <span className="font-bold underline text-red-900">
+                    <span className="font-bold underline text-rose-900">
                       {expectedFormType === 'ks1' ? 'Key Stage 1 (KS1: Cols A–O)' : 'Key Stages 2–4 (KS2–4: Cols A–K)'}
                     </span>{' '}
-                    template format, but worksheet tab "<strong>{selectedSheet}</strong>" contains{' '}
-                    <strong>{parsedFormType === 'ks1' ? 'Key Stage 1 (Cols A–O)' : 'Key Stages 2–4 (Cols A–K)'}</strong> format.
+                    template layout. Please switch worksheet tabs above.
                   </p>
-                  {sheetNames.length > 1 ? (
-                    <div className="text-[11px] font-semibold text-red-800 bg-red-100/80 p-2.5 rounded-lg border border-red-200 flex items-center gap-2">
-                      <Layers size={14} className="text-red-600 shrink-0" />
-                      <span>Please switch the <strong>Worksheet / Sheet Tab</strong> dropdown above to select the matching template tab before importing.</span>
-                    </div>
-                  ) : (
-                    <div className="text-[11px] font-semibold text-red-800 bg-red-100/80 p-2.5 rounded-lg border border-red-200">
-                      ⚠️ Please upload an Excel file containing the matching {expectedFormType === 'ks1' ? 'Key Stage 1 (KS1)' : 'Key Stages 2–4 (KS2–4)'} template sheet.
-                    </div>
-                  )}
                 </div>
               )}
 
-              {parseError && (
-                <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 space-y-1">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle size={16} className="text-red-500 shrink-0 mt-0.5" />
-                    <span className="font-semibold">{parseError}</span>
+              {/* PARSED ROWS PREVIEW TABLE */}
+              {parsedRows.length > 0 && (
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-[#2D2638] flex items-center gap-2">
+                      <CheckCircle2 size={15} className="text-emerald-600" />
+                      <span>Parsed Subjects ({parsedRows.length} Blocks Detected)</span>
+                    </h4>
+                    <span className="text-xs font-extrabold text-[#8B72F4]">
+                      {validRowsCount} of {parsedRows.length} ready to import
+                    </span>
                   </div>
-                  {sheetNames.length > 1 && (
-                    <p className="text-[11px] text-red-600 pl-6">
-                      Try switching the <strong>Worksheet / Sheet Tab</strong> above to select the tab containing your subject rows.
-                    </p>
-                  )}
+
+                  <div className="rounded-2xl border border-purple-100 overflow-hidden bg-white shadow-2xs">
+                    <div className="max-h-60 overflow-y-auto">
+                      <table className="w-full text-left border-collapse text-xs">
+                        <thead className="bg-[#FAF5F0] sticky top-0 border-b border-purple-100 text-[11px] font-extrabold text-[#7A7289] uppercase tracking-wider">
+                          <tr>
+                            <th className="py-3 px-4">#</th>
+                            <th className="py-3 px-4">Excel Subject</th>
+                            <th className="py-3 px-4">Mapped Subject</th>
+                            <th className="py-3 px-4">Learners</th>
+                            <th className="py-3 px-4">Format</th>
+                            <th className="py-3 px-4">Metrics</th>
+                            <th className="py-3 px-4">Intended</th>
+                            <th className="py-3 px-4">Taught</th>
+                            <th className="py-3 px-4">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-purple-100">
+                          {parsedRows.map((row, idx) => {
+                            const isDup = duplicateMap[row.rowIndex]
+                            return (
+                              <tr key={idx} className={!row.learningAreaId ? 'bg-amber-50/50' : isDup ? 'bg-purple-50/40' : ''}>
+                                <td className="py-3 px-4 font-bold text-[#A39BAF]">{idx + 1}</td>
+                                <td className="py-3 px-4 font-bold text-[#2D2638]">{row.learningAreaRaw}</td>
+                                <td className="py-3 px-4">
+                                  <select
+                                    className="px-2.5 py-1.5 rounded-xl border border-purple-100 text-xs font-semibold text-[#2D2638] bg-white focus:outline-none"
+                                    value={row.learningAreaId || ''}
+                                    onChange={e => handleLearningAreaChange(row.rowIndex, e.target.value)}
+                                  >
+                                    <option value="">-- Select Subject --</option>
+                                    {learningAreas.map(la => (
+                                      <option key={la.id} value={la.id}>
+                                        {la.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </td>
+                                <td className="py-3 px-4 font-semibold text-[#2D2638]">{row.totalLearners}</td>
+                                <td className="py-3 px-4">
+                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black uppercase ${row.formType === 'ks1' ? 'bg-emerald-100 text-emerald-800' : 'bg-purple-100 text-purple-800'}`}>
+                                    {row.formType === 'ks1' ? 'KS 1' : 'KS 2–4'}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-4">
+                                  {row.formType === 'ks1' ? (
+                                    <span className="text-[11px] font-medium text-[#7A7289]">
+                                      Adv: {row.advancing} · Bch: {row.benchmarking}
+                                    </span>
+                                  ) : (
+                                    <span className="text-[11px] font-bold text-[#8B72F4]">
+                                      {row.mps !== null ? `${row.mps}% MPS` : 'N/A'}
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="py-3 px-4 font-medium text-[#7A7289]">{row.totalIntended}</td>
+                                <td className="py-3 px-4 font-medium text-[#7A7289]">{row.taught}</td>
+                                <td className="py-3 px-4">
+                                  {!row.learningAreaId ? (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md">
+                                      <AlertTriangle size={11} /> Unmapped
+                                    </span>
+                                  ) : isDup ? (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-800 bg-purple-100 px-2 py-0.5 rounded-md">
+                                      Duplicate
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md">
+                                      <CheckCircle2 size={11} /> Ready
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
-
-            {/* STEP 3: PARSED DATA PREVIEW TABLE */}
-            {parsedRows.length > 0 && (
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                    <CheckCircle2 size={14} className="text-blue-600" />
-                    3. Parsed Data Preview & Subject Mapping ({parsedRows.length} subject{parsedRows.length > 1 ? 's' : ''} found in "{selectedSheet}" — creates {parsedRows.length} separate submission{parsedRows.length > 1 ? 's' : ''})
-                  </h3>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowOfficialPreview(true)}
-                      className="btn-sm bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 font-bold inline-flex items-center gap-1.5 text-xs py-1 px-2.5 rounded-lg shadow-2xs transition-colors"
-                    >
-                      <Eye size={14} />
-                      <span>Preview Official TERMCAT Template</span>
-                    </button>
-                    <span className="text-xs font-semibold text-slate-600">
-                      {validRowsCount} of {parsedRows.length} ready
-                    </span>
-                  </div>
-                </div>
-
-                <div className="border border-slate-200 rounded-xl overflow-hidden">
-                  <div className="max-h-60 overflow-y-auto">
-                    <table className="data-table text-xs">
-                      <thead className="bg-slate-100 sticky top-0">
-                        <tr>
-                          <th>#</th>
-                          <th>Subject (Excel Text)</th>
-                          <th>Mapped Subject</th>
-                          <th>Learners</th>
-                          <th>Format</th>
-                          <th>Metrics</th>
-                          <th>Intended</th>
-                          <th>Taught</th>
-                          <th>Top Competencies</th>
-                          <th>Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {parsedRows.map((row, idx) => {
-                          const isDup = duplicateMap[row.rowIndex]
-                          return (
-                            <tr key={idx} className={!row.learningAreaId ? 'bg-amber-50/50' : isDup ? 'bg-blue-50/30' : ''}>
-                              <td className="font-bold text-slate-400">{idx + 1}</td>
-                              <td className="font-semibold text-slate-800">{row.learningAreaRaw}</td>
-                              <td>
-                                <select
-                                  className="form-select text-xs py-1 px-2 font-medium"
-                                  value={row.learningAreaId || ''}
-                                  onChange={e => handleLearningAreaChange(row.rowIndex, e.target.value)}
-                                >
-                                  <option value="">-- Select Subject --</option>
-                                  {learningAreas.map(la => (
-                                    <option key={la.id} value={la.id}>
-                                      {la.name}
-                                    </option>
-                                  ))}
-                                </select>
-                              </td>
-                              <td>{row.totalLearners}</td>
-                              <td>
-                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase ${row.formType === 'ks1' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'}`}>
-                                  {row.formType === 'ks1' ? 'KS 1' : 'KS 2–4'}
-                                </span>
-                              </td>
-                              <td>
-                                {row.formType === 'ks1' ? (
-                                  <span className="text-[11px] font-medium text-slate-700">
-                                    Adv: {row.advancing} · Bch: {row.benchmarking} · Con: {row.connecting}
-                                  </span>
-                                ) : (
-                                  <span className="text-[11px] font-bold text-blue-800">
-                                    {row.mps !== null ? `${row.mps}% MPS` : 'N/A'}
-                                  </span>
-                                )}
-                              </td>
-                              <td>{row.totalIntended}</td>
-                              <td>{row.taught}</td>
-                              <td>
-                                <span className="text-[11px] font-medium text-slate-600">
-                                  {row.mostLearned.length} ML · {row.leastMastered.length} LM · {row.mostDifficult.length} MD
-                                </span>
-                              </td>
-                              <td>
-                                {!row.learningAreaId ? (
-                                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded">
-                                    <AlertTriangle size={11} /> Unmapped
-                                  </span>
-                                ) : isDup ? (
-                                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded" title="A submission for this teacher, school, grade, and subject already exists">
-                                    Duplicate Warning
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">
-                                    <CheckCircle2 size={11} /> Ready
-                                  </span>
-                                )}
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Footer Actions */}
-          <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex items-center justify-between">
-            <div className="text-xs text-slate-500 font-medium">
+          <div className="bg-white/90 px-6 py-4 border-t border-purple-100 flex items-center justify-between">
+            <div className="text-xs text-[#7A7289] font-medium">
               {isImporting && (
-                <div className="flex items-center gap-3">
-                  <RefreshCw size={14} className="animate-spin text-blue-600" />
+                <div className="flex items-center gap-2.5 text-[#8B72F4] font-bold">
+                  <RefreshCw size={15} className="animate-spin" />
                   <span>Importing submissions... {importProgress}%</span>
                 </div>
               )}
@@ -905,17 +879,17 @@ export function ImportSubmissionsModal({
                 <button
                   type="button"
                   onClick={() => setShowOfficialPreview(true)}
-                  className="btn-md bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 font-bold inline-flex items-center gap-2"
+                  className="px-4 py-2.5 rounded-2xl bg-[#F6EFFF] text-[#8B72F4] border border-[#8B72F4]/30 font-bold text-xs hover:bg-[#8B72F4] hover:text-white transition-all shadow-xs inline-flex items-center gap-2 cursor-pointer"
                 >
-                  <Eye size={16} />
-                  Preview Official TERMCAT Template
+                  <Eye size={15} />
+                  <span>Preview Official Template</span>
                 </button>
               )}
               <button
                 type="button"
-                onClick={onClose}
+                onClick={triggerClose}
                 disabled={isImporting}
-                className="btn-md btn-secondary"
+                className="px-5 py-2.5 rounded-2xl bg-white border border-purple-100 text-xs font-bold text-[#7A7289] hover:bg-purple-50 transition-all shadow-xs cursor-pointer"
               >
                 Cancel
               </button>
@@ -923,20 +897,17 @@ export function ImportSubmissionsModal({
                 type="button"
                 onClick={handleImport}
                 disabled={isImporting || validRowsCount === 0 || isTemplateMismatch || !teacherName.trim() || !schoolId || !gradeLevelId}
-                className={`btn-md btn-primary inline-flex items-center gap-2 ${
-                  isTemplateMismatch ? 'opacity-50 cursor-not-allowed bg-slate-400 border-slate-400 hover:bg-slate-400' : ''
-                }`}
-                title={isTemplateMismatch ? 'Cannot import: Incorrect sheet template for selected Grade Level' : undefined}
+                className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-[#8B72F4] via-[#795CEE] to-[#6366F1] text-white font-black text-xs shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 inline-flex items-center gap-2"
               >
                 {isImporting ? (
                   <>
-                    <RefreshCw size={16} className="animate-spin" />
-                    Importing...
+                    <RefreshCw size={15} className="animate-spin" />
+                    <span>Importing...</span>
                   </>
                 ) : (
                   <>
-                    <Upload size={16} />
-                    Import {validRowsCount} Submission(s)
+                    <Upload size={15} />
+                    <span>Import {validRowsCount} Submission(s)</span>
                   </>
                 )}
               </button>
@@ -945,21 +916,21 @@ export function ImportSubmissionsModal({
         </div>
       </div>
 
-      {/* OFFICIAL TERMCAT PRINTABLE TEMPLATE OVERLAY MODAL */}
+      {/* 3D SOFT PASTEL CLAYMORPHIC OFFICIAL TERMCAT TEMPLATE OVERLAY MODAL */}
       {showOfficialPreview && (
-        <div className="fixed inset-0 z-[60] overflow-y-auto bg-slate-900/80 backdrop-blur-md flex flex-col items-center p-2 sm:p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-300 w-full max-w-[98vw] overflow-hidden flex flex-col my-auto max-h-[94vh]">
+        <div className="fixed inset-0 z-[60] overflow-y-auto bg-black/40 backdrop-blur-md flex flex-col items-center p-2 sm:p-4 animate-fade-in">
+          <div className="bg-[#FAF5F0] rounded-[36px] border-4 border-white shadow-[0_25px_60px_-15px_rgba(139,114,244,0.3)] w-full max-w-[96vw] overflow-hidden flex flex-col my-auto max-h-[94vh]">
             {/* Header Controls */}
-            <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between no-print shrink-0">
+            <div className="bg-gradient-to-r from-[#8B72F4] via-[#9F85F7] to-[#A88BEB] text-white px-6 py-4.5 flex items-center justify-between border-b-2 border-white/20 no-print shrink-0 shadow-xs">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-blue-500/30 flex items-center justify-center text-blue-300">
+                <div className="w-10 h-10 rounded-2xl bg-white/20 border border-white/30 text-white flex items-center justify-center shadow-xs">
                   <Eye size={20} />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold flex items-center gap-2">
+                  <h3 className="text-base sm:text-lg font-black font-display tracking-tight text-white flex items-center gap-2">
                     Official TERMCAT Printable Template Preview ({previewSubmissions[0]?.form_type === 'ks1' ? 'Key Stage 1' : 'Key Stage 2–4'})
                   </h3>
-                  <p className="text-xs text-slate-300">
+                  <p className="text-xs text-purple-100 font-medium">
                     Showing {previewSubmissions.length} subject submission(s) formatted in the official TERMCAT layout
                   </p>
                 </div>
@@ -969,14 +940,16 @@ export function ImportSubmissionsModal({
                 <button
                   type="button"
                   onClick={() => window.print()}
-                  className="btn-sm btn-primary inline-flex items-center gap-1.5 font-bold shadow-md"
+                  className="px-4 py-2.5 rounded-2xl bg-white text-[#795CEE] font-black text-xs shadow-md hover:bg-purple-50 transition-all flex items-center gap-2 cursor-pointer border border-white"
                 >
-                  <Printer size={14} /> Print Official Form
+                  <Printer size={15} />
+                  <span>Print Official Form</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowOfficialPreview(false)}
-                  className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+                  className="w-9 h-9 rounded-2xl bg-white/20 border border-white/30 text-white hover:bg-white/40 flex items-center justify-center font-extrabold text-lg shadow-xs transition-all cursor-pointer"
+                  title="Close preview"
                 >
                   <X size={20} />
                 </button>
@@ -984,8 +957,8 @@ export function ImportSubmissionsModal({
             </div>
 
             {/* Template Render Area */}
-            <div className="p-4 sm:p-6 overflow-y-auto overflow-x-auto flex-1 bg-slate-100">
-              <div className="w-full">
+            <div className="p-4 sm:p-6 overflow-y-auto overflow-x-auto flex-1 bg-[#FAF5F0]">
+              <div className="w-full bg-white rounded-[28px] border-2 border-white shadow-[0_10px_30px_rgba(185,170,210,0.15)] p-4 sm:p-6 overflow-x-auto">
                 <OfficialTermcatTemplate
                   submissions={previewSubmissions}
                   formType={previewSubmissions[0]?.form_type || (selectedGrade && selectedGrade.grade_number <= 3 ? 'ks1' : 'ks2to4')}
@@ -1000,14 +973,14 @@ export function ImportSubmissionsModal({
             </div>
 
             {/* Footer */}
-            <div className="bg-white px-6 py-3 border-t border-slate-200 flex items-center justify-between no-print shrink-0">
-              <span className="text-xs text-slate-500 font-medium">
+            <div className="bg-white/90 px-6 py-4 border-t border-purple-100 flex items-center justify-between no-print shrink-0">
+              <span className="text-xs text-[#7A7289] font-medium">
                 Verify that all competencies, performance metrics, and factors match before importing.
               </span>
               <button
                 type="button"
                 onClick={() => setShowOfficialPreview(false)}
-                className="btn-md btn-secondary"
+                className="px-5 py-2.5 rounded-2xl bg-white border border-purple-100 text-xs font-bold text-[#7A7289] hover:bg-purple-50 transition-all shadow-xs cursor-pointer"
               >
                 Close Preview
               </button>

@@ -387,22 +387,29 @@ export function LearningAreasPage() {
 
   return (
     <SchoolConnectLayout systemTitle="Learning Areas Master Data">
-      <div className="space-y-6 w-full">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="page-title flex items-center gap-2">
-              <BookOpen size={24} className="text-deped-blue" />
-              Learning Areas & Subject Allocation
-            </h1>
-            <p className="text-xs sm:text-sm text-content-secondary mt-0.5">
-              Manage master learning areas and configure standard subject assignments per grade level across the district.
-            </p>
-          </div>
+      <div className="space-y-6 w-full pb-12 animate-fade-in">
+        {/* Header Banner */}
+        <div className="bg-gradient-to-r from-[#34D399] via-[#10B981] to-[#059669] text-white rounded-[36px] p-6 sm:p-9 shadow-[0_20px_40px_rgba(16,185,129,0.28)] border-4 border-white relative overflow-hidden">
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-white border border-white/30 text-xs font-bold backdrop-blur-md shadow-xs">
+                <BookOpen size={14} className="text-amber-300" />
+                Curriculum & Master Data
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-black tracking-tight font-display">Learning Areas & Subject Allocation</h1>
+              <p className="text-xs sm:text-sm text-emerald-50 max-w-2xl leading-relaxed font-medium">
+                Manage master learning areas, configure curriculum designations, and allocate standard subject offerings per grade level across Concepcion District.
+              </p>
+            </div>
 
-          <button className="btn-md btn-primary shadow-sm" onClick={() => setModal({ open: true })}>
-            <Plus size={16} /> Add Learning Area
-          </button>
+            <button
+              onClick={() => setModal({ open: true })}
+              className="px-6 py-3.5 rounded-full bg-white text-[#059669] hover:bg-emerald-50 font-black text-xs shadow-md transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer border border-white"
+            >
+              <Plus size={16} />
+              Add Learning Area
+            </button>
+          </div>
         </div>
 
         {/* Tab Navigation */}

@@ -1,33 +1,40 @@
 import { useState, useEffect, FormEvent } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import {
-  Grid,
   Lock,
-  Mail,
   Eye,
   EyeOff,
   ShieldCheck,
   AlertCircle,
-  Sparkles,
   ArrowRight,
+  User,
+  ShieldAlert,
   KeyRound,
-  Building2,
-  CheckCircle2
+  UserX
 } from 'lucide-react'
 import { useAuth } from '@/features/auth/useAuth'
 import { insertAuditLog } from '@/lib/supabase/queries'
+
+interface AuthErrorState {
+  type: 'disabled' | 'wrong_credentials' | 'missing_fields' | 'general'
+  title: string
+  message: string
+  detail?: string
+}
 
 export function SchoolConnectLoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [rememberMe, setRememberMe] = useState(true)
+  const [authError, setAuthError] = useState<AuthErrorState | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
   const { signIn, admin, loading } = useAuth()
   const navigate = useNavigate()
 
   useEffect(() => {
+    document.title = 'School Connect - Official Portal'
     if (!loading && admin) {
       navigate('/portal', { replace: true })
     }
@@ -35,194 +42,285 @@ export function SchoolConnectLoginPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    setError(null)
+    setAuthError(null)
 
     if (!email || !password) {
-      setError('Please enter both email and password.')
+      setAuthError({
+        type: 'missing_fields',
+        title: '',
+        message: 'Please enter both email and password.'
+      })
       return
     }
 
     setIsLoading(true)
 
     try {
-      await signIn(email.trim(), password)
-      if (admin) {
-        await insertAuditLog({
-          admin_id: admin.id,
-          admin_name: admin.full_name,
+      const loggedUser = await signIn(email.trim(), password)
+      if (loggedUser) {
+        insertAuditLog({
+          admin_id: loggedUser.id,
+          admin_name: loggedUser.full_name,
           action: 'login',
           details: { method: 'school_connect_portal' },
-        })
+        }).catch(() => {})
       }
       navigate('/portal')
     } catch (err: any) {
-      setError(err?.message || 'Invalid credentials. Please check your email and password.')
+      const msg = err?.message || ''
+      if (msg.includes('ACCOUNT_DISABLED') || msg.toLowerCase().includes('disabled') || msg.toLowerCase().includes('inactive')) {
+        setAuthError({
+          type: 'disabled',
+          title: '',
+          message: 'Account is currently disabled or inactive.'
+        })
+      } else if (msg.includes('WRONG_CREDENTIALS') || msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('password')) {
+        setAuthError({
+          type: 'wrong_credentials',
+          title: '',
+          message: 'Invalid email or password.'
+        })
+      } else {
+        setAuthError({
+          type: 'general',
+          title: '',
+          message: msg.replace(/^(ACCOUNT_DISABLED|WRONG_CREDENTIALS):\s*/, '') || 'Sign in failed. Please try again.'
+        })
+      }
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex flex-col justify-between font-sans relative overflow-hidden bg-slate-900 select-none">
-      {/* Responsive Background Images */}
-      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
-        {/* Mobile Background (< md) */}
-        <div 
-          className="block md:hidden absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: `url('/images/bg-mobile.png')` }}
+    <div className="min-h-screen flex flex-col justify-between font-sans relative bg-gradient-to-br from-[#F4EFFC] via-[#EBF3FE] to-[#FFF1F6] text-[#1E293B] select-none overflow-x-hidden">
+      
+      {/* Responsive Fixed Non-Scrollable Background Wallpaper */}
+      <picture className="fixed inset-0 w-screen h-[100dvh] min-h-[100dvh] overflow-hidden pointer-events-none z-0">
+        <source media="(max-width: 768px)" srcSet="/images/bg-mobile.png" />
+        <img
+          src="/images/bg-desktop.png"
+          alt="Background Wallpaper"
+          className="w-screen h-[100dvh] min-h-[100dvh] object-cover object-center opacity-40 mix-blend-multiply transition-opacity duration-700 pointer-events-none"
         />
-        {/* Desktop Background (>= md) */}
-        <div 
-          className="hidden md:block absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: `url('/images/bg-desktop.png')` }}
-        />
-      </div>
+      </picture>
 
-      {/* Top Header Navbar */}
-      <header className="relative z-10 w-full px-6 py-4 flex items-center justify-between bg-white/75 backdrop-blur-lg border-b border-white/40 shadow-xs">
-        <Link to="/" className="flex items-center gap-3 group">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#0B1F3A] to-blue-700 p-0.5 shadow-md shadow-blue-900/10 group-hover:scale-105 transition-transform">
-            <div className="w-full h-full bg-white rounded-[10px] flex items-center justify-center">
-              <Grid className="w-5 h-5 text-[#0B1F3A]" />
-            </div>
-          </div>
-          <div>
-            <span className="text-base font-black tracking-tight text-[#0B1F3A] font-display">
-              SCHOOL CONNECT
-            </span>
-            <span className="block text-[10px] text-[#64748B] font-semibold tracking-wide uppercase">
-              Unified Educational Systems
-            </span>
-          </div>
-        </Link>
-      </header>
+      {/* Dynamic Pastel Ambient Glow Orbs (Fixed Position for Mobile & Desktop) */}
+      <div className="fixed top-[-12%] left-[-8%] w-[540px] h-[540px] rounded-full bg-gradient-to-tr from-[#DDD6FE]/50 to-[#C4B5FD]/30 blur-3xl pointer-events-none animate-float-slow z-0" />
+      <div className="fixed top-[15%] right-[-8%] w-[580px] h-[580px] rounded-full bg-gradient-to-br from-[#BAE6FD]/50 to-[#93C5FD]/30 blur-3xl pointer-events-none animate-float-reverse z-0" />
+      <div className="fixed bottom-[-10%] left-[10%] w-[520px] h-[520px] rounded-full bg-gradient-to-tr from-[#A7F3D0]/35 to-[#6EE7B7]/25 blur-3xl pointer-events-none animate-float-horizontal z-0" />
+      <div className="fixed bottom-[5%] right-[12%] w-[480px] h-[480px] rounded-full bg-gradient-to-tl from-[#FECDD3]/40 to-[#FEF3C7]/45 blur-3xl pointer-events-none animate-pastel-pulse z-0" />
 
-      {/* Main Login Card Section */}
-      <main className="relative z-10 flex-1 flex items-center justify-center md:justify-end px-4 sm:px-8 md:px-14 lg:px-24 py-8 sm:py-12 w-full">
-        <div className="w-full max-w-md space-y-4">
+      {/* Subtle Micro-Grid Texture (Fixed Position) */}
+      <div 
+        className="fixed inset-0 w-screen h-[100dvh] opacity-[0.035] pointer-events-none z-0" 
+        style={{ backgroundImage: `radial-gradient(#475569 1px, transparent 1px)`, backgroundSize: '28px 28px' }} 
+      />
+
+      {/* Main Container - Split View on Desktop */}
+      <main className="relative z-10 flex-1 flex items-center justify-center px-4 sm:px-8 py-8 sm:py-12 w-full max-w-6xl mx-auto">
+        
+        <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
           
-          {/* Glassmorphic Login Card */}
-          <div className="rounded-3xl bg-white/88 backdrop-blur-xl border border-white/80 p-6 sm:p-9 shadow-[0_20px_50px_rgba(11,31,58,0.18)] space-y-6">
+          {/* Left Column (Desktop Showcase & Logo Display) */}
+          <div className="lg:col-span-6 flex flex-col justify-center space-y-6 lg:pr-4 text-center lg:text-left">
             
-            {/* Card Header & Badge */}
-            <div className="text-center space-y-2">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50/90 border border-blue-200/80 text-[#0B1F3A] text-[11px] font-extrabold shadow-2xs">
-                <Sparkles className="w-3.5 h-3.5 text-[#0B1F3A]" /> Single Sign-On Authentication
+            {/* Big Official Logo Display (Raw Image Only - No Box or Card Wrapper) */}
+            <div className="flex justify-center lg:justify-start pt-2 pb-1">
+              <img
+                src="/images/school_connect_logo.png"
+                alt="School Connect Official Logo"
+                className="h-24 sm:h-32 lg:h-36 w-auto object-contain drop-shadow-md hover:scale-[1.02] transition-transform duration-500"
+              />
+            </div>
+
+            {/* Hero Headline & Subtitle */}
+            <div className="space-y-3">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-indigo-500/10 via-sky-500/10 to-purple-500/10 border border-indigo-200/80 shadow-2xs text-xs font-black text-[#4F46E5] mx-auto lg:mx-0">
+                <span className="w-2 h-2 rounded-full bg-[#4F46E5] animate-pulse" />
+                <span>DepEd Concepcion District &bull; Concepcion, Romblon</span>
               </div>
-
-              <h1 className="text-2xl sm:text-3xl font-black text-[#0B1F3A] tracking-tight">
-                Sign In to School Connect
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-[#1E293B] tracking-tight leading-[1.15]">
+                Unified Educational <br className="hidden sm:inline" />
+                <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#4F46E5] via-[#6366F1] to-[#0284C7]">
+                  Management System
+                </span>
               </h1>
-
-              <p className="text-xs text-[#64748B] font-medium leading-relaxed">
-                Enter your official administrator or teacher credentials to access your modules.
+              <p className="text-sm sm:text-base text-[#475569] font-medium leading-relaxed max-w-lg mx-auto lg:mx-0">
+                Seamlessly connecting DepEd schools, administrative personnel, and educators of Concepcion District under one secure, streamlined digital platform.
               </p>
             </div>
 
-            {/* Error Notification Alert */}
-            {error && (
-              <div className="p-3.5 rounded-2xl bg-red-50/90 border border-red-200 text-red-700 text-xs font-medium flex items-center gap-2.5 shadow-xs animate-shake">
-                <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
-                <span>{error}</span>
-              </div>
-            )}
+          </div>
 
-            {/* Credentials Form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Email / Username Field */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-[#0B1F3A]">
-                  Email / Username
-                </label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-[#64748B] absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors group-focus-within:text-[#0B1F3A]" />
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="admin@school.edu.ph"
-                    className="w-full pl-10 pr-4 py-3 rounded-2xl text-xs bg-slate-50/90 border border-slate-200/90 text-[#111827] placeholder-slate-400 font-medium focus:outline-none focus:border-[#0B1F3A] focus:bg-white focus:ring-4 focus:ring-[#0B1F3A]/10 transition-all shadow-2xs"
-                  />
+          {/* Right Column (Executive Login Form Card) */}
+          <div className="lg:col-span-6 flex justify-center lg:justify-end">
+            <div className="w-full max-w-md bg-white/90 backdrop-blur-2xl rounded-[36px] border-4 border-white shadow-[0_25px_65px_rgba(150,130,200,0.18)] p-8 sm:p-10 space-y-6 relative overflow-hidden transition-all">
+              
+              {/* Gradient Top Accent Strip */}
+              <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-[#818CF8] via-[#6366F1] to-[#38BDF8]" />
+
+              {/* Mobile View Logo Header (Visible only on smaller screens) */}
+              <div className="lg:hidden text-center pt-1 pb-1">
+                <img
+                  src="/images/school_connect_logo.png"
+                  alt="School Connect Official Logo"
+                  className="h-16 w-auto object-contain mx-auto drop-shadow-sm"
+                />
+              </div>
+
+              {/* Form Title & Subtitle */}
+              <div className="text-center space-y-1">
+                <h2 className="text-2xl sm:text-3xl font-black text-[#1E293B] tracking-tight font-display">
+                  Official Sign In
+                </h2>
+                <p className="text-xs text-[#64748B] font-semibold">
+                  Concepcion District Portal &bull; Concepcion, Romblon
+                </p>
+              </div>
+
+              {/* Simple Modern Pastel Error Alert Banner */}
+              {authError && (
+                <div className={`p-3.5 rounded-2xl border text-xs font-bold flex items-center gap-3 shadow-xs animate-shake ${
+                  authError.type === 'disabled'
+                    ? 'bg-[#FFF0F3] border-[#FBCFE8] text-[#9F1239]'
+                    : authError.type === 'wrong_credentials'
+                    ? 'bg-[#FAF5FF] border-[#E9D5FF] text-[#6B21A8]'
+                    : 'bg-[#F0F9FF] border-[#BAE6FD] text-[#075985]'
+                }`}>
+                  {authError.type === 'disabled' ? (
+                    <ShieldAlert className="w-4.5 h-4.5 flex-shrink-0 text-[#E11D48]" />
+                  ) : authError.type === 'wrong_credentials' ? (
+                    <KeyRound className="w-4.5 h-4.5 flex-shrink-0 text-[#9333EA]" />
+                  ) : (
+                    <AlertCircle className="w-4.5 h-4.5 flex-shrink-0 text-[#0284C7]" />
+                  )}
+                  <span>{authError.message}</span>
                 </div>
-              </div>
+              )}
 
-              {/* Password Field */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-[#0B1F3A]">
-                    Password
+              {/* Sign In Form */}
+              <form onSubmit={handleSubmit} className="space-y-4">
+                
+                {/* Email / Username */}
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider px-1">
+                    DepEd Username / Email
+                  </label>
+                  <div className="relative">
+                    <User className="w-4.5 h-4.5 text-[#94A3B8] absolute left-4 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="admin@deped.gov.ph"
+                      className="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] text-xs text-[#1E293B] placeholder-[#94A3B8] font-bold focus:outline-none focus:ring-4 focus:ring-[#6366F1]/20 focus:bg-white focus:border-[#818CF8] transition-all"
+                    />
+                  </div>
+                </div>
+
+                {/* Password */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between px-1">
+                    <label className="block text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider">
+                      Password
+                    </label>
+                    <a
+                      href="mailto:admin@deped.gov.ph"
+                      className="text-[11px] font-bold text-[#4F46E5] hover:underline"
+                    >
+                      Forgot Password?
+                    </a>
+                  </div>
+                  <div className="relative">
+                    <Lock className="w-4.5 h-4.5 text-[#94A3B8] absolute left-4 top-1/2 -translate-y-1/2" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••••••"
+                      className="w-full pl-11 pr-11 py-3.5 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] text-xs text-[#1E293B] placeholder-[#94A3B8] font-bold focus:outline-none focus:ring-4 focus:ring-[#6366F1]/20 focus:bg-white focus:border-[#818CF8] transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#4F46E5] transition-colors p-1 cursor-pointer"
+                      title={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Remember Me Option */}
+                <div className="flex items-center justify-between px-1 pt-0.5">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-[#475569]">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="w-4 h-4 rounded border-slate-300 text-[#4F46E5] focus:ring-[#6366F1]"
+                    />
+                    <span>Keep me signed in</span>
                   </label>
                 </div>
-                <div className="relative">
-                  <Lock className="w-4 h-4 text-[#64748B] absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••••••"
-                    className="w-full pl-10 pr-10 py-3 rounded-2xl text-xs bg-slate-50/90 border border-slate-200/90 text-[#111827] placeholder-slate-400 font-medium focus:outline-none focus:border-[#0B1F3A] focus:bg-white focus:ring-4 focus:ring-[#0B1F3A]/10 transition-all shadow-2xs"
-                  />
+
+                {/* Submit Action Button */}
+                <div className="pt-2">
                   <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#64748B] hover:text-[#0B1F3A] transition-colors p-1"
-                    title={showPassword ? 'Hide password' : 'Show password'}
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full py-3.5 px-6 rounded-2xl text-xs font-black text-white bg-gradient-to-r from-[#818CF8] via-[#6366F1] to-[#4F46E5] shadow-[0_10px_25px_rgba(99,102,241,0.35)] hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
                   >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {isLoading ? (
+                      <span className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Authenticating...
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <ShieldCheck className="w-4.5 h-4.5 text-white" />
+                        <span>Sign In to School Connect</span>
+                        <ArrowRight className="w-3.5 h-3.5 opacity-90" />
+                      </span>
+                    )}
                   </button>
                 </div>
-              </div>
+              </form>
 
-              {/* Submit Button */}
-              <div className="pt-2">
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full py-3.5 px-5 rounded-2xl text-xs font-bold text-white bg-gradient-to-r from-[#0B1F3A] via-[#0E284B] to-[#07152A] hover:from-[#07152A] hover:to-[#0B1F3A] shadow-lg shadow-[#0B1F3A]/25 transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2.5 disabled:opacity-50 cursor-pointer"
+              {/* Direct link to Teacher Public Submission Form */}
+              <div className="text-center pt-2 border-t border-slate-100">
+                <Link
+                  to="/submit"
+                  className="text-xs font-extrabold text-[#4F46E5] hover:text-[#3730A3] hover:underline inline-flex items-center gap-1.5"
                 >
-                  {isLoading ? (
-                    <span className="flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Authenticating...
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-2">
-                      <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                      <span>Sign In to Hub Portal</span>
-                      <ArrowRight className="w-3.5 h-3.5 opacity-70 group-hover:translate-x-1 transition-transform" />
-                    </span>
-                  )}
-                </button>
+                  <span>Go to Teacher Public Submission Form</span>
+                  <ArrowRight size={13} />
+                </Link>
               </div>
-            </form>
 
-            {/* Modules Pill Footer */}
-            <div className="pt-4 border-t border-slate-200/80 space-y-2">
-              <div className="text-center">
-                <span className="text-[11px] text-[#64748B] font-semibold">
-                  Unified Single Sign-On Portal
-                </span>
-              </div>
-              <div className="flex flex-wrap items-center justify-center gap-1.5 text-[10px] font-bold text-[#0B1F3A]">
-                <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> TERMCAT
-                </span>
-                <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">SIS</span>
-                <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">HRIS</span>
-                <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">GRADING</span>
-              </div>
             </div>
-
           </div>
+
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="relative z-10 py-3.5 text-center text-xs text-slate-600 bg-white/80 backdrop-blur-md border-t border-white/40">
-        School Connect &copy; {new Date().getFullYear()} DepEd Systems Portal &bull; Department of Education
+      {/* Footer Bar */}
+      <footer className="relative z-20 py-4 px-6 text-center text-xs text-[#64748B] bg-white/75 backdrop-blur-xl border-t border-white/80 flex flex-col sm:flex-row items-center justify-center gap-2">
+        <div className="flex items-center gap-2">
+          <img src="/images/school_connect_logo.png" alt="School Connect Logo" className="w-5 h-5 object-contain" />
+          <span className="font-semibold">School Connect &copy; {new Date().getFullYear()} &bull; Concepcion District, Concepcion, Romblon</span>
+        </div>
+        <span className="hidden sm:inline">&bull;</span>
+        <span>Department of Education &bull; Republic of the Philippines</span>
       </footer>
     </div>
   )
 }
+
+
+
+
+

@@ -5,6 +5,7 @@ import type { ConsolidationFilters, ConsolidationResult, TermcatSubmission, Comp
 import { getKeyStageLabel } from '@/utils/keyStage'
 import { Download, RefreshCw, Printer, FileSpreadsheet, LayoutList } from 'lucide-react'
 import { useToast } from '@/hooks/useToast'
+import { useAuth } from '@/features/auth/useAuth'
 import { generateExcelExport } from '@/lib/excel/excelExport'
 import { OfficialTermcatTemplate } from '@/components/templates/OfficialTermcatTemplate'
 
@@ -60,6 +61,7 @@ function computeConsolidation(submissions: TermcatSubmission[], filters: Consoli
 }
 
 export function ConsolidationPage() {
+  const { admin, getPermittedSchoolIds, getPermittedSchools, hasFullAccess } = useAuth()
   const { toast } = useToast()
   const [schools, setSchools] = useState<School[]>([])
   const [grades, setGrades] = useState<GradeLevel[]>([])
@@ -67,6 +69,8 @@ export function ConsolidationPage() {
   const [schoolYears, setSchoolYears] = useState<SchoolYear[]>([])
   const [terms, setTerms] = useState<Term[]>([])
   const [viewMode, setViewMode] = useState<'cards' | 'official_template'>('official_template')
+
+  const permittedSchools = getPermittedSchools(schools)
 
   const [filters, setFilters] = useState<ConsolidationFilters>({
     school_year_id: '',
@@ -98,10 +102,17 @@ export function ConsolidationPage() {
     }
     setLoading(true)
     try {
-      const subs = await fetchConsolidationData(filters)
-      const res = computeConsolidation(subs, filters)
-      setResult(res)
-    } catch { toast('Failed to load data.', 'error') } finally { setLoading(false) }
+      const effectiveFilters = { ...filters }
+      if (!hasFullAccess() && schools.length > 0) {
+        (effectiveFilters as any).school_ids = getPermittedSchoolIds(schools.map(s => s.id))
+      }
+      const data = await fetchConsolidationData(effectiveFilters)
+      setResult(computeConsolidation(data, filters))
+    } catch {
+      toast('Failed to load consolidation data.', 'error')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleExport = async () => {
@@ -145,8 +156,8 @@ export function ConsolidationPage() {
             <div>
               <label className="form-label text-xs">School</label>
               <select className="form-select text-sm" value={filters.school_id} onChange={e => setF('school_id', e.target.value)}>
-                <option value="all">All Schools</option>
-                {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                {hasFullAccess() && <option value="all">All Schools</option>}
+                {permittedSchools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
             <div>

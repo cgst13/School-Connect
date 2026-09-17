@@ -42,7 +42,7 @@ export function AppLauncher({ currentAppId = 'termcat' }: { currentAppId?: strin
         }`}
         title="School Connect Application Switcher"
       >
-        <Grid className="w-4 h-4 text-blue-600" />
+        <img src="/images/school_connect_logo.png" alt="School Connect Logo" className="w-4 h-4 object-contain" />
         <span className="hidden sm:inline font-semibold">School Connect Hub</span>
         <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 border border-blue-200">
           Suite
@@ -54,25 +54,14 @@ export function AppLauncher({ currentAppId = 'termcat' }: { currentAppId?: strin
           {/* Header */}
           <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-blue-100 text-blue-600 border border-blue-200">
-                <Grid className="w-4 h-4" />
+              <div className="p-1 rounded-lg bg-white border border-slate-200 flex items-center justify-center shrink-0">
+                <img src="/images/school_connect_logo.png" alt="School Connect Logo" className="w-5 h-5 object-contain" />
               </div>
               <div>
-                <h4 className="text-xs font-bold text-slate-900 tracking-tight">School Connect Portal</h4>
+                <h4 className="text-xs font-bold text-slate-900 tracking-tight">School Connect Ecosystem</h4>
                 <p className="text-[10px] text-slate-500">Select system module</p>
               </div>
             </div>
-
-            <button
-              onClick={() => {
-                setIsOpen(false)
-                navigate('/portal')
-              }}
-              className="flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700 hover:underline px-2 py-1 rounded bg-blue-50 border border-blue-200"
-            >
-              <Home className="w-3 h-3" />
-              Hub Main
-            </button>
           </div>
 
           {/* Applications Grid */}

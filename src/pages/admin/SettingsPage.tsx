@@ -41,9 +41,9 @@ export function TermcatSettingsPage() {
               TERMCAT Settings
             </span>
           </div>
-          <PageTitle>System Settings & Public Links</PageTitle>
+          <PageTitle>TERMCAT Module Settings & Public Links</PageTitle>
           <PageDescription>
-            Manage public teacher submission portal links, system parameters, and submission visibility.
+            Manage public teacher submission portal links, TERMCAT submission parameters, and report header branding.
           </PageDescription>
         </div>
       </PageHeader>

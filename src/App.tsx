@@ -11,6 +11,8 @@ import { TeacherSubmissionsPage } from '@/pages/public/TeacherSubmissionsPage'
 import { SchoolConnectHubPage } from '@/pages/portal/SchoolConnectHubPage'
 import { SchoolConnectLoginPage } from '@/pages/portal/SchoolConnectLoginPage'
 import { FacultyStaffPage } from '@/pages/portal/FacultyStaffPage'
+import { NotesPage } from '@/pages/portal/NotesPage'
+import { OneDriveVaultPage } from '@/pages/portal/OneDriveVaultPage'
 
 // Admin pages
 import { AdminLoginPage } from '@/pages/admin/LoginPage'
@@ -26,6 +28,7 @@ import { SchoolYearsPage, TermsPage } from '@/pages/admin/SchoolYearsPage'
 import { AdministratorsPage } from '@/pages/admin/AdministratorsPage'
 import { AuditLogPage } from '@/pages/admin/AuditLogPage'
 import { TermcatSettingsPage } from '@/pages/admin/SettingsPage'
+import { SystemSettingsPage } from '@/pages/admin/SystemSettingsPage'
 
 export default function App() {
   return (
@@ -50,9 +53,25 @@ export default function App() {
               }
             />
             <Route
-              path="/portal/staff"
+              path="/notes"
               element={
                 <ProtectedRoute>
+                  <NotesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/cloud-vault"
+              element={
+                <ProtectedRoute>
+                  <OneDriveVaultPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/portal/staff"
+              element={
+                <ProtectedRoute requireAdmin>
                   <FacultyStaffPage />
                 </ProtectedRoute>
               }
@@ -86,7 +105,7 @@ export default function App() {
             <Route
               path="/admin/staff"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requireAdmin>
                   <FacultyStaffPage />
                 </ProtectedRoute>
               }
@@ -167,7 +186,7 @@ export default function App() {
             <Route
               path="/admin/administrators"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requireAdmin>
                   <AdministratorsPage />
                 </ProtectedRoute>
               }
@@ -175,15 +194,31 @@ export default function App() {
             <Route
               path="/admin/audit-log"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requireAdmin>
                   <AuditLogPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/audit-logs"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <AuditLogPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/system-settings"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <SystemSettingsPage />
                 </ProtectedRoute>
               }
             />
             <Route
               path="/admin/settings"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requireAdmin>
                   <TermcatSettingsPage />
                 </ProtectedRoute>
               }

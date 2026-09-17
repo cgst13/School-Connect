@@ -24,13 +24,19 @@ export function PublicHeader() {
       )}
       <header className="bg-white/90 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-40 no-print shadow-xs">
         <div className="w-full max-w-full px-4 sm:px-8 py-3 flex items-center justify-between">
-          <Link to="/termcat" className="flex items-center gap-3 group" aria-label="TERMCAT Home">
-            <TermcatLogo size={36} />
+          <Link to="/termcat" className="flex items-center gap-3 group" aria-label="School Connect TERMCAT Home">
+            <div className="h-10 px-2 py-1 rounded-xl bg-white border border-slate-200/90 shadow-2xs flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+              <img
+                src="/images/school_connect_logo.png"
+                alt="School Connect Official Logo"
+                className="h-7 object-contain"
+              />
+            </div>
             <div>
               <div className="text-slate-900 font-extrabold text-base sm:text-lg leading-tight tracking-tight flex items-center gap-2">
                 TERMCAT
                 <span className="text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full hidden sm:inline-block">
-                  Teacher Portal
+                  School Connect System
                 </span>
               </div>
               <div className="text-slate-500 text-xs leading-tight hidden sm:block">

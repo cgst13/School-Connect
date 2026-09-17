@@ -79,9 +79,9 @@ export function DepEdSpinner({
         >
           {showLogo ? (
             <img
-              src="/images/deped_seal.png"
-              alt="DepEd Seal"
-              className={`${s.logo} object-contain rounded-full`}
+              src="/images/school_connect_logo.png"
+              alt="School Connect Logo"
+              className={`${s.logo} object-contain`}
             />
           ) : (
             <div className={`${s.logo} rounded-full bg-blue-600`} />

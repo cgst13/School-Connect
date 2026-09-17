@@ -1,73 +1,126 @@
 import { ReactNode } from 'react'
-import { TrendingUp } from 'lucide-react'
 
-interface StatCardProps {
+export type StatCardVariant = 'purple' | 'blue' | 'green' | 'yellow' | 'pink' | 'lavender' | 'peach' | 'mint'
+
+export interface StatCardProps {
   title: string
-  value: number | string
+  value: string | number
   icon?: ReactNode
-  color?: 'blue' | 'gold' | 'green' | 'red' | 'gray'
-  subtitle?: string
+  description?: string
+  trend?: {
+    value: string
+    isUpward?: boolean
+  }
+  variant?: StatCardVariant
+  onClick?: () => void
+  className?: string
 }
 
-const colorMap = {
-  blue: {
-    bg: 'bg-blue-50 text-blue-600 border border-blue-100',
-    accent: 'bg-blue-500',
-    value: 'text-slate-900',
+const variantStyles: Record<StatCardVariant, { bg: string; iconGradient: string; iconColor: string; trendBg: string; trendColor: string }> = {
+  purple: {
+    bg: 'bg-[#F4F1FD]',
+    iconGradient: 'from-[#DDD6FE] to-[#C4B5FD]',
+    iconColor: 'text-[#6D28D9]',
+    trendBg: 'bg-[#EDE9FE]',
+    trendColor: 'text-[#6D28D9]',
   },
-  gold: {
-    bg: 'bg-amber-50 text-amber-600 border border-amber-100',
-    accent: 'bg-amber-500',
-    value: 'text-slate-900',
+  blue: {
+    bg: 'bg-[#F0F5FF]',
+    iconGradient: 'from-[#BFDBFE] to-[#93C5FD]',
+    iconColor: 'text-[#1D4ED8]',
+    trendBg: 'bg-[#DBEAFE]',
+    trendColor: 'text-[#1D4ED8]',
   },
   green: {
-    bg: 'bg-emerald-50 text-emerald-600 border border-emerald-100',
-    accent: 'bg-emerald-500',
-    value: 'text-slate-900',
+    bg: 'bg-[#ECFDF5]',
+    iconGradient: 'from-[#A7F3D0] to-[#6EE7B7]',
+    iconColor: 'text-[#047857]',
+    trendBg: 'bg-[#D1FAE5]',
+    trendColor: 'text-[#047857]',
   },
-  red: {
-    bg: 'bg-red-50 text-red-600 border border-red-100',
-    accent: 'bg-red-500',
-    value: 'text-slate-900',
+  yellow: {
+    bg: 'bg-[#FFFBEB]',
+    iconGradient: 'from-[#FDE68A] to-[#FCD34D]',
+    iconColor: 'text-[#B45309]',
+    trendBg: 'bg-[#FEF3C7]',
+    trendColor: 'text-[#B45309]',
   },
-  gray: {
-    bg: 'bg-slate-100 text-slate-600 border border-slate-200/60',
-    accent: 'bg-slate-400',
-    value: 'text-slate-900',
+  pink: {
+    bg: 'bg-[#FEF2F2]',
+    iconGradient: 'from-[#FECACA] to-[#FCA5A5]',
+    iconColor: 'text-[#B91C1C]',
+    trendBg: 'bg-[#FEE2E2]',
+    trendColor: 'text-[#B91C1C]',
+  },
+  lavender: {
+    bg: 'bg-[#F5F3FF]',
+    iconGradient: 'from-[#EDE9FE] to-[#DDD6FE]',
+    iconColor: 'text-[#6D28D9]',
+    trendBg: 'bg-[#EDE9FE]',
+    trendColor: 'text-[#6D28D9]',
+  },
+  peach: {
+    bg: 'bg-[#FFF7ED]',
+    iconGradient: 'from-[#FFEDD5] to-[#FDBA74]',
+    iconColor: 'text-[#C2410C]',
+    trendBg: 'bg-[#FFEDD5]',
+    trendColor: 'text-[#C2410C]',
+  },
+  mint: {
+    bg: 'bg-[#F0FDF4]',
+    iconGradient: 'from-[#DCFCE7] to-[#86EFAC]',
+    iconColor: 'text-[#15803D]',
+    trendBg: 'bg-[#DCFCE7]',
+    trendColor: 'text-[#15803D]',
   },
 }
 
-export function StatCard({ title, value, icon, color = 'blue', subtitle }: StatCardProps) {
-  const colors = colorMap[color]
-  return (
-    <div className="card p-4 sm:p-5 card-hover relative overflow-hidden group">
-      {/* Accent left line */}
-      <div className={`absolute top-0 left-0 bottom-0 w-1 ${colors.accent} opacity-80 group-hover:w-1.5 transition-all`} />
-      
-      <div className="flex items-start justify-between">
-        <div className="flex-1 min-w-0 pl-1">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 truncate">{title}</p>
-          <p className={`text-2xl sm:text-3xl font-extrabold mt-1.5 tracking-tight ${colors.value}`}>{value}</p>
-          {subtitle && <p className="text-xs text-slate-400 mt-1">{subtitle}</p>}
-        </div>
-        <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl ${colors.bg} flex items-center justify-center flex-shrink-0 ml-3 shadow-xs group-hover:scale-105 transition-transform`}>
-          {icon || <TrendingUp size={20} />}
-        </div>
-      </div>
-    </div>
-  )
-}
+export function StatCard({
+  title,
+  value,
+  icon,
+  description,
+  trend,
+  variant = 'purple',
+  onClick,
+  className = '',
+}: StatCardProps) {
+  const style = variantStyles[variant] || variantStyles.purple
 
-export function StatCardSkeleton() {
   return (
-    <div className="card p-4 sm:p-5 relative overflow-hidden">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <div className="skeleton h-3 w-20 mb-3" />
-          <div className="skeleton h-7 w-16" />
+    <div
+      onClick={onClick}
+      className={`rounded-[24px] ${style.bg} p-5 shadow-neu-out border border-white/60 transition-all duration-300 hover:-translate-y-1 hover:shadow-neu-out-lg ${
+        onClick ? 'cursor-pointer' : ''
+      } ${className}`}
+    >
+      <div className="flex items-center gap-4">
+        {icon && (
+          <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${style.iconGradient} ${style.iconColor} shadow-md flex items-center justify-center shrink-0 border border-white/80`}>
+            {icon}
+          </div>
+        )}
+
+        <div className="space-y-0.5">
+          <p className="text-[11px] font-extrabold uppercase tracking-wider text-[#64748B]">{title}</p>
+          <p className="text-2xl font-black text-[#2D3748] tracking-tight">{value}</p>
         </div>
-        <div className="skeleton w-10 h-10 rounded-xl" />
       </div>
+
+      {(description || trend) && (
+        <div className="mt-3 pt-2.5 border-t border-black/5 flex items-center justify-between text-xs">
+          {description && <span className="text-[#64748B] font-semibold text-[11px]">{description}</span>}
+          {trend && (
+            <span
+              className={`inline-flex items-center gap-1 font-bold text-[10px] px-2 py-0.5 rounded-full ${
+                trend.isUpward ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+              }`}
+            >
+              {trend.isUpward ? '↑' : '↓'} {trend.value}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   )
 }

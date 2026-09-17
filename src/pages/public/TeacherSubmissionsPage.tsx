@@ -1,14 +1,13 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import { PublicLayout } from '@/components/layouts/PublicLayout'
-import { StatusBadge } from '@/components/ui/StatusBadge'
 import { PageLoader, EmptyState } from '@/components/ui/EmptyState'
 import { OfficialTermcatTemplate } from '@/components/templates/OfficialTermcatTemplate'
 import { fetchSubmissionsByTeacher } from '@/lib/supabase/queries'
 import type { TermcatSubmission, GradeLevel } from '@/types'
 import { format } from 'date-fns'
 import {
-  User, GraduationCap, BookOpen, Printer, Eye, X, ArrowLeft, Building2, Calendar, FileText, Sparkles
+  User, GraduationCap, BookOpen, Printer, Eye, X, ArrowLeft, Building2, Calendar, FileText, Sparkles, CheckCircle2, Layers
 } from 'lucide-react'
 
 interface GradeGroup {
@@ -78,15 +77,15 @@ export function TeacherSubmissionsPage() {
   if (!teacherName || submissions.length === 0) {
     return (
       <PublicLayout>
-        <div className="w-full px-4 sm:px-8 py-12 space-y-4">
-          <Link to="/" className="btn-sm btn-secondary inline-flex items-center gap-1.5 no-print">
-            <ArrowLeft size={14} /> Back to Home
+        <div className="w-full px-4 sm:px-8 py-12 space-y-4 max-w-5xl mx-auto">
+          <Link to="/" className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-white border border-purple-100 text-xs font-bold text-[#795CEE] shadow-xs hover:bg-[#F6EFFF] transition-all no-print">
+            <ArrowLeft size={15} /> Back to Portal Home
           </Link>
-          <div className="card p-8">
+          <div className="clay-card p-8 sm:p-12 text-center">
             <EmptyState
               title="No submissions found"
               description={teacherName ? `No submitted evaluation records found for teacher "${teacherName}".` : 'No teacher specified in the link.'}
-              icon={<User size={32} />}
+              icon={<User size={32} className="text-[#8B72F4]" />}
             />
           </div>
         </div>
@@ -96,45 +95,49 @@ export function TeacherSubmissionsPage() {
 
   return (
     <PublicLayout>
-      <div className="w-full px-4 sm:px-8 py-6 sm:py-8 space-y-6">
+      <div className="w-full px-4 sm:px-8 py-6 sm:py-8 space-y-6 max-w-7xl mx-auto animate-fade-in">
         {/* Header Navigation */}
-        <div className="flex items-center justify-between gap-2 flex-wrap no-print">
-          <Link to="/" className="btn-sm btn-secondary inline-flex items-center gap-1.5">
-            <ArrowLeft size={14} /> Home
+        <div className="flex items-center justify-between gap-3 flex-wrap no-print">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-white border border-white text-xs font-black text-[#795CEE] shadow-xs hover:bg-[#F6EFFF] hover:shadow-md transition-all cursor-pointer"
+          >
+            <ArrowLeft size={15} />
+            <span>Back to Portal Home</span>
           </Link>
 
-          <span className="text-[11px] sm:text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
+          <span className="text-xs font-extrabold text-[#795CEE] bg-[#F6EFFF] px-3.5 py-1.5 rounded-full border border-[#8B72F4]/20 shadow-2xs">
             🔒 Public Teacher Submission Record (Read-Only)
           </span>
         </div>
 
-        {/* Teacher Profile Card */}
-        <div className="card p-5 sm:p-6 bg-gradient-to-r from-blue-900 via-slate-900 to-blue-950 text-white shadow-lg space-y-4 no-print">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-200 text-xs font-semibold border border-blue-400/30">
-                <Sparkles size={12} className="text-amber-400" /> Public Evaluation History
+        {/* Soft Pastel Claymorphic Teacher Profile Card */}
+        <div className="bg-gradient-to-r from-[#A88BEB] via-[#8B72F4] to-[#795CEE] text-white rounded-[36px] p-6 sm:p-9 shadow-[0_20px_40px_rgba(139,114,244,0.28)] border-4 border-white relative overflow-hidden no-print">
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-white border border-white/30 text-xs font-bold backdrop-blur-md shadow-xs">
+                <Sparkles size={14} className="text-amber-300" /> DepEd Concepcion District Evaluation Archive
               </div>
-              <h1 className="text-xl sm:text-3xl font-extrabold tracking-tight flex items-center gap-2">
-                <User size={24} className="text-blue-400 flex-shrink-0" />
+              <h1 className="text-2xl sm:text-3xl font-black tracking-tight font-display flex items-center gap-2.5">
+                <User size={28} className="text-purple-200 shrink-0" />
                 <span className="truncate">{teacherName}</span>
               </h1>
               {schoolName && (
-                <p className="text-xs sm:text-sm text-slate-300 flex items-center gap-1.5">
-                  <Building2 size={14} className="text-slate-400 flex-shrink-0" />
+                <p className="text-xs sm:text-sm text-purple-100 flex items-center gap-2 font-medium">
+                  <Building2 size={16} className="text-purple-200 shrink-0" />
                   <span>{schoolName}</span>
                 </p>
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-2 sm:gap-3 w-full sm:w-auto">
-              <div className="px-3.5 py-2.5 bg-white/10 backdrop-blur-md rounded-xl border border-white/10 text-center">
-                <p className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-300">Total Submissions</p>
-                <p className="text-lg sm:text-xl font-extrabold text-white">{submissions.length}</p>
+            <div className="grid grid-cols-2 gap-3 w-full sm:w-auto">
+              <div className="px-5 py-3 bg-white/20 backdrop-blur-md rounded-2xl border border-white/30 text-center shadow-xs">
+                <p className="text-[10px] font-extrabold uppercase tracking-wider text-purple-100">Total Submissions</p>
+                <p className="text-xl sm:text-2xl font-black text-white mt-0.5">{submissions.length}</p>
               </div>
-              <div className="px-3.5 py-2.5 bg-white/10 backdrop-blur-md rounded-xl border border-white/10 text-center">
-                <p className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-300">Grades Evaluated</p>
-                <p className="text-lg sm:text-xl font-extrabold text-blue-300">{gradeGroups.length}</p>
+              <div className="px-5 py-3 bg-white/20 backdrop-blur-md rounded-2xl border border-white/30 text-center shadow-xs">
+                <p className="text-[10px] font-extrabold uppercase tracking-wider text-purple-100">Grades Evaluated</p>
+                <p className="text-xl sm:text-2xl font-black text-amber-300 mt-0.5">{gradeGroups.length}</p>
               </div>
             </div>
           </div>
@@ -143,33 +146,33 @@ export function TeacherSubmissionsPage() {
         {/* Grouped Submissions per Grade Level */}
         <div className="space-y-8 no-print">
           {gradeGroups.map(group => (
-            <div key={group.gradeName} className="space-y-3">
+            <div key={group.gradeName} className="clay-card p-6 sm:p-7 space-y-4">
               {/* Grade Level Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
-                <div className="flex items-center justify-between sm:justify-start gap-2.5 w-full sm:w-auto">
-                  <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
-                    <span className="w-8 h-8 rounded-lg bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-sm">
-                      <GraduationCap size={18} />
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-purple-100 pb-4">
+                <div className="flex items-center justify-between sm:justify-start gap-3 w-full sm:w-auto">
+                  <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#A88BEB] to-[#8B72F4] text-white flex items-center justify-center font-black text-sm border border-white shadow-md shrink-0">
+                    <GraduationCap size={22} />
+                  </div>
+                  <div>
+                    <h2 className="text-base sm:text-lg font-black text-[#2D2638] font-display">{group.gradeName}</h2>
+                    <span className="text-[10px] font-extrabold text-[#8B72F4] bg-[#F6EFFF] px-2.5 py-0.5 rounded-full border border-[#8B72F4]/20 inline-block mt-0.5">
+                      {group.submissions.length} {group.submissions.length === 1 ? 'Subject Form' : 'Subject Forms'}
                     </span>
-                    <span>{group.gradeName}</span>
-                  </h2>
-
-                  <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">
-                    {group.submissions.length} {group.submissions.length === 1 ? 'Subject Form' : 'Subject Forms'}
-                  </span>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 w-full sm:w-auto">
+                <div className="grid grid-cols-2 gap-2.5 w-full sm:w-auto">
                   <button
                     type="button"
                     onClick={() => {
                       setSelectedGroup(group)
                       setSelectedSub(null)
                     }}
-                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/80 inline-flex items-center justify-center gap-1.5 transition-colors"
+                    className="px-4 py-2.5 text-xs font-bold rounded-2xl bg-gradient-to-r from-[#8B72F4] to-[#A88BEB] text-white shadow-xs hover:shadow-md hover:scale-[1.02] active:scale-[0.98] inline-flex items-center justify-center gap-2 transition-all cursor-pointer"
                     title={`Consolidate and view all ${group.gradeName} subject forms`}
                   >
-                    <Eye size={14} /> View Grade
+                    <Eye size={15} />
+                    <span>View Grade</span>
                   </button>
 
                   <button
@@ -179,55 +182,56 @@ export function TeacherSubmissionsPage() {
                       setSelectedSub(null)
                       setTimeout(() => window.print(), 200)
                     }}
-                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 inline-flex items-center justify-center gap-1.5 transition-colors"
+                    className="px-4 py-2.5 text-xs font-bold rounded-2xl bg-white border border-purple-100 text-[#7A7289] hover:text-[#2D2638] hover:bg-purple-50 shadow-xs inline-flex items-center justify-center gap-2 transition-all cursor-pointer"
                     title={`Print consolidated ${group.gradeName} evaluation report`}
                   >
-                    <Printer size={14} /> Print Grade
+                    <Printer size={15} />
+                    <span>Print Grade</span>
                   </button>
                 </div>
               </div>
 
               {/* Submissions Table / Cards */}
-              <div className="card overflow-hidden bg-white border border-slate-200 shadow-xs">
+              <div className="rounded-2xl border border-purple-100 overflow-hidden bg-white shadow-2xs">
                 {/* Desktop Table View */}
-                <div className="hidden sm:block">
-                  <table className="data-table">
+                <div className="hidden sm:block overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr>
-                        <th>Learning Area</th>
-                        <th>School Year</th>
-                        <th>Quarter</th>
-                        <th>Date Submitted</th>
-                        <th className="text-right">Actions</th>
+                      <tr className="bg-[#FAF5F0] border-b border-purple-100 text-[11px] font-extrabold text-[#7A7289] uppercase tracking-wider">
+                        <th className="py-3.5 px-5">Learning Area</th>
+                        <th className="py-3.5 px-5">School Year</th>
+                        <th className="py-3.5 px-5">Quarter Term</th>
+                        <th className="py-3.5 px-5">Date Submitted</th>
+                        <th className="py-3.5 px-5 text-right">Actions</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-purple-100">
                       {group.submissions.map(sub => (
-                        <tr key={sub.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="font-semibold text-slate-900">
-                            <div className="flex items-center gap-1.5">
-                              <BookOpen size={14} className="text-blue-500 flex-shrink-0" />
+                        <tr key={sub.id} className="hover:bg-purple-50/50 transition-colors text-xs">
+                          <td className="py-3.5 px-5 font-bold text-[#2D2638]">
+                            <div className="flex items-center gap-2">
+                              <BookOpen size={15} className="text-[#8B72F4] shrink-0" />
                               <span>{sub.learning_area?.name || '—'}</span>
                             </div>
                           </td>
-                          <td className="text-slate-700 text-xs font-medium">
+                          <td className="py-3.5 px-5 text-[#7A7289] font-semibold">
                             {sub.school_year?.name || '—'}
                           </td>
-                          <td className="text-slate-700 text-xs font-medium">
+                          <td className="py-3.5 px-5 text-[#7A7289] font-semibold">
                             {sub.term?.name || '—'}
                           </td>
-                          <td className="text-slate-500 text-xs">
+                          <td className="py-3.5 px-5 text-[#7A7289] font-mono text-[11px]">
                             {format(new Date(sub.submitted_at), 'MMM d, yyyy h:mm a')}
                           </td>
-                          <td className="text-right">
-                            <div className="flex items-center justify-end gap-1.5">
+                          <td className="py-3.5 px-5 text-right">
+                            <div className="flex items-center justify-end gap-2">
                               <button
                                 type="button"
                                 onClick={() => {
                                   setSelectedSub(sub)
                                   setSelectedGroup(null)
                                 }}
-                                className="px-3 py-1 text-xs font-semibold rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/80 inline-flex items-center gap-1 transition-colors"
+                                className="px-3 py-1.5 text-xs font-bold rounded-xl bg-[#F6EFFF] text-[#8B72F4] border border-[#8B72F4]/30 hover:bg-[#8B72F4] hover:text-white inline-flex items-center gap-1.5 transition-all cursor-pointer"
                               >
                                 <Eye size={13} /> View
                               </button>
@@ -238,7 +242,7 @@ export function TeacherSubmissionsPage() {
                                   setSelectedGroup(null)
                                   setTimeout(() => window.print(), 200)
                                 }}
-                                className="px-3 py-1 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 inline-flex items-center gap-1 transition-colors"
+                                className="px-3 py-1.5 text-xs font-bold rounded-xl bg-white text-[#7A7289] hover:text-[#2D2638] hover:bg-purple-50 border border-purple-100 inline-flex items-center gap-1.5 transition-all cursor-pointer"
                               >
                                 <Printer size={13} /> Print
                               </button>
@@ -251,32 +255,32 @@ export function TeacherSubmissionsPage() {
                 </div>
 
                 {/* Mobile Cards View */}
-                <div className="sm:hidden divide-y divide-slate-100">
+                <div className="sm:hidden divide-y divide-purple-100">
                   {group.submissions.map(sub => (
                     <div key={sub.id} className="p-4 space-y-3 bg-white">
                       <div className="space-y-1">
                         <div className="flex items-center justify-between gap-2">
-                          <h3 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
-                            <BookOpen size={14} className="text-blue-500 flex-shrink-0" />
+                          <h3 className="font-bold text-[#2D2638] text-sm flex items-center gap-2">
+                            <BookOpen size={15} className="text-[#8B72F4] shrink-0" />
                             <span>{sub.learning_area?.name || '—'}</span>
                           </h3>
                         </div>
-                        <p className="text-xs text-slate-500 font-medium">
+                        <p className="text-xs text-[#7A7289] font-medium">
                           {sub.term?.name || '—'} · {sub.school_year?.name || '—'}
                         </p>
-                        <p className="text-[11px] text-slate-400">
+                        <p className="text-[11px] text-[#A39BAF] font-mono">
                           Submitted: {format(new Date(sub.submitted_at), 'MMM d, yyyy h:mm a')}
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                      <div className="flex items-center gap-2 pt-2 border-t border-purple-100">
                         <button
                           type="button"
                           onClick={() => {
                             setSelectedSub(sub)
                             setSelectedGroup(null)
                           }}
-                          className="flex-1 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 inline-flex items-center justify-center gap-1 transition-colors"
+                          className="flex-1 px-3 py-2 text-xs font-bold rounded-xl bg-[#F6EFFF] text-[#8B72F4] border border-[#8B72F4]/30 hover:bg-[#8B72F4] hover:text-white inline-flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                         >
                           <Eye size={13} /> View
                         </button>
@@ -287,7 +291,7 @@ export function TeacherSubmissionsPage() {
                             setSelectedGroup(null)
                             setTimeout(() => window.print(), 200)
                           }}
-                          className="flex-1 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 inline-flex items-center justify-center gap-1 transition-colors"
+                          className="flex-1 px-3 py-2 text-xs font-bold rounded-xl bg-white text-[#7A7289] hover:text-[#2D2638] hover:bg-purple-50 border border-purple-100 inline-flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                         >
                           <Printer size={13} /> Print
                         </button>
@@ -300,54 +304,57 @@ export function TeacherSubmissionsPage() {
           ))}
         </div>
 
-        {/* View / Print Official Template Modal */}
+        {/* 3D Soft Pastel Claymorphic View / Print Official Template Modal */}
         {(selectedSub || selectedGroup) && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-1 sm:p-3 overflow-y-auto bg-slate-900/70 backdrop-blur-md animate-fade-in print:static print:inset-auto print:p-0 print:m-0 print:bg-transparent print:overflow-visible print:block">
-            <div className="relative w-full max-w-[98vw] bg-white rounded-2xl shadow-2xl overflow-hidden my-2 sm:my-4 border border-slate-200 print:static print:w-full print:max-w-none print:m-0 print:p-0 print:shadow-none print:border-none print:bg-transparent print:overflow-visible flex flex-col max-h-[94vh]">
-              {/* Modal Header */}
-              <div className="flex items-center justify-between px-6 py-3.5 bg-slate-900 text-white no-print shrink-0">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-lg bg-blue-500/20 text-blue-400">
-                    <FileText size={20} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/40 backdrop-blur-md animate-fade-in print:static print:inset-auto print:p-0 print:m-0 print:bg-transparent print:overflow-visible print:block">
+            <div className="relative w-full max-w-[96vw] sm:max-w-6xl bg-[#FAF5F0] rounded-[36px] border-4 border-white shadow-[0_25px_60px_-15px_rgba(139,114,244,0.3)] overflow-hidden my-2 sm:my-4 print:static print:w-full print:max-w-none print:m-0 print:p-0 print:shadow-none print:border-none print:bg-transparent print:overflow-visible flex flex-col max-h-[92vh]">
+              {/* Soft Pastel Clay Header */}
+              <div className="flex items-center justify-between px-6 py-4.5 bg-gradient-to-r from-[#8B72F4] via-[#9F85F7] to-[#A88BEB] text-white border-b-2 border-white/20 no-print shrink-0 shadow-xs">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-2xl bg-white/20 border border-white/30 text-white flex items-center justify-center shadow-xs shrink-0">
+                    <FileText size={22} />
                   </div>
                   <div>
-                    <h3 className="font-bold text-base">
+                    <h3 className="font-black text-base sm:text-lg font-display tracking-tight text-white">
                       {selectedGroup
                         ? `Consolidated ${selectedGroup.gradeName} Evaluation Report`
-                        : 'Official Submitted Form View'}
+                        : 'Official Submitted Evaluation Form'}
                     </h3>
-                    <p className="text-xs text-slate-400 font-mono">
+                    <p className="text-xs text-purple-100 font-medium font-mono mt-0.5">
                       {selectedGroup
                         ? `Consolidating ${selectedGroup.submissions.length} Subject Forms`
-                        : `Ref: ${selectedSub?.reference_number}`}
+                        : `Ref No: ${selectedSub?.reference_number}`}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   <button
                     type="button"
                     onClick={() => window.print()}
-                    className="btn-sm btn-primary inline-flex items-center gap-1.5 font-bold shadow-md"
+                    className="px-4 py-2.5 rounded-2xl bg-white text-[#795CEE] font-black text-xs shadow-md hover:bg-purple-50 hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer border border-white"
                   >
-                    <Printer size={14} /> {selectedGroup ? 'Print Grade Report' : 'Print Form'}
+                    <Printer size={15} />
+                    <span>{selectedGroup ? 'Print Grade Report' : 'Print Form'}</span>
                   </button>
+
                   <button
                     type="button"
                     onClick={() => {
                       setSelectedSub(null)
                       setSelectedGroup(null)
                     }}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                    className="w-9 h-9 rounded-2xl bg-white/20 border border-white/30 text-white hover:bg-white/40 flex items-center justify-center font-extrabold text-lg shadow-xs transition-all cursor-pointer"
+                    title="Close preview"
                   >
                     <X size={20} />
                   </button>
                 </div>
               </div>
 
-              {/* Modal Content - Expanded for Full Column Visibility */}
-              <div className="p-3 sm:p-5 overflow-y-auto overflow-x-auto flex-1 bg-slate-100 print:p-0 print:overflow-visible print:max-h-none print:h-auto">
-                <div className="w-full">
+              {/* Modal Body Container with Soft Clay Backdrop & Outer Frame */}
+              <div className="p-4 sm:p-6 overflow-y-auto overflow-x-auto flex-1 bg-[#FAF5F0] print:p-0 print:overflow-visible print:max-h-none print:h-auto">
+                <div className="w-full bg-white rounded-[28px] border-2 border-white shadow-[0_10px_30px_rgba(185,170,210,0.15)] p-4 sm:p-6 overflow-x-auto">
                   {selectedGroup ? (
                     <OfficialTermcatTemplate submissions={selectedGroup.submissions} showPrintButton={false} />
                   ) : (

@@ -29,11 +29,18 @@ export function OfficialTermcatTemplate({
   const allSubmissions = submissions || (submission ? [submission] : [])
   const primarySub = allSubmissions[0]
 
-  const isMultipleSubsForSameGrade =
-    allSubmissions.length > 0 &&
-    (allSubmissions.length > 1 ||
-      !!primarySub?.learning_area?.name ||
-      new Set(allSubmissions.map(s => s.grade_level_id || s.grade_level?.id)).size === 1)
+  const learningAreaIds = new Set(
+    allSubmissions.map(s => s.learning_area_id || s.learning_area?.id || s.learning_area?.name).filter(Boolean)
+  )
+  const gradeLevelIds = new Set(
+    allSubmissions.map(s => s.grade_level_id || s.grade_level?.id || s.grade_level?.grade_number).filter(Boolean)
+  )
+
+  // Only true when consolidating multiple subjects for a single grade level
+  const isMultiSubjectSingleGradeConsolidation =
+    allSubmissions.length > 1 &&
+    gradeLevelIds.size === 1 &&
+    learningAreaIds.size > 1
 
   const formType: FormType = explicitFormType || primarySub?.form_type || 'ks1'
   const isKS1 = formType === 'ks1'
@@ -100,10 +107,10 @@ export function OfficialTermcatTemplate({
             </tr>
             <tr className="bg-sky-100 print:bg-sky-100">
               <td className="border border-black px-2 py-1 font-bold bg-sky-200">
-                {isMultipleSubsForSameGrade ? 'Grade' : 'Learning Area'}
+                {isMultiSubjectSingleGradeConsolidation ? 'Grade' : 'Learning Area'}
               </td>
               <td className="border border-black px-2 py-1 font-semibold">
-                {isMultipleSubsForSameGrade
+                {isMultiSubjectSingleGradeConsolidation
                   ? primarySub?.grade_level?.name || `Grade ${primarySub?.grade_level?.grade_number || ''}`
                   : displayLearningArea}
               </td>
@@ -129,7 +136,7 @@ export function OfficialTermcatTemplate({
               <thead>
                 <tr className="bg-slate-200 text-black font-bold">
                   <th rowSpan={2} className="border border-black px-1.5 py-1 w-20">
-                    {isMultipleSubsForSameGrade ? (
+                    {isMultiSubjectSingleGradeConsolidation ? (
                       <>Key Stage 1<br />Learning Area</>
                     ) : (
                       <>Key Stage 1<br />Grade Level</>
@@ -171,7 +178,7 @@ export function OfficialTermcatTemplate({
               <tbody>
                   {/* Render grade rows or multi-subject rows */}
                   {(() => {
-                    const rowsToRender: { sub: TermcatSubmission | null; label: string; key: string }[] = isMultipleSubsForSameGrade
+                    const rowsToRender: { sub: TermcatSubmission | null; label: string; key: string }[] = isMultiSubjectSingleGradeConsolidation
                       ? allSubmissions.map((s, idx) => ({
                           sub: s,
                           label: s.learning_area?.name || 'Subject',
@@ -262,7 +269,7 @@ export function OfficialTermcatTemplate({
               <thead>
                 <tr className="bg-sky-200 text-black font-bold">
                   <th className="border border-black px-1.5 py-1.5 w-20">
-                    {isMultipleSubsForSameGrade ? 'Learning Area' : 'Grade Level'}
+                    {isMultiSubjectSingleGradeConsolidation ? 'Learning Area' : 'Grade Level'}
                   </th>
                   <th className="border border-black px-1.5 py-1.5 w-16">Total Number of Learners</th>
                   <th className="border border-black px-1.5 py-1.5 w-16 bg-blue-300">MPS</th>
@@ -278,7 +285,7 @@ export function OfficialTermcatTemplate({
               </thead>
               <tbody>
                 {(() => {
-                  if (isMultipleSubsForSameGrade) {
+                  if (isMultiSubjectSingleGradeConsolidation) {
                     return allSubmissions.map((sub, idx) => {
                       const gradeLabel = sub.learning_area?.name || 'Subject'
                       const ks2to4Data = sub.ks2to4_learner_data

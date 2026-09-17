@@ -9,11 +9,13 @@ interface AuthContextType {
   session: any
   admin: AdminProfile | null
   loading: boolean
-  signIn: (email: string, password: string) => Promise<void>
+  signIn: (email: string, password: string) => Promise<AdminProfile>
   signOut: () => Promise<void>
+  updateAdminProfile: (updatedFields: Partial<AdminProfile>) => void
   hasFullAccess: () => boolean
-  getPermittedSchoolIds: (allSchoolIds: string[]) => string[]
-  isSchoolPermitted: (schoolId: string, allSchoolIds: string[]) => boolean
+  getPermittedSchoolIds: (allSchoolIds?: string[]) => string[]
+  isSchoolPermitted: (schoolId: string, allSchoolIds?: string[]) => boolean
+  getPermittedSchools: <T extends { id: string }>(schools: T[]) => T[]
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
@@ -40,9 +42,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (email: string, password: string) => {
     const profile = await authenticateWithUserTable(email, password)
     if (!profile) {
-      throw new Error('Invalid email or password.')
+      throw new Error('WRONG_CREDENTIALS: Invalid email or password.')
     }
     setAdmin(profile)
+    return profile
   }
 
   const signOut = async () => {
@@ -50,23 +53,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(CURRENT_USER_KEY)
   }
 
+  const updateAdminProfile = (updatedFields: Partial<AdminProfile>) => {
+    setAdmin(prev => {
+      if (!prev) return null
+      const updated = { ...prev, ...updatedFields }
+      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(updated))
+      return updated
+    })
+  }
 
+  // Returns true if user has global unrestricted access across ALL schools (superadmin, psds, or admin/AO2 without school restrictions)
   const hasFullAccess = () => {
     if (!admin) return true // Default fallback for unauthenticated / demo
-    return admin.role === 'admin' || admin.role === 'superadmin' || admin.role === 'psds'
+    if (admin.role === 'superadmin' || admin.role === 'psds') return true
+    if ((admin.role === 'admin' || (admin.role === 'ao_2' && !!admin.district_name)) && (!admin.assigned_school_ids || admin.assigned_school_ids.length === 0)) {
+      return true
+    }
+    return !admin.assigned_school_ids || admin.assigned_school_ids.length === 0
   }
 
-  const getPermittedSchoolIds = (allSchoolIds: string[]) => {
-    if (!admin || hasFullAccess()) return allSchoolIds
-    return admin.assigned_school_ids && admin.assigned_school_ids.length > 0
-      ? admin.assigned_school_ids
-      : allSchoolIds
+  const getPermittedSchoolIds = (allSchoolIds: string[] = []) => {
+    if (hasFullAccess()) return allSchoolIds
+    return admin?.assigned_school_ids || []
   }
 
-  const isSchoolPermitted = (schoolId: string, allSchoolIds: string[]) => {
-    if (!admin || hasFullAccess()) return true
+  const isSchoolPermitted = (schoolId: string, allSchoolIds: string[] = []) => {
+    if (!schoolId) return true
+    if (hasFullAccess()) return true
     const permitted = getPermittedSchoolIds(allSchoolIds)
     return permitted.includes(schoolId)
+  }
+
+  const getPermittedSchools = <T extends { id: string }>(schools: T[]): T[] => {
+    if (hasFullAccess()) return schools
+    const permittedIds = getPermittedSchoolIds(schools.map(s => s.id))
+    return schools.filter(s => permittedIds.includes(s.id))
   }
 
   return (
@@ -78,9 +99,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         signIn,
         signOut,
+        updateAdminProfile,
         hasFullAccess,
         getPermittedSchoolIds,
         isSchoolPermitted,
+        getPermittedSchools,
       }}
     >
       {children}

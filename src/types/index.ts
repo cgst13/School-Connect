@@ -68,6 +68,7 @@ export interface AdminProfile {
   full_name: string;
   role: UserRole;
   is_active: boolean;
+  avatar_url?: string;
   teacher_category?: TeacherCategory;
   assigned_school_ids?: string[];
   assigned_grade_ids?: string[];
@@ -267,6 +268,7 @@ export interface SubmissionFilters {
   school_year_id: string;
   term_id: string;
   school_id: string;
+  school_ids?: string[];
   school_type: SchoolType | '';
   grade_level_id: string;
   learning_area_id: string;
@@ -288,3 +290,106 @@ export interface DraftData {
   savedAt: string;
   version: number;
 }
+
+// ---- PORTAL TASKS, ANNOUNCEMENTS & EVENTS ----
+
+export type TaskScopeType = 'district' | 'school' | 'role' | 'user';
+
+export interface PortalTask {
+  id: string;
+  title: string;
+  description?: string;
+  dueDate: string;
+  reminderDaysBefore?: number;
+  priority: 'high' | 'medium' | 'normal';
+  category: string;
+  scopeType: TaskScopeType;
+  targetSchoolId?: string;
+  targetRole?: UserRole;
+  targetUserId?: string;
+  createdBy?: string;
+  completed?: boolean;
+  isArchived?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PortalTaskCompletion {
+  id: string;
+  taskId: string;
+  userId: string;
+  completedAt: string;
+}
+
+export interface PortalAnnouncement {
+  id: string;
+  title: string;
+  content: string;
+  date: string;
+  author: string;
+  authorId?: string;
+  isPinned?: boolean;
+  isArchived?: boolean;
+  tag: string;
+  createdAt?: string;
+}
+
+export interface PortalEvent {
+  id: string;
+  title: string;
+  date: string;
+  time: string;
+  venue: string;
+  category: string;
+  description?: string;
+  createdBy?: string;
+  isArchived?: boolean;
+  createdAt?: string;
+}
+
+// ---- PERSONAL NOTES & VAULT CREDENTIALS ----
+
+export type NoteCategory = 'note' | 'reminder' | 'credential';
+export type NoteColorTheme = 'yellow' | 'blue' | 'green' | 'purple' | 'rose' | 'slate';
+
+export interface UserNote {
+  id: string;
+  userId: string;
+  title: string;
+  content?: string;
+  category: NoteCategory;
+  systemName?: string;
+  accountUsername?: string;
+  accountPassword?: string;
+  targetUrl?: string;
+  reminderDate?: string;
+  isPinned?: boolean;
+  colorTheme?: NoteColorTheme;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// ---- ONEDRIVE CLOUD VAULT & DOCUMENTS ----
+
+export type CloudFileType = 'pdf' | 'word' | 'excel' | 'powerpoint' | 'image' | 'archive' | 'other';
+
+export interface CloudFileItem {
+  id: string;
+  name: string;
+  size: number; // bytes
+  mimeType: string;
+  fileType: CloudFileType;
+  downloadUrl?: string;
+  webUrl?: string; // Microsoft Office Online web view URL
+  previewUrl?: string;
+  oneDriveItemId?: string;
+  uploadedBy?: string;
+  uploadedAt: string;
+  updatedAt: string;
+  isPinned?: boolean;
+  colorTheme?: 'purple' | 'blue' | 'green' | 'amber' | 'rose' | 'slate';
+  tags?: string[];
+  notes?: string;
+}
+
+

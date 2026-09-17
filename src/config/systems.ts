@@ -1,9 +1,10 @@
 import {
   FileSpreadsheet,
   GraduationCap,
-  Users,
   ClipboardList,
   FileCheck,
+  NotebookPen,
+  Cloud,
   LucideIcon
 } from 'lucide-react'
 
@@ -32,6 +33,28 @@ export const REGISTERED_SYSTEMS: SystemConfig[] = [
     badgeText: 'Active',
   },
   {
+    id: 'notes',
+    name: 'Personal Notes & Vault',
+    shortName: 'Notes & Vault',
+    description: 'Create notes, set reminders, and securely store credentials & passwords',
+    category: 'Productivity & Utilities',
+    icon: NotebookPen,
+    route: '/notes',
+    enabled: true,
+    badgeText: 'Active',
+  },
+  {
+    id: 'onedrive-vault',
+    name: 'OneDrive Cloud Vault',
+    shortName: 'Cloud Vault',
+    description: 'Upload, manage, and retrieve PDF, Word, Excel & media files via Microsoft OneDrive',
+    category: 'Cloud Storage & Documents',
+    icon: Cloud,
+    route: '/cloud-vault',
+    enabled: true,
+    badgeText: 'Active',
+  },
+  {
     id: 'sis',
     name: 'Learner Info System (SIS)',
     shortName: 'SIS',
@@ -41,17 +64,6 @@ export const REGISTERED_SYSTEMS: SystemConfig[] = [
     route: '/sis',
     enabled: false,
     badgeText: 'Coming Soon',
-  },
-  {
-    id: 'hris',
-    name: 'Faculty & Staff Governance',
-    shortName: 'Faculty & Staff',
-    description: 'Personnel records, multi-school assignments, grade assignments & role scoping',
-    category: 'Human Resources',
-    icon: Users,
-    route: '/portal/staff',
-    enabled: true,
-    badgeText: 'Active',
   },
   {
     id: 'grading',

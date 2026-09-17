@@ -39,7 +39,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export function SubmissionDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const { admin } = useAuth()
+  const { admin, isSchoolPermitted } = useAuth()
   const { toast } = useToast()
   const navigate = useNavigate()
 
@@ -61,6 +61,33 @@ export function SubmissionDetailPage() {
   }, [id])
 
   useEffect(() => { load() }, [load])
+
+  const isUnauthorized = submission && !isSchoolPermitted(submission.school_id)
+
+  if (!loading && isUnauthorized) {
+    return (
+      <AdminLayout>
+        <div className="bg-[#EFF3F9] rounded-[32px] p-8 shadow-neu-out border border-white/80 text-center max-w-lg mx-auto my-12 space-y-5">
+          <div className="w-16 h-16 rounded-3xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto shadow-neu-out-sm border border-rose-200">
+            <Lock className="w-8 h-8" />
+          </div>
+          <div>
+            <h2 className="text-xl font-black text-[#2D3748]">Access Restricted</h2>
+            <p className="text-xs text-[#64748B] mt-2 leading-relaxed font-medium">
+              You are only authorized to view and manage submissions for your assigned school.
+            </p>
+          </div>
+          <Link
+            to="/admin/submissions"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-bold text-white bg-gradient-to-r from-[#7181F5] to-[#5463DA] shadow-neu-btn"
+          >
+            <ArrowLeft size={16} />
+            Back to Submissions
+          </Link>
+        </div>
+      </AdminLayout>
+    )
+  }
 
   const handleAction = async () => {
     if (!submission || !admin || !dialog.type) return
@@ -316,24 +343,24 @@ export function SubmissionDetailPage() {
 
         {/* Return Dialog (with reason input) */}
         {dialog.open && dialog.type === 'return' && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-content-primary/20 backdrop-blur-sm" onClick={() => setDialog({ open: false, type: null })} />
-            <div className="relative card-md w-full max-w-sm p-6 animate-slide-up space-y-4">
-              <h2 className="text-base font-semibold text-content-primary">Return Submission</h2>
-              <p className="text-sm text-content-secondary">Please provide a reason for returning this submission.</p>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fade-in">
+            <div className="absolute inset-0" onClick={() => setDialog({ open: false, type: null })} />
+            <div className="relative w-full max-w-md bg-white rounded-2xl p-6 sm:p-7 border border-[#E8EAF0] shadow-2xl space-y-4 animate-scale-up z-10">
+              <h2 className="text-lg font-black text-[#1F2937] tracking-tight">Return Submission</h2>
+              <p className="text-sm text-[#64748B]">Please provide a reason for returning this submission.</p>
               <textarea
-                className="form-textarea min-h-[100px]"
+                className="w-full rounded-xl border border-[#E2E8F0] p-3 text-xs focus:ring-2 focus:ring-[#6675E8] outline-none min-h-[100px]"
                 placeholder="e.g., Please correct the number of learners under Developing..."
                 value={dialog.returnReason || ''}
                 onChange={e => setDialog(d => ({ ...d, returnReason: e.target.value }))}
               />
               {(!dialog.returnReason || dialog.returnReason.length < 10) && (
-                <p className="text-xs text-content-tertiary">Minimum 10 characters required.</p>
+                <p className="text-xs text-[#94A3B8]">Minimum 10 characters required.</p>
               )}
-              <div className="flex gap-2 justify-end">
-                <button className="btn-md btn-secondary" onClick={() => setDialog({ open: false, type: null })}>Cancel</button>
+              <div className="flex gap-2 justify-end pt-2 border-t border-[#F1F5F9]">
+                <button className="px-4 py-2 rounded-xl text-xs font-bold text-[#64748B] bg-[#F8FAFC] hover:bg-[#F1F5F9] border border-[#E2E8F0] transition-all cursor-pointer" onClick={() => setDialog({ open: false, type: null })}>Cancel</button>
                 <button
-                  className="btn-md btn-danger"
+                  className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-[#E11D48] to-[#BE123C] hover:from-[#BE123C] shadow-md shadow-rose-500/20 transition-all cursor-pointer disabled:opacity-50"
                   onClick={handleAction}
                   disabled={!dialog.returnReason || dialog.returnReason.length < 10 || actionLoading}
                 >

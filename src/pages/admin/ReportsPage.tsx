@@ -6,6 +6,8 @@ import { useToast } from '@/hooks/useToast'
 import type { TermcatSubmission, School, GradeLevel, LearningArea, SchoolYear, Term } from '@/types'
 import { Download, BarChart3 } from 'lucide-react'
 
+import { useAuth } from '@/features/auth/useAuth'
+
 interface ReportType {
   id: string
   title: string
@@ -23,6 +25,7 @@ const REPORT_TYPES: ReportType[] = [
 ]
 
 export function ReportsPage() {
+  const { admin, getPermittedSchoolIds, getPermittedSchools, hasFullAccess } = useAuth()
   const { toast } = useToast()
   const [schools, setSchools] = useState<School[]>([])
   const [grades, setGrades] = useState<GradeLevel[]>([])
@@ -35,6 +38,8 @@ export function ReportsPage() {
   const [loading, setLoading] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [rawSubmissions, setRawSubmissions] = useState<TermcatSubmission[]>([])
+
+  const permittedSchools = getPermittedSchools(schools)
 
   useEffect(() => {
     Promise.all([fetchSchools(), fetchGradeLevels(), fetchLearningAreas(), fetchSchoolYears(), fetchTerms()])
@@ -50,6 +55,9 @@ export function ReportsPage() {
       if (filters.school_id) f.school_id = filters.school_id
       if (filters.grade_level_id) f.grade_level_id = filters.grade_level_id
       if (filters.learning_area_id) f.learning_area_id = filters.learning_area_id
+      if (!hasFullAccess() && schools.length > 0) {
+        f.school_ids = getPermittedSchoolIds(schools.map(s => s.id))
+      }
 
       const { data } = await fetchSubmissions({ ...f, page: 1, page_size: 1000 })
       setRawSubmissions(data)
@@ -168,103 +176,137 @@ export function ReportsPage() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
-        <h1 className="page-title">Reports</h1>
+      <div className="space-y-6 animate-fade-in">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-black text-[#2D2638] tracking-tight font-display">
+              System Reports & Analytics 📊
+            </h1>
+            <p className="text-xs text-[#7A7289] font-medium mt-1">
+              Generate and export comprehensive evaluation monitoring summaries.
+            </p>
+          </div>
+        </div>
 
-        <div className="grid sm:grid-cols-3 gap-4">
-          {/* Report Types */}
-          <div className="sm:col-span-1 space-y-2">
-            <h2 className="section-title">Report Type</h2>
-            <div className="card divide-y divide-surface-border">
-              {REPORT_TYPES.map(rt => (
-                <button
-                  key={rt.id}
-                  onClick={() => { setSelectedReport(rt.id); setReportData(null) }}
-                  className={`w-full text-left px-4 py-3 transition-colors ${selectedReport === rt.id ? 'bg-deped-blue-light text-deped-blue' : 'hover:bg-surface-soft'}`}
-                >
-                  <p className="text-sm font-medium">{rt.title}</p>
-                  <p className="text-xs text-content-tertiary mt-0.5">{rt.description}</p>
-                </button>
-              ))}
+        <div className="grid sm:grid-cols-3 gap-5">
+          {/* Report Types Sidebar */}
+          <div className="sm:col-span-1 space-y-3">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-[#A39BAF] px-1">Select Report Type</h2>
+            <div className="clay-card p-2 space-y-1">
+              {REPORT_TYPES.map(rt => {
+                const isActive = selectedReport === rt.id
+                return (
+                  <button
+                    key={rt.id}
+                    onClick={() => { setSelectedReport(rt.id); setReportData(null) }}
+                    className={`w-full text-left px-4 py-3 rounded-2xl transition-all cursor-pointer ${
+                      isActive
+                        ? 'bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] text-white shadow-md'
+                        : 'hover:bg-[#F6EFFF] text-[#2D2638]'
+                    }`}
+                  >
+                    <p className="text-xs font-extrabold">{rt.title}</p>
+                    <p className={`text-[11px] mt-0.5 font-medium ${isActive ? 'text-white/80' : 'text-[#7A7289]'}`}>
+                      {rt.description}
+                    </p>
+                  </button>
+                )
+              })}
             </div>
           </div>
 
           {/* Filters + Results */}
-          <div className="sm:col-span-2 space-y-4">
-            <div className="card p-4 space-y-3">
-              <h2 className="section-title">Filters</h2>
+          <div className="sm:col-span-2 space-y-5">
+            <div className="clay-card p-5 space-y-4">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-[#A39BAF]">Report Filters</h2>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="form-label text-xs">School Year</label>
-                  <select className="form-select text-sm" value={filters.school_year_id} onChange={e => setFilters(f => ({ ...f, school_year_id: e.target.value }))}>
-                    <option value="">All</option>
+                  <label className="form-label text-xs font-bold text-[#5B4E75]">School Year</label>
+                  <select className="form-select text-xs py-2 rounded-xl" value={filters.school_year_id} onChange={e => setFilters(f => ({ ...f, school_year_id: e.target.value }))}>
+                    <option value="">All School Years</option>
                     {schoolYears.map(sy => <option key={sy.id} value={sy.id}>{sy.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="form-label text-xs">Term</label>
-                  <select className="form-select text-sm" value={filters.term_id} onChange={e => setFilters(f => ({ ...f, term_id: e.target.value }))}>
-                    <option value="">All</option>
+                  <label className="form-label text-xs font-bold text-[#5B4E75]">Term</label>
+                  <select className="form-select text-xs py-2 rounded-xl" value={filters.term_id} onChange={e => setFilters(f => ({ ...f, term_id: e.target.value }))}>
+                    <option value="">All Terms</option>
                     {terms.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="form-label text-xs">School</label>
-                  <select className="form-select text-sm" value={filters.school_id} onChange={e => setFilters(f => ({ ...f, school_id: e.target.value }))}>
-                    <option value="">All</option>
-                    {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  <label className="form-label text-xs font-bold text-[#5B4E75]">School</label>
+                  <select className="form-select text-xs py-2 rounded-xl" value={filters.school_id} onChange={e => setFilters(f => ({ ...f, school_id: e.target.value }))}>
+                    {hasFullAccess() && <option value="">All Schools</option>}
+                    {permittedSchools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="form-label text-xs">Learning Area</label>
-                  <select className="form-select text-sm" value={filters.learning_area_id} onChange={e => setFilters(f => ({ ...f, learning_area_id: e.target.value }))}>
-                    <option value="">All</option>
+                  <label className="form-label text-xs font-bold text-[#5B4E75]">Learning Area</label>
+                  <select className="form-select text-xs py-2 rounded-xl" value={filters.learning_area_id} onChange={e => setFilters(f => ({ ...f, learning_area_id: e.target.value }))}>
+                    <option value="">All Learning Areas</option>
                     {learningAreas.map(la => <option key={la.id} value={la.id}>{la.name}</option>)}
                   </select>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <button className="btn-md btn-primary" onClick={handleGenerate} disabled={loading}>
+              <div className="flex gap-3 pt-2">
+                <button
+                  className="px-5 py-2.5 rounded-full text-xs font-bold text-white bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center gap-2"
+                  onClick={handleGenerate}
+                  disabled={loading}
+                >
+                  <BarChart3 size={15} />
                   {loading ? 'Generating...' : 'Generate Report'}
                 </button>
                 {reportData && (
-                  <button className="btn-md btn-secondary" onClick={handleExport} disabled={exporting}>
-                    <Download size={16} /> {exporting ? 'Exporting...' : 'Export Excel'}
+                  <button
+                    className="px-5 py-2.5 rounded-full text-xs font-bold text-[#5B4E75] bg-white border border-white/90 shadow-xs hover:bg-[#F6EFFF] transition-all cursor-pointer flex items-center gap-2"
+                    onClick={handleExport}
+                    disabled={exporting}
+                  >
+                    <Download size={15} /> {exporting ? 'Exporting...' : 'Export Excel'}
                   </button>
                 )}
               </div>
             </div>
 
-            {/* Report Table */}
+            {/* Report Table Card */}
             {reportData && (
-              <div className="card overflow-hidden animate-fade-in">
-                <div className="px-4 py-3 bg-surface-soft border-b border-surface-border">
-                  <h2 className="section-title">{REPORT_TYPES.find(r => r.id === selectedReport)?.title}</h2>
+              <div className="clay-card overflow-hidden animate-fade-in p-1">
+                <div className="px-5 py-4 border-b border-purple-100 flex items-center justify-between">
+                  <h2 className="text-sm font-black text-[#2D2638] tracking-tight">
+                    {REPORT_TYPES.find(r => r.id === selectedReport)?.title}
+                  </h2>
+                  <span className="clay-badge-purple">
+                    {reportData.length} Entries
+                  </span>
                 </div>
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>{selectedReport === 'submission_summary' ? 'Category' : 'Name'}</th>
-                      <th className="text-right">Total</th>
-                      <th className="text-right">Submitted</th>
-                      <th className="text-right">Reviewed</th>
-                      <th className="text-right">Returned</th>
-                      <th className="text-right">Finalized</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {reportData.map((row, i) => (
-                      <tr key={i}>
-                        <td className="font-medium">{row.label}</td>
-                        <td className="text-right font-bold text-deped-blue">{row.total}</td>
-                        <td className="text-right">{row.submitted}</td>
-                        <td className="text-right">{row.reviewed}</td>
-                        <td className="text-right">{row.returned}</td>
-                        <td className="text-right text-deped-green font-medium">{row.finalized}</td>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-purple-100 text-[11px] font-extrabold text-[#7A7289] uppercase tracking-wider bg-[#F9F5FF]/60">
+                        <th className="py-3 px-4">{selectedReport === 'submission_summary' ? 'Category' : 'Name'}</th>
+                        <th className="py-3 px-4 text-right">Total</th>
+                        <th className="py-3 px-4 text-right">Submitted</th>
+                        <th className="py-3 px-4 text-right">Reviewed</th>
+                        <th className="py-3 px-4 text-right">Returned</th>
+                        <th className="py-3 px-4 text-right">Finalized</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-purple-50 text-xs font-semibold text-[#2D2638]">
+                      {reportData.map((row, i) => (
+                        <tr key={i} className="hover:bg-[#F9F5FF]/40 transition-colors">
+                          <td className="py-3 px-4 font-bold">{row.label}</td>
+                          <td className="py-3 px-4 text-right font-black text-[#8B72F4]">{row.total}</td>
+                          <td className="py-3 px-4 text-right text-[#5B4E75]">{row.submitted}</td>
+                          <td className="py-3 px-4 text-right text-amber-600">{row.reviewed}</td>
+                          <td className="py-3 px-4 text-right text-rose-600">{row.returned}</td>
+                          <td className="py-3 px-4 text-right text-emerald-600 font-bold">{row.finalized}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </div>

@@ -1,0 +1,76 @@
+/* ============================================================
+   SCHOOL CONNECT 3D CLAYMORPHIC SOFT PASTEL DESIGN SYSTEM
+   ============================================================ */
+
+:root {
+  /* Claymorphic Main Canvas & Surface */
+  --sc-background: #FAF5F0;
+  --sc-sidebar-bg: #ECE5F8;
+  --sc-surface: #FFFFFF;
+  --sc-surface-soft: #FFFBF8;
+  --sc-surface-hover: #F6EFFF;
+  --sc-text-primary: #2D2638;
+  --sc-text-secondary: #7A7289;
+  --sc-text-muted: #A39BAF;
+  --sc-border: #F0E8F5;
+  --sc-border-subtle: #F7F2FA;
+
+  /* Primary Brand - Soft Pastel Purple & Violet */
+  --sc-primary: #8B72F4;
+  --sc-primary-soft: #F2EEFD;
+  --sc-primary-hover: #795CEE;
+  --sc-primary-active: #6646E7;
+  --sc-primary-text: #6D4AE4;
+  --sc-primary-gradient: linear-gradient(135deg, #B5A4F8 0%, #8B72F4 100%);
+  --sc-primary-btn-gradient: linear-gradient(135deg, #9C87F6 0%, #795CEE 100%);
+
+  /* 3D Soft Clay Pastel Palette */
+  --sc-pastel-purple: #C4B5FD;
+  --sc-pastel-purple-card: #F3EFFF;
+  --sc-pastel-purple-icon: #D8CCFF;
+  --sc-pastel-purple-text: #6D28D9;
+  --sc-pastel-purple-gradient: linear-gradient(135deg, #E9E1FF 0%, #D4C7FE 100%);
+
+  --sc-pastel-pink: #FFCCD4;
+  --sc-pastel-pink-card: #FFF0F3;
+  --sc-pastel-pink-icon: #FFB8C5;
+  --sc-pastel-pink-text: #E11D48;
+  --sc-pastel-pink-gradient: linear-gradient(135deg, #FFE0E6 0%, #FFB8C5 100%);
+
+  --sc-pastel-green: #A7F3D0;
+  --sc-pastel-green-card: #EDFAF3;
+  --sc-pastel-green-icon: #86EFAC;
+  --sc-pastel-green-text: #059669;
+  --sc-pastel-green-gradient: linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%);
+
+  --sc-pastel-yellow: #FDE68A;
+  --sc-pastel-yellow-card: #FFFDF0;
+  --sc-pastel-yellow-icon: #FCD34D;
+  --sc-pastel-yellow-text: #D97706;
+  --sc-pastel-yellow-gradient: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+
+  --sc-pastel-blue: #BAE6FD;
+  --sc-pastel-blue-card: #F0F9FF;
+  --sc-pastel-blue-icon: #7DD3FC;
+  --sc-pastel-blue-text: #0284C7;
+
+  /* 3D Claymorphic Elevation Shadows */
+  --sc-clay-shadow: 0 14px 30px rgba(185, 170, 210, 0.18), inset 0 2.5px 4px rgba(255, 255, 255, 0.95), inset 0 -2.5px 4px rgba(0, 0, 0, 0.03);
+  --sc-clay-shadow-sm: 0 8px 18px rgba(185, 170, 210, 0.14), inset 0 2px 3px rgba(255, 255, 255, 0.9);
+  --sc-clay-shadow-lg: 0 20px 45px rgba(175, 160, 205, 0.22), inset 0 3px 6px rgba(255, 255, 255, 0.98), inset 0 -3px 5px rgba(0, 0, 0, 0.04);
+  --sc-clay-inset: inset 3.5px 3.5px 8px rgba(180, 165, 205, 0.22), inset -3.5px -3.5px 8px rgba(255, 255, 255, 0.95);
+  --sc-clay-btn: 0 10px 22px rgba(139, 114, 244, 0.35), inset 0 2px 3px rgba(255, 255, 255, 0.7);
+
+  /* Squircle Radius System */
+  --sc-radius-sm: 14px;
+  --sc-radius-md: 20px;
+  --sc-radius-lg: 28px;
+  --sc-radius-xl: 32px;
+  --sc-radius-2xl: 36px;
+  --sc-radius-full: 9999px;
+
+  /* Smooth Spring Transitions */
+  --sc-transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --sc-transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --sc-transition-bounce: 350ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}

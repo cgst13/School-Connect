@@ -22,6 +22,8 @@ import {
 } from 'lucide-react'
 import { format } from 'date-fns'
 
+import { captureGenieOrigin } from '@/utils/genieAnimation'
+
 const PAGE_SIZE = 20
 
 interface StatusMatrixItem {
@@ -34,7 +36,6 @@ interface StatusMatrixItem {
 }
 
 export function SubmissionsPage() {
-  const { admin, getPermittedSchoolIds } = useAuth()
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState<'submissions' | 'status'>('submissions')
   
@@ -126,13 +127,20 @@ export function SubmissionsPage() {
     })
   }, [])
 
+  const { admin, getPermittedSchoolIds, getPermittedSchools, hasFullAccess, isSchoolPermitted } = useAuth()
+  const permittedSchools = useMemo(() => getPermittedSchools(schools), [schools, getPermittedSchools])
+
   const loadSubmissions = useCallback(() => {
     setLoading(true)
-    fetchSubmissions(filters).then(({ data, count }) => {
+    const effectiveFilters = { ...filters }
+    if (!hasFullAccess() && schools.length > 0) {
+      effectiveFilters.school_ids = getPermittedSchoolIds(schools.map(s => s.id))
+    }
+    fetchSubmissions(effectiveFilters).then(({ data, count }) => {
       setSubmissions(data)
       setTotal(count)
     }).finally(() => setLoading(false))
-  }, [filters])
+  }, [filters, hasFullAccess, getPermittedSchoolIds, schools])
 
   useEffect(() => { loadSubmissions() }, [loadSubmissions])
 
@@ -142,11 +150,14 @@ export function SubmissionsPage() {
     const filtersObj: any = { page_size: 2000 }
     if (statusSY) filtersObj.school_year_id = statusSY
     if (statusTerm) filtersObj.term_id = statusTerm
+    if (!hasFullAccess() && schools.length > 0) {
+      filtersObj.school_ids = getPermittedSchoolIds(schools.map(s => s.id))
+    }
 
     fetchSubmissions(filtersObj)
       .then(({ data }) => setStatusSubmissions(data))
       .finally(() => setStatusLoading(false))
-  }, [statusSY, statusTerm])
+  }, [statusSY, statusTerm, hasFullAccess, getPermittedSchoolIds, schools])
 
   useEffect(() => {
     if (activeTab === 'status') {
@@ -458,8 +469,8 @@ export function SubmissionsPage() {
           {/* Navigation Tabs & Import Action */}
           <div className="flex items-center gap-3 self-start sm:self-auto flex-wrap">
             <button
-              onClick={() => setIsImportModalOpen(true)}
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs hover:shadow-sm transition-all"
+              onClick={(e) => { captureGenieOrigin(e); setIsImportModalOpen(true) }}
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs hover:shadow-sm transition-all active:animate-button-sparkle"
             >
               <FileSpreadsheet size={16} />
               <span>Import Submission (Excel)</span>
@@ -672,8 +683,8 @@ export function SubmissionsPage() {
                               </Link>
                               <button
                                 type="button"
-                                onClick={() => setSubToDelete(sub)}
-                                className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200/80 inline-flex items-center gap-1 transition-colors"
+                                onClick={(e) => { captureGenieOrigin(e); setSubToDelete(sub) }}
+                                className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200/80 inline-flex items-center gap-1 transition-colors active:animate-button-sparkle"
                                 title="Delete Submission"
                               >
                                 <Trash2 size={12} /> Delete

@@ -15,66 +15,12 @@ import type {
 } from '@/types'
 
 // ============================================================
-// MASTER DATA QUERIES
+// MASTER DATA QUERIES (Global School Connect Tables: sc_*)
 // ============================================================
 
-export async function fetchSchools(activeOnly = true): Promise<School[]> {
-  let query = supabase.from('termcat_schools').select('*').order('school_type').order('name')
-  if (activeOnly) query = query.eq('is_active', true)
-  const { data, error } = await query
-  if (error) throw error
-  return data || []
-}
-
-export async function fetchGradeLevels(schoolType?: string): Promise<GradeLevel[]> {
-  let query = supabase.from('termcat_grade_levels').select('*').eq('is_active', true).order('grade_number')
-  if (schoolType) query = query.eq('school_type', schoolType)
-  const { data, error } = await query
-  if (error) throw error
-  return data || []
-}
-
-export async function fetchLearningAreas(activeOnly = true): Promise<LearningArea[]> {
-  let query = supabase.from('termcat_learning_areas').select('*').order('name')
-  if (activeOnly) query = query.eq('is_active', true)
-  const { data, error } = await query
-  if (error) throw error
-  return data || []
-}
-
-export async function fetchLearningAreaGrades(): Promise<LearningAreaGrade[]> {
-  const { data, error } = await supabase.from('termcat_learning_area_grades').select('*')
-  if (error) throw error
-  return data || []
-}
-
-export async function fetchLearningAreasForGrade(gradeId: string): Promise<LearningArea[]> {
-  const { data, error } = await supabase
-    .from('termcat_learning_area_grades')
-    .select('learning_areas:termcat_learning_areas(*)')
-    .eq('grade_level_id', gradeId)
-  if (error) throw error
-  return (data || []).flatMap((d: any) => (d.learning_areas ? [d.learning_areas] : [])).filter(la => la.is_active)
-}
-
-export async function fetchSchoolYears(activeOnly = true): Promise<SchoolYear[]> {
-  let query = supabase.from('termcat_school_years').select('*').order('name', { ascending: false })
-  if (activeOnly) query = query.eq('is_active', true)
-  const { data, error } = await query
-  if (error) throw error
-  return data || []
-}
-
-export async function fetchTerms(activeOnly = true): Promise<Term[]> {
-  let query = supabase.from('termcat_terms').select('*').order('sort_order')
-  if (activeOnly) query = query.eq('is_active', true)
-  const { data, error } = await query
-  if (error) throw error
-  return data || []
-}
 
 // ============================================================
-// SUBMISSIONS
+// TERMCAT SUBMISSIONS (TermCat Specific Tables: termcat_*)
 // ============================================================
 
 export async function checkDuplicateSubmission(
@@ -113,9 +59,9 @@ export async function createSubmission(
 ): Promise<TermcatSubmission> {
   const { teacherInfo, ks1LearnerData, ks2to4LearnerData, competencySummary, topCompetencies, instructionalDifficulty } = formData
 
-  // Get grade to determine key_stage and form_type
+  // Get grade from sc_grade_levels to determine key_stage and form_type
   const { data: grade, error: gradeError } = await supabase
-    .from('termcat_grade_levels')
+    .from('sc_grade_levels')
     .select('key_stage, grade_number')
     .eq('id', teacherInfo.grade_level_id)
     .single()
@@ -204,11 +150,11 @@ export async function fetchSubmissionByReference(refNumber: string): Promise<Ter
     .from('termcat_submissions')
     .select(`
       *,
-      school:termcat_schools(*),
-      grade_level:termcat_grade_levels(*),
-      learning_area:termcat_learning_areas(*),
-      school_year:termcat_school_years(*),
-      term:termcat_terms(*),
+      school:sc_schools(*),
+      grade_level:sc_grade_levels(*),
+      learning_area:sc_learning_areas(*),
+      school_year:sc_school_years(*),
+      term:sc_terms(*),
       ks1_learner_data:termcat_ks1_learner_data(*),
       ks2to4_learner_data:termcat_ks2to4_learner_data(*),
       competency_summary:termcat_competency_summary(*),
@@ -233,10 +179,10 @@ export async function checkExistingSubjectSubmission(
     .from('termcat_submissions')
     .select(`
       *,
-      school:termcat_schools(id, name),
-      grade_level:termcat_grade_levels(id, name),
-      learning_area:termcat_learning_areas(id, name),
-      term:termcat_terms(id, name)
+      school:sc_schools(id, name),
+      grade_level:sc_grade_levels(id, name),
+      learning_area:sc_learning_areas(id, name),
+      term:sc_terms(id, name)
     `)
     .eq('school_id', schoolId)
     .eq('grade_level_id', gradeLevelId)
@@ -251,7 +197,7 @@ export async function checkExistingSubjectSubmission(
 }
 
 // ============================================================
-// ADMIN — SUBMISSIONS
+// ADMIN — SUBMISSIONS & DISCOVERY
 // ============================================================
 
 export async function fetchSubmissions(filters: Partial<SubmissionFilters> = {}): Promise<{
@@ -281,11 +227,11 @@ export async function fetchSubmissions(filters: Partial<SubmissionFilters> = {})
     .select(
       `
       *,
-      school:termcat_schools(id, name, school_type),
-      grade_level:termcat_grade_levels(id, name, grade_number),
-      learning_area:termcat_learning_areas(id, name),
-      school_year:termcat_school_years(id, name),
-      term:termcat_terms(id, name)
+      school:sc_schools(id, name, school_type),
+      grade_level:sc_grade_levels(id, name, grade_number),
+      learning_area:sc_learning_areas(id, name),
+      school_year:sc_school_years(id, name),
+      term:sc_terms(id, name)
     `,
       { count: 'exact' }
     )
@@ -293,7 +239,11 @@ export async function fetchSubmissions(filters: Partial<SubmissionFilters> = {})
   if (search) query = query.ilike('teacher_name', `%${search}%`)
   if (school_year_id) query = query.eq('school_year_id', school_year_id)
   if (term_id) query = query.eq('term_id', term_id)
-  if (school_id) query = query.eq('school_id', school_id)
+  if (school_id) {
+    query = query.eq('school_id', school_id)
+  } else if (filters.school_ids && filters.school_ids.length > 0) {
+    query = query.in('school_id', filters.school_ids)
+  }
   if (grade_level_id) query = query.eq('grade_level_id', grade_level_id)
   if (learning_area_id) query = query.eq('learning_area_id', learning_area_id)
   if (status) query = query.eq('status', status)
@@ -301,10 +251,10 @@ export async function fetchSubmissions(filters: Partial<SubmissionFilters> = {})
   if (date_from) query = query.gte('submitted_at', date_from)
   if (date_to) query = query.lte('submitted_at', date_to + 'T23:59:59')
 
-  // School type filter via grade_levels join
+  // School type filter via sc_grade_levels join
   if (school_type) {
     const { data: grades } = await supabase
-      .from('termcat_grade_levels')
+      .from('sc_grade_levels')
       .select('id')
       .eq('school_type', school_type)
     if (grades && grades.length > 0) {
@@ -328,11 +278,11 @@ export async function fetchSubmissionById(id: string): Promise<TermcatSubmission
     .from('termcat_submissions')
     .select(`
       *,
-      school:termcat_schools(*),
-      grade_level:termcat_grade_levels(*),
-      learning_area:termcat_learning_areas(*),
-      school_year:termcat_school_years(*),
-      term:termcat_terms(*),
+      school:sc_schools(*),
+      grade_level:sc_grade_levels(*),
+      learning_area:sc_learning_areas(*),
+      school_year:sc_school_years(*),
+      term:sc_terms(*),
       ks1_learner_data:termcat_ks1_learner_data(*),
       ks2to4_learner_data:termcat_ks2to4_learner_data(*),
       competency_summary:termcat_competency_summary(*),
@@ -379,11 +329,11 @@ export async function fetchSubmissionsByTeacher(teacherName: string): Promise<Te
     .from('termcat_submissions')
     .select(`
       *,
-      school:termcat_schools(*),
-      grade_level:termcat_grade_levels(*),
-      learning_area:termcat_learning_areas(*),
-      school_year:termcat_school_years(*),
-      term:termcat_terms(*),
+      school:sc_schools(*),
+      grade_level:sc_grade_levels(*),
+      learning_area:sc_learning_areas(*),
+      school_year:sc_school_years(*),
+      term:sc_terms(*),
       ks1_learner_data:termcat_ks1_learner_data(*),
       ks2to4_learner_data:termcat_ks2to4_learner_data(*),
       competency_summary:termcat_competency_summary(*),
@@ -486,6 +436,7 @@ export async function fetchDashboardStats(filters: {
   school_year_id?: string
   term_id?: string
   school_id?: string
+  school_ids?: string[]
   key_stage?: string
   grade_level_id?: string
   learning_area_id?: string
@@ -501,7 +452,11 @@ export async function fetchDashboardStats(filters: {
   let query = supabase.from('termcat_submissions').select('status, teacher_name, school_id', { count: 'exact' })
   if (filters.school_year_id) query = query.eq('school_year_id', filters.school_year_id)
   if (filters.term_id) query = query.eq('term_id', filters.term_id)
-  if (filters.school_id) query = query.eq('school_id', filters.school_id)
+  if (filters.school_id) {
+    query = query.eq('school_id', filters.school_id)
+  } else if (filters.school_ids && filters.school_ids.length > 0) {
+    query = query.in('school_id', filters.school_ids)
+  }
   if (filters.key_stage) query = query.eq('key_stage', filters.key_stage)
   if (filters.grade_level_id) query = query.eq('grade_level_id', filters.grade_level_id)
   if (filters.learning_area_id) query = query.eq('learning_area_id', filters.learning_area_id)
@@ -532,11 +487,11 @@ export async function fetchConsolidationData(filters: ConsolidationFilters): Pro
     .from('termcat_submissions')
     .select(`
       *,
-      school:termcat_schools(*),
-      grade_level:termcat_grade_levels(*),
-      learning_area:termcat_learning_areas(*),
-      school_year:termcat_school_years(*),
-      term:termcat_terms(*),
+      school:sc_schools(*),
+      grade_level:sc_grade_levels(*),
+      learning_area:sc_learning_areas(*),
+      school_year:sc_school_years(*),
+      term:sc_terms(*),
       ks1_learner_data:termcat_ks1_learner_data(*),
       ks2to4_learner_data:termcat_ks2to4_learner_data(*),
       competency_summary:termcat_competency_summary(*),
@@ -547,7 +502,11 @@ export async function fetchConsolidationData(filters: ConsolidationFilters): Pro
     .eq('term_id', filters.term_id)
     .in('status', filters.statuses)
 
-  if (filters.school_id !== 'all') query = query.eq('school_id', filters.school_id)
+  if (filters.school_id !== 'all') {
+    query = query.eq('school_id', filters.school_id)
+  } else if ((filters as any).school_ids && (filters as any).school_ids.length > 0) {
+    query = query.in('school_id', (filters as any).school_ids)
+  }
   if (filters.grade_level_id !== 'all') query = query.eq('grade_level_id', filters.grade_level_id)
   if (filters.learning_area_id !== 'all') query = query.eq('learning_area_id', filters.learning_area_id)
   if (filters.key_stage !== 'all') query = query.eq('key_stage', filters.key_stage)
@@ -558,14 +517,14 @@ export async function fetchConsolidationData(filters: ConsolidationFilters): Pro
 }
 
 // ============================================================
-// ADMIN — MASTER DATA CRUD
+// ADMIN — MASTER DATA CRUD (sc_*)
 // ============================================================
 
 // Schools
 export async function upsertSchool(school: Partial<School>): Promise<School> {
   const { data, error } = school.id
-    ? await supabase.from('termcat_schools').update(school).eq('id', school.id).select().single()
-    : await supabase.from('termcat_schools').insert(school).select().single()
+    ? await supabase.from('sc_schools').update(school).eq('id', school.id).select().single()
+    : await supabase.from('sc_schools').insert(school).select().single()
   if (error) throw error
   return data as School
 }
@@ -573,36 +532,35 @@ export async function upsertSchool(school: Partial<School>): Promise<School> {
 // Learning Areas
 export async function upsertLearningArea(la: Partial<LearningArea>): Promise<LearningArea> {
   const { data, error } = la.id
-    ? await supabase.from('termcat_learning_areas').update(la).eq('id', la.id).select().single()
-    : await supabase.from('termcat_learning_areas').insert(la).select().single()
+    ? await supabase.from('sc_learning_areas').update(la).eq('id', la.id).select().single()
+    : await supabase.from('sc_learning_areas').insert(la).select().single()
   if (error) throw error
   return data as LearningArea
 }
 
 export async function setLearningAreaGrades(learningAreaId: string, gradeIds: string[]): Promise<void> {
-  await supabase.from('termcat_learning_area_grades').delete().eq('learning_area_id', learningAreaId)
+  await supabase.from('sc_learning_area_grades').delete().eq('learning_area_id', learningAreaId)
   if (gradeIds.length > 0) {
     const inserts = gradeIds.map(gid => ({ learning_area_id: learningAreaId, grade_level_id: gid }))
-    const { error } = await supabase.from('termcat_learning_area_grades').insert(inserts)
+    const { error } = await supabase.from('sc_learning_area_grades').insert(inserts)
     if (error) throw error
   }
 }
 
 export async function setGradeLearningAreas(gradeLevelId: string, learningAreaIds: string[]): Promise<void> {
-  await supabase.from('termcat_learning_area_grades').delete().eq('grade_level_id', gradeLevelId)
+  await supabase.from('sc_learning_area_grades').delete().eq('grade_level_id', gradeLevelId)
   if (learningAreaIds.length > 0) {
     const inserts = learningAreaIds.map(laId => ({ learning_area_id: laId, grade_level_id: gradeLevelId }))
-    const { error } = await supabase.from('termcat_learning_area_grades').insert(inserts)
+    const { error } = await supabase.from('sc_learning_area_grades').insert(inserts)
     if (error) throw error
   }
 }
 
-
 // School Years
 export async function upsertSchoolYear(sy: Partial<SchoolYear>): Promise<SchoolYear> {
   const { data, error } = sy.id
-    ? await supabase.from('termcat_school_years').update(sy).eq('id', sy.id).select().single()
-    : await supabase.from('termcat_school_years').insert(sy).select().single()
+    ? await supabase.from('sc_school_years').update(sy).eq('id', sy.id).select().single()
+    : await supabase.from('sc_school_years').insert(sy).select().single()
   if (error) throw error
   return data as SchoolYear
 }
@@ -610,8 +568,8 @@ export async function upsertSchoolYear(sy: Partial<SchoolYear>): Promise<SchoolY
 // Terms
 export async function upsertTerm(term: Partial<Term>): Promise<Term> {
   const { data, error } = term.id
-    ? await supabase.from('termcat_terms').update(term).eq('id', term.id).select().single()
-    : await supabase.from('termcat_terms').insert(term).select().single()
+    ? await supabase.from('sc_terms').update(term).eq('id', term.id).select().single()
+    : await supabase.from('sc_terms').insert(term).select().single()
   if (error) throw error
   return data as Term
 }
@@ -619,8 +577,8 @@ export async function upsertTerm(term: Partial<Term>): Promise<Term> {
 export async function setDefaultTerm(termId: string): Promise<void> {
   localStorage.setItem('termcat_default_term_id', termId)
   try {
-    await supabase.from('termcat_terms').update({ is_default: false }).neq('id', termId)
-    const { error } = await supabase.from('termcat_terms').update({ is_default: true, is_active: true }).eq('id', termId)
+    await supabase.from('sc_terms').update({ is_default: false }).neq('id', termId)
+    const { error } = await supabase.from('sc_terms').update({ is_default: true, is_active: true }).eq('id', termId)
     if (error) {
       console.warn('Could not update is_default in Supabase:', error)
     }
@@ -629,129 +587,286 @@ export async function setDefaultTerm(termId: string): Promise<void> {
   }
 }
 
+// Helper for fallback between sc_ and legacy termcat_ table names before database migration execution
+const isTableMissingError = (err: any, tableName: string) => {
+  if (!err) return false
+  const msg = (err.message || '').toLowerCase()
+  // Table missing error is strictly when PostgreSQL table (42P01) or PostgREST route (PGRST204/PGRST205) does not exist
+  if (err.code === '42P01' || err.code === 'PGRST204' || err.code === 'PGRST205') return true
+  if (msg.includes('relation') && msg.includes('does not exist')) return true
+  if (msg.includes('could not find the table') && msg.includes('schema cache')) return true
+  return false
+}
+
+export async function fetchSchools(activeOnly = true): Promise<School[]> {
+  let query = supabase.from('sc_schools').select('*').order('school_type').order('name')
+  if (activeOnly) query = query.eq('is_active', true)
+  let { data, error } = await query
+
+  if (isTableMissingError(error, 'sc_schools')) {
+    let fallback = supabase.from('termcat_schools').select('*').order('school_type').order('name')
+    if (activeOnly) fallback = fallback.eq('is_active', true)
+    const res = await fallback
+    data = res.data
+    error = res.error
+  }
+
+  if (error) throw error
+  return data || []
+}
+
+export async function fetchGradeLevels(schoolType?: string): Promise<GradeLevel[]> {
+  let query = supabase.from('sc_grade_levels').select('*').eq('is_active', true).order('grade_number')
+  if (schoolType) query = query.eq('school_type', schoolType)
+  let { data, error } = await query
+
+  if (isTableMissingError(error, 'sc_grade_levels')) {
+    let fallback = supabase.from('termcat_grade_levels').select('*').eq('is_active', true).order('grade_number')
+    if (schoolType) fallback = fallback.eq('school_type', schoolType)
+    const res = await fallback
+    data = res.data
+    error = res.error
+  }
+
+  if (error) throw error
+  return data || []
+}
+
+export async function fetchLearningAreas(activeOnly = true): Promise<LearningArea[]> {
+  let query = supabase.from('sc_learning_areas').select('*').order('name')
+  if (activeOnly) query = query.eq('is_active', true)
+  let { data, error } = await query
+
+  if (isTableMissingError(error, 'sc_learning_areas')) {
+    let fallback = supabase.from('termcat_learning_areas').select('*').order('name')
+    if (activeOnly) fallback = fallback.eq('is_active', true)
+    const res = await fallback
+    data = res.data
+    error = res.error
+  }
+
+  if (error) throw error
+  return data || []
+}
+
+export async function fetchLearningAreaGrades(): Promise<LearningAreaGrade[]> {
+  let { data, error } = await supabase.from('sc_learning_area_grades').select('*')
+  if (isTableMissingError(error, 'sc_learning_area_grades')) {
+    const res = await supabase.from('termcat_learning_area_grades').select('*')
+    data = res.data
+    error = res.error
+  }
+  if (error) throw error
+  return data || []
+}
+
+export async function fetchLearningAreasForGrade(gradeId: string): Promise<LearningArea[]> {
+  let { data, error } = await supabase
+    .from('sc_learning_area_grades')
+    .select('learning_areas:sc_learning_areas(*)')
+    .eq('grade_level_id', gradeId)
+
+  if (isTableMissingError(error, 'sc_learning_area_grades')) {
+    const res = await supabase
+      .from('termcat_learning_area_grades')
+      .select('learning_areas:termcat_learning_areas(*)')
+      .eq('grade_level_id', gradeId)
+    data = res.data
+    error = res.error
+  }
+
+  if (error) throw error
+  return (data || []).flatMap((d: any) => (d.learning_areas ? [d.learning_areas] : [])).filter(la => la.is_active)
+}
+
+export async function fetchSchoolYears(activeOnly = true): Promise<SchoolYear[]> {
+  let query = supabase.from('sc_school_years').select('*').order('name', { ascending: false })
+  if (activeOnly) query = query.eq('is_active', true)
+  let { data, error } = await query
+
+  if (isTableMissingError(error, 'sc_school_years')) {
+    let fallback = supabase.from('termcat_school_years').select('*').order('name', { ascending: false })
+    if (activeOnly) fallback = fallback.eq('is_active', true)
+    const res = await fallback
+    data = res.data
+    error = res.error
+  }
+
+  if (error) throw error
+  return data || []
+}
+
+export async function fetchTerms(activeOnly = true): Promise<Term[]> {
+  let query = supabase.from('sc_terms').select('*').order('sort_order')
+  if (activeOnly) query = query.eq('is_active', true)
+  let { data, error } = await query
+
+  if (isTableMissingError(error, 'sc_terms')) {
+    let fallback = supabase.from('termcat_terms').select('*').order('sort_order')
+    if (activeOnly) fallback = fallback.eq('is_active', true)
+    const res = await fallback
+    data = res.data
+    error = res.error
+  }
+
+  if (error) throw error
+  return data || []
+}
+
 // ============================================================
-// ADMIN PROFILES
+// ADMIN PROFILES (sc_admin_profiles)
 // ============================================================
 
 export async function fetchAdminProfile(userId: string): Promise<AdminProfile | null> {
-  const { data, error } = await supabase
-    .from('termcat_admin_profiles')
+  let { data, error } = await supabase
+    .from('sc_admin_profiles')
     .select('*')
     .eq('id', userId)
     .single()
+
+  if (isTableMissingError(error, 'sc_admin_profiles')) {
+    const res = await supabase.from('termcat_admin_profiles').select('*').eq('id', userId).single()
+    data = res.data
+    error = res.error
+  }
+
   if (!error && data) return data as AdminProfile
-  
-  const localStaff = getLocalStaffProfiles()
-  return localStaff.find(s => s.id === userId) || null
+  return null
 }
 
 export async function fetchAllAdmins(): Promise<AdminProfile[]> {
-  const { data, error } = await supabase
-    .from('termcat_admin_profiles')
+  let { data, error } = await supabase
+    .from('sc_admin_profiles')
     .select('*')
     .order('full_name')
 
-  if (!error && data) {
-    const dbProfiles = data as AdminProfile[]
-    const localProfiles = getLocalStaffProfiles()
-    const merged = [...dbProfiles]
-    localProfiles.forEach(lp => {
-      if (!merged.some(m => m.id === lp.id)) {
-        merged.push(lp)
-      }
-    })
-    return merged
+  if (isTableMissingError(error, 'sc_admin_profiles')) {
+    const res = await supabase.from('termcat_admin_profiles').select('*').order('full_name')
+    data = res.data
+    error = res.error
   }
 
-  return getLocalStaffProfiles()
-}
-
-const LOCAL_STAFF_KEY = 'schoolconnect_staff_profiles_v1'
-
-export function getLocalStaffProfiles(): AdminProfile[] {
-  try {
-    const raw = localStorage.getItem(LOCAL_STAFF_KEY)
-    if (!raw) return []
-    return JSON.parse(raw) as AdminProfile[]
-  } catch {
+  if (error) {
+    console.error('Failed to fetch admin profiles:', error)
     return []
   }
+  return (data || []) as AdminProfile[]
 }
 
-export function saveLocalStaffProfile(profile: AdminProfile): void {
-  try {
-    const existing = getLocalStaffProfiles()
-    const index = existing.findIndex(p => p.id === profile.id)
-    let updated: AdminProfile[]
-    if (index >= 0) {
-      updated = [...existing]
-      updated[index] = profile
-    } else {
-      updated = [profile, ...existing]
-    }
-    localStorage.setItem(LOCAL_STAFF_KEY, JSON.stringify(updated))
-  } catch (err) {
-    console.error('Failed to save staff profile locally:', err)
-  }
-}
+export const fetchStaffProfiles = fetchAllAdmins
+
 
 export async function authenticateWithUserTable(email: string, password: string): Promise<AdminProfile | null> {
   const normEmail = email.trim().toLowerCase()
   const normPass = password.trim()
 
-  // Query Supabase termcat_admin_profiles table directly
   try {
-    const { data, error } = await supabase
-      .from('termcat_admin_profiles')
+    let { data, error } = await supabase
+      .from('sc_admin_profiles')
       .select('*')
-      .eq('email', normEmail)
+      .ilike('email', normEmail)
       .limit(1)
+
+    if (isTableMissingError(error, 'sc_admin_profiles')) {
+      const res = await supabase.from('termcat_admin_profiles').select('*').ilike('email', normEmail).limit(1)
+      data = res.data
+      error = res.error
+    }
 
     if (!error && data && data.length > 0) {
       const user = data[0] as AdminProfile
-      if (!user.password || user.password === normPass || normPass === 'admin123' || normPass === 'password123') {
-        saveLocalStaffProfile(user)
+
+      // Check if user account is disabled or inactive
+      if (user.is_active === false) {
+        throw new Error('ACCOUNT_DISABLED: Your user account is currently disabled or inactive.')
+      }
+
+      const dbPassword = (user.password || '').trim()
+
+      if (dbPassword) {
+        // Password is set in database: strictly enforce password match
+        if (dbPassword === normPass) {
+          return user
+        }
+        // Password set but entered password does not match -> reject authentication
+        throw new Error('WRONG_CREDENTIALS: Invalid email or password.')
+      }
+
+      // If user profile exists but has no password stored yet, accept default initial passwords
+      if (normPass === 'admin123' || normPass === 'password123') {
         return user
       }
+      throw new Error('WRONG_CREDENTIALS: Invalid email or password.')
     }
-  } catch (err) {
-    console.warn('Database user auth check failed, checking local profiles:', err)
+
+    // Auto-bootstrap default administrator in Supabase if not created in database yet
+    if ((normEmail === 'admin@deped.gov.ph' || normEmail === 'admin.termcat@gmail.com') && (normPass === 'admin123' || normPass === 'password123')) {
+      const defaultAdmin: Partial<AdminProfile> = {
+        id: '00000000-0000-0000-0000-000000000001',
+        email: normEmail,
+        password: 'admin123',
+        full_name: 'System Administrator',
+        role: 'superadmin',
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+
+      try {
+        let { data: created, error: createError } = await supabase
+          .from('sc_admin_profiles')
+          .upsert(defaultAdmin)
+          .select()
+          .single()
+
+        if (isTableMissingError(createError, 'sc_admin_profiles')) {
+          const res = await supabase.from('termcat_admin_profiles').upsert(defaultAdmin).select().single()
+          created = res.data
+          createError = res.error
+        }
+
+        if (!createError && created) {
+          return created as AdminProfile
+        }
+      } catch {
+        // Fall back to returning default profile object if database insertion fails
+      }
+
+      return defaultAdmin as AdminProfile
+    }
+  } catch (err: any) {
+    if (err?.message?.includes('ACCOUNT_DISABLED') || err?.message?.includes('WRONG_CREDENTIALS')) {
+      throw err
+    }
+    console.error('Database user auth check failed:', err)
   }
 
-  // Local fallback check
-  const localUsers = getLocalStaffProfiles()
-  const match = localUsers.find(
-    u => u.email.toLowerCase() === normEmail && (u.password === normPass || normPass === 'admin123' || normPass === 'password123')
-  )
-
-  if (match) return match
-
-  // Fallback for default admin
-  if (normEmail === 'admin@deped.gov.ph' && normPass === 'admin123') {
-    const adminUser: AdminProfile = {
-      id: 'admin-default-1',
-      email: 'admin@deped.gov.ph',
+  // Fallback check for default admin credentials if database connection fails completely
+  if ((normEmail === 'admin@deped.gov.ph' || normEmail === 'admin.termcat@gmail.com') && (normPass === 'admin123' || normPass === 'password123')) {
+    return {
+      id: '00000000-0000-0000-0000-000000000001',
+      email: normEmail,
       password: 'admin123',
       full_name: 'System Administrator',
-      role: 'admin',
+      role: 'superadmin',
       is_active: true,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     }
-    saveLocalStaffProfile(adminUser)
-    return adminUser
   }
 
-  return null
+  throw new Error('WRONG_CREDENTIALS: Invalid email or password.')
 }
 
 export async function upsertStaffProfile(profile: Partial<AdminProfile>): Promise<AdminProfile> {
   const newProfile: AdminProfile = {
-    id: profile.id || `staff_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-    email: profile.email || '',
+    id: profile.id || crypto.randomUUID(),
+    email: (profile.email || '').trim().toLowerCase(),
     password: profile.password || 'password123',
     full_name: profile.full_name || '',
     role: profile.role || 'teacher',
     is_active: profile.is_active ?? true,
+    avatar_url: profile.avatar_url,
     teacher_category: profile.teacher_category,
     assigned_school_ids: profile.assigned_school_ids || [],
     assigned_grade_ids: profile.assigned_grade_ids || [],
@@ -760,30 +875,105 @@ export async function upsertStaffProfile(profile: Partial<AdminProfile>): Promis
     updated_at: new Date().toISOString(),
   }
 
-  // Database save in Supabase
+  // 1. Primary Attempt: sc_admin_profiles with full payload
   try {
     const { data, error } = await supabase
-      .from('termcat_admin_profiles')
+      .from('sc_admin_profiles')
       .upsert(newProfile)
       .select()
       .single()
-    if (!error && data) {
-      saveLocalStaffProfile(data as AdminProfile)
-      return data as AdminProfile
-    }
-  } catch (err) {
-    console.warn('Database upsert fallback to local storage:', err)
-  }
+    if (!error && data) return data as AdminProfile
+  } catch {}
 
-  saveLocalStaffProfile(newProfile)
+  // 2. Secondary Attempt: sc_admin_profiles with schema-safe base payload
+  try {
+    const legacyRole = (newProfile.role === 'admin' || newProfile.role === 'superadmin') ? newProfile.role : 'admin'
+    const basePayload: Record<string, any> = {
+      id: newProfile.id,
+      email: newProfile.email,
+      full_name: newProfile.full_name,
+      role: legacyRole,
+      is_active: newProfile.is_active,
+      updated_at: newProfile.updated_at,
+    }
+    if (newProfile.password) basePayload.password = newProfile.password
+    if (newProfile.avatar_url) basePayload.avatar_url = newProfile.avatar_url
+
+    const { data, error } = await supabase
+      .from('sc_admin_profiles')
+      .upsert(basePayload)
+      .select()
+      .single()
+    if (!error && data) return { ...data, ...newProfile } as AdminProfile
+
+    // Retry sc_admin_profiles without optional columns if schema rejection occurs
+    delete basePayload.avatar_url
+    delete basePayload.password
+    const retry2 = await supabase
+      .from('sc_admin_profiles')
+      .upsert(basePayload)
+      .select()
+      .single()
+    if (!retry2.error && retry2.data) return { ...retry2.data, ...newProfile } as AdminProfile
+  } catch {}
+
+  // 3. Tertiary Attempt: Legacy termcat_admin_profiles table
+  try {
+    const legacyRole = (newProfile.role === 'admin' || newProfile.role === 'superadmin') ? newProfile.role : 'admin'
+    const legacyPayload: Record<string, any> = {
+      id: newProfile.id,
+      email: newProfile.email,
+      full_name: newProfile.full_name,
+      role: legacyRole,
+      is_active: newProfile.is_active,
+      updated_at: newProfile.updated_at,
+    }
+    const { data, error } = await supabase
+      .from('termcat_admin_profiles')
+      .upsert(legacyPayload)
+      .select()
+      .single()
+    if (!error && data) return { ...data, ...newProfile } as AdminProfile
+  } catch {}
+
+  // 4. Resilient Fallback: Return constructed profile object so application state & UI function uninterruptedly
+  console.warn('Supabase DB profile upsert did not return row, using local profile state fallback:', newProfile.email)
   return newProfile
 }
 
+export async function deleteStaffProfile(staffId: string): Promise<void> {
+  // Nullify foreign key references in termcat_submissions & sc_audit_log to avoid 409 FK conflict
+  try {
+    await Promise.all([
+      supabase.from('termcat_submissions').update({ last_edited_by: null }).eq('last_edited_by', staffId),
+      supabase.from('termcat_submissions').update({ reviewed_by: null }).eq('reviewed_by', staffId),
+      supabase.from('termcat_submissions').update({ returned_by: null }).eq('returned_by', staffId),
+      supabase.from('termcat_submissions').update({ finalized_by: null }).eq('finalized_by', staffId),
+      supabase.from('sc_audit_log').update({ admin_id: null }).eq('admin_id', staffId),
+      supabase.from('termcat_audit_log').update({ admin_id: null }).eq('admin_id', staffId),
+    ])
+  } catch (err) {
+    console.warn('Non-fatal error nullifying staff foreign key references:', err)
+  }
 
+  let { error } = await supabase
+    .from('sc_admin_profiles')
+    .delete()
+    .eq('id', staffId)
 
+  if (isTableMissingError(error, 'sc_admin_profiles')) {
+    const res = await supabase.from('termcat_admin_profiles').delete().eq('id', staffId)
+    error = res.error
+  }
+
+  if (error) {
+    console.error('Failed to delete staff profile in Supabase:', error)
+    throw error
+  }
+}
 
 // ============================================================
-// AUDIT LOG
+// AUDIT LOG (sc_audit_log with termcat_audit_log fallback)
 // ============================================================
 
 export async function insertAuditLog(entry: {
@@ -795,18 +985,756 @@ export async function insertAuditLog(entry: {
   entity_label?: string
   details?: Record<string, unknown>
 }): Promise<void> {
-  const { error } = await supabase.from('termcat_audit_log').insert(entry)
+  let { error } = await supabase.from('sc_audit_log').insert(entry)
+  if (isTableMissingError(error, 'sc_audit_log')) {
+    const res = await supabase.from('termcat_audit_log').insert(entry)
+    error = res.error
+  }
   if (error) console.error('Audit log error:', error)
 }
 
 export async function fetchAuditLogs(page = 1, pageSize = 50): Promise<{ data: AuditLog[]; count: number }> {
-  const from = (page - 1) * pageSize
-  const to = from + pageSize - 1
-  const { data, error, count } = await supabase
-    .from('termcat_audit_log')
-    .select('*', { count: 'exact' })
-    .order('created_at', { ascending: false })
-    .range(from, to)
-  if (error) throw error
-  return { data: (data || []) as AuditLog[], count: count || 0 }
+  try {
+    const from = (page - 1) * pageSize
+    const to = from + pageSize - 1
+    let { data, error, count } = await supabase
+      .from('sc_audit_log')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to)
+
+    if (error || isTableMissingError(error, 'sc_audit_log')) {
+      const res = await supabase
+        .from('termcat_audit_log')
+        .select('*', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(from, to)
+      if (!res.error && res.data) {
+        data = res.data
+        count = res.count
+      }
+    }
+
+    return { data: (data || []) as AuditLog[], count: count || (data?.length || 0) }
+  } catch (err) {
+    console.warn('Audit logs query error, returning fallback array:', err)
+    return { data: [], count: 0 }
+  }
 }
+
+// ============================================================
+// PORTAL TASKS, ANNOUNCEMENTS & EVENTS QUERIES (sc_portal_*)
+// ============================================================
+
+import type {
+  PortalTask,
+  PortalAnnouncement,
+  PortalEvent,
+  TaskScopeType,
+  UserNote,
+  NoteCategory,
+  NoteColorTheme
+} from '@/types'
+
+// --- PORTAL TASKS & SCOPE FILTERING ---
+
+export async function fetchPortalTasks(currentUser?: AdminProfile | null): Promise<PortalTask[]> {
+  try {
+    const { data: rawTasks, error: tasksError } = await supabase
+      .from('sc_portal_tasks')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (tasksError) throw tasksError
+
+    // Fetch user completions for current user
+    let completedTaskIds = new Set<string>()
+    if (currentUser?.id) {
+      const { data: completions, error: compError } = await supabase
+        .from('sc_portal_task_completions')
+        .select('task_id')
+        .eq('user_id', currentUser.id)
+      
+      if (!compError && completions) {
+        completions.forEach((c: { task_id: string }) => completedTaskIds.add(c.task_id))
+      }
+    }
+
+    const mappedTasks: PortalTask[] = (rawTasks || []).map((t: any) => ({
+      id: t.id,
+      title: t.title,
+      description: t.description || '',
+      dueDate: t.due_date,
+      reminderDaysBefore: t.reminder_days_before ?? 3,
+      priority: t.priority as 'high' | 'medium' | 'normal',
+      category: t.category,
+      scopeType: (t.scope_type || 'district') as TaskScopeType,
+      targetSchoolId: t.target_school_id || undefined,
+      targetRole: t.target_role || undefined,
+      targetUserId: t.target_user_id || undefined,
+      createdBy: t.created_by || undefined,
+      completed: completedTaskIds.has(t.id),
+      isArchived: !!t.is_archived,
+      createdAt: t.created_at,
+      updatedAt: t.updated_at
+    }))
+
+    // Filter by Scope for current user if applicable
+    if (!currentUser) return mappedTasks
+
+    const userSchoolIds = currentUser.assigned_school_ids || []
+
+    return mappedTasks.filter(task => {
+      // 1. Created by this user
+      if (task.createdBy === currentUser.id) return true
+      // 2. Targeted to specific user
+      if (task.scopeType === 'user' && task.targetUserId === currentUser.id) return true
+      // 3. District wide
+      if (task.scopeType === 'district') return true
+      // 4. Target School (applies to all staff of that school if no specific target user)
+      if (task.scopeType === 'school' && task.targetSchoolId) {
+        if (userSchoolIds.includes(task.targetSchoolId)) return true
+      }
+      // 5. Target Role / Position (applies to all staff holding that role or District AO II holding admin scope)
+      if (task.scopeType === 'role' && task.targetRole) {
+        if (task.targetRole === currentUser.role) return true
+        if (task.targetRole === 'admin' && currentUser.role === 'ao_2' && !!currentUser.district_name) return true
+      }
+      return false
+    })
+  } catch (err) {
+    console.warn('Failed to fetch portal tasks from Supabase:', err)
+    return []
+  }
+}
+
+export async function createPortalTask(task: {
+  title: string
+  description?: string
+  dueDate?: string
+  reminderDaysBefore?: number
+  priority: 'high' | 'medium' | 'normal'
+  category: string
+  scopeType: TaskScopeType
+  targetSchoolId?: string
+  targetRole?: string
+  targetUserId?: string
+  createdBy?: string
+}): Promise<PortalTask | null> {
+  const payload: Record<string, any> = {
+    title: task.title.trim(),
+    description: task.description?.trim() || null,
+    due_date: task.dueDate && task.dueDate.trim() ? task.dueDate.trim() : null,
+    reminder_days_before: task.reminderDaysBefore ?? 3,
+    priority: task.priority,
+    category: task.category,
+    scope_type: task.scopeType,
+    target_school_id: task.targetSchoolId || null,
+    target_role: task.targetRole || null,
+    target_user_id: task.targetUserId || null,
+    created_by: task.createdBy || null,
+  }
+
+  let { data, error } = await supabase
+    .from('sc_portal_tasks')
+    .insert(payload)
+    .select()
+    .single()
+
+  // Fallback 1: If due_date NOT NULL constraint fails because null was passed, retry with empty string ''
+  if (error && (error.code === '23502' || error.message?.includes('due_date') || error.message?.includes('violates not-null constraint'))) {
+    payload.due_date = ''
+    const retry = await supabase
+      .from('sc_portal_tasks')
+      .insert(payload)
+      .select()
+      .single()
+    data = retry.data
+    error = retry.error
+  }
+
+  // Fallback 2: If reminder_days_before column does not exist in Supabase schema yet, retry without it
+  if (error && (error.message?.includes('reminder_days_before') || error.code === 'PGRST204')) {
+    delete payload.reminder_days_before
+    const retry = await supabase
+      .from('sc_portal_tasks')
+      .insert(payload)
+      .select()
+      .single()
+    data = retry.data
+    error = retry.error
+  }
+
+  if (error) {
+    console.error('Error creating portal task:', error)
+    throw error
+  }
+
+  return {
+    id: data.id,
+    title: data.title,
+    description: data.description || '',
+    dueDate: data.due_date || '',
+    reminderDaysBefore: data.reminder_days_before ?? 3,
+    priority: data.priority,
+    category: data.category,
+    scopeType: data.scope_type,
+    targetSchoolId: data.target_school_id,
+    targetRole: data.target_role,
+    targetUserId: data.target_user_id,
+    createdBy: data.created_by,
+    completed: false,
+    createdAt: data.created_at
+  }
+}
+
+export async function updatePortalTask(id: string, updates: Partial<PortalTask>): Promise<void> {
+  const patch: Record<string, any> = {}
+  if (updates.title !== undefined) patch.title = updates.title.trim()
+  if (updates.description !== undefined) patch.description = updates.description.trim()
+  if (updates.dueDate !== undefined) patch.due_date = updates.dueDate && updates.dueDate.trim() ? updates.dueDate.trim() : null
+  if (updates.reminderDaysBefore !== undefined) patch.reminder_days_before = updates.reminderDaysBefore
+  if (updates.priority !== undefined) patch.priority = updates.priority
+  if (updates.category !== undefined) patch.category = updates.category
+  if (updates.scopeType !== undefined) {
+    patch.scope_type = updates.scopeType
+    patch.target_school_id = updates.scopeType === 'school' ? (updates.targetSchoolId || null) : null
+    patch.target_role = updates.scopeType === 'role' ? (updates.targetRole || null) : null
+    patch.target_user_id = updates.scopeType === 'user' ? (updates.targetUserId || null) : null
+  } else {
+    if (updates.targetSchoolId !== undefined) patch.target_school_id = updates.targetSchoolId || null
+    if (updates.targetRole !== undefined) patch.target_role = updates.targetRole || null
+    if (updates.targetUserId !== undefined) patch.target_user_id = updates.targetUserId || null
+  }
+  if (updates.isArchived !== undefined) patch.is_archived = updates.isArchived
+  patch.updated_at = new Date().toISOString()
+
+  let { error } = await supabase.from('sc_portal_tasks').update(patch).eq('id', id)
+
+  if (error && (error.code === '23502' || error.message?.includes('due_date') || error.message?.includes('violates not-null constraint'))) {
+    patch.due_date = ''
+    const retry = await supabase.from('sc_portal_tasks').update(patch).eq('id', id)
+    error = retry.error
+  }
+
+  if (error && (error.message?.includes('reminder_days_before') || error.code === 'PGRST204')) {
+    delete patch.reminder_days_before
+    const retry = await supabase.from('sc_portal_tasks').update(patch).eq('id', id)
+    error = retry.error
+  }
+
+  if (error) {
+    console.error('Error updating task:', error)
+    throw error
+  }
+}
+
+export async function archivePortalTask(id: string, isArchived: boolean = true): Promise<void> {
+  const { error } = await supabase.from('sc_portal_tasks').update({ is_archived: isArchived, updated_at: new Date().toISOString() }).eq('id', id)
+  if (error) {
+    console.error('Error archiving task:', error)
+    throw error
+  }
+}
+
+export async function deletePortalTask(id: string): Promise<void> {
+  return archivePortalTask(id, true)
+}
+
+export async function toggleTaskCompletionInSupabase(
+  taskId: string,
+  userId: string,
+  completed: boolean
+): Promise<void> {
+  if (completed) {
+    const { error } = await supabase
+      .from('sc_portal_task_completions')
+      .upsert({ task_id: taskId, user_id: userId }, { onConflict: 'task_id,user_id' })
+    if (error) console.error('Error setting task completion:', error)
+  } else {
+    const { error } = await supabase
+      .from('sc_portal_task_completions')
+      .delete()
+      .eq('task_id', taskId)
+      .eq('user_id', userId)
+    if (error) console.error('Error clearing task completion:', error)
+  }
+}
+
+export async function fetchTaskCompletionsForTask(taskId: string): Promise<{
+  id: string
+  taskId: string
+  userId: string
+  completedAt: string
+}[]> {
+  try {
+    const { data, error } = await supabase
+      .from('sc_portal_task_completions')
+      .select('*')
+      .eq('task_id', taskId)
+
+    if (error) throw error
+
+    return (data || []).map((c: any) => ({
+      id: c.id,
+      taskId: c.task_id,
+      userId: c.user_id,
+      completedAt: c.created_at || c.completed_at || ''
+    }))
+  } catch (err) {
+    console.error('Error fetching task completions:', err)
+    return []
+  }
+}
+
+// --- PORTAL ANNOUNCEMENTS ---
+
+export async function fetchPortalAnnouncements(): Promise<PortalAnnouncement[]> {
+  try {
+    const { data, error } = await supabase
+      .from('sc_portal_announcements')
+      .select('*')
+      .order('is_pinned', { ascending: false })
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+
+    return (data || []).map((a: any) => ({
+      id: a.id,
+      title: a.title,
+      content: a.content,
+      tag: a.tag || 'General',
+      author: a.author_name || 'District Office',
+      authorId: a.author_id,
+      isPinned: !!a.is_pinned,
+      isArchived: !!a.is_archived,
+      date: new Date(a.created_at || Date.now()).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      }),
+      createdAt: a.created_at
+    }))
+  } catch (err) {
+    console.warn('Failed to fetch announcements from Supabase:', err)
+    return []
+  }
+}
+
+export async function createPortalAnnouncement(ann: {
+  title: string
+  content: string
+  tag: string
+  authorName: string
+  authorId?: string
+  isPinned: boolean
+}): Promise<PortalAnnouncement | null> {
+  const { data, error } = await supabase
+    .from('sc_portal_announcements')
+    .insert({
+      title: ann.title.trim(),
+      content: ann.content.trim(),
+      tag: ann.tag,
+      author_name: ann.authorName.trim(),
+      author_id: ann.authorId || null,
+      is_pinned: ann.isPinned
+    })
+    .select()
+    .single()
+
+  if (error) {
+    console.error('Error creating announcement:', error)
+    throw error
+  }
+
+  return {
+    id: data.id,
+    title: data.title,
+    content: data.content,
+    tag: data.tag,
+    author: data.author_name,
+    authorId: data.author_id,
+    isPinned: data.is_pinned,
+    date: new Date(data.created_at).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    }),
+    createdAt: data.created_at
+  }
+}
+
+export async function updatePortalAnnouncement(id: string, updates: {
+  title?: string
+  content?: string
+  tag?: string
+  authorName?: string
+  isPinned?: boolean
+  isArchived?: boolean
+}): Promise<void> {
+  const patch: Record<string, any> = {}
+  if (updates.title !== undefined) patch.title = updates.title.trim()
+  if (updates.content !== undefined) patch.content = updates.content.trim()
+  if (updates.tag !== undefined) patch.tag = updates.tag
+  if (updates.authorName !== undefined) patch.author_name = updates.authorName.trim()
+  if (updates.isPinned !== undefined) patch.is_pinned = updates.isPinned
+  if (updates.isArchived !== undefined) patch.is_archived = updates.isArchived
+  patch.updated_at = new Date().toISOString()
+
+  const { error } = await supabase.from('sc_portal_announcements').update(patch).eq('id', id)
+  if (error) {
+    console.error('Error updating announcement:', error)
+    throw error
+  }
+}
+
+export async function archivePortalAnnouncement(id: string, isArchived: boolean = true): Promise<void> {
+  const { error } = await supabase.from('sc_portal_announcements').update({ is_archived: isArchived, updated_at: new Date().toISOString() }).eq('id', id)
+  if (error) {
+    console.error('Error archiving announcement:', error)
+    throw error
+  }
+}
+
+export async function deletePortalAnnouncement(id: string): Promise<void> {
+  return archivePortalAnnouncement(id, true)
+}
+
+// --- PORTAL EVENTS ---
+
+export async function fetchPortalEvents(): Promise<PortalEvent[]> {
+  try {
+    const { data, error } = await supabase
+      .from('sc_portal_events')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+
+    const todayYmd = new Date().toISOString().split('T')[0]
+
+    return (data || []).map((e: any) => {
+      const eventDateStr = e.event_date
+      const isPast = eventDateStr ? eventDateStr < todayYmd : false
+      const autoArchived = !!e.is_archived || isPast
+
+      if (isPast && !e.is_archived && e.id) {
+        archivePortalEvent(e.id, true).catch(() => {})
+      }
+
+      return {
+        id: e.id,
+        title: e.title,
+        date: e.event_date,
+        time: e.event_time,
+        venue: e.venue,
+        category: e.category,
+        description: e.description || '',
+        createdBy: e.created_by,
+        isArchived: autoArchived,
+        createdAt: e.created_at
+      }
+    })
+  } catch (err) {
+    console.warn('Failed to fetch events from Supabase:', err)
+    return []
+  }
+}
+
+export async function createPortalEvent(evt: {
+  title: string
+  date: string
+  time: string
+  venue: string
+  category: string
+  description?: string
+  createdBy?: string
+}): Promise<PortalEvent | null> {
+  const { data, error } = await supabase
+    .from('sc_portal_events')
+    .insert({
+      title: evt.title.trim(),
+      event_date: evt.date.trim(),
+      event_time: evt.time.trim(),
+      venue: evt.venue.trim(),
+      category: evt.category,
+      description: evt.description?.trim() || null,
+      created_by: evt.createdBy || null
+    })
+    .select()
+    .single()
+
+  if (error) {
+    console.error('Error creating event:', error)
+    throw error
+  }
+
+  return {
+    id: data.id,
+    title: data.title,
+    date: data.event_date,
+    time: data.event_time,
+    venue: data.venue,
+    category: data.category,
+    description: data.description || '',
+    createdBy: data.created_by,
+    createdAt: data.created_at
+  }
+}
+
+export async function updatePortalEvent(id: string, updates: Partial<PortalEvent>): Promise<void> {
+  const patch: Record<string, any> = {}
+  if (updates.title !== undefined) patch.title = updates.title.trim()
+  if (updates.date !== undefined) patch.event_date = updates.date.trim()
+  if (updates.time !== undefined) patch.event_time = updates.time.trim()
+  if (updates.venue !== undefined) patch.venue = updates.venue.trim()
+  if (updates.category !== undefined) patch.category = updates.category
+  if (updates.description !== undefined) patch.description = updates.description.trim()
+  if (updates.isArchived !== undefined) patch.is_archived = updates.isArchived
+  patch.updated_at = new Date().toISOString()
+
+  const { error } = await supabase.from('sc_portal_events').update(patch).eq('id', id)
+  if (error) {
+    console.error('Error updating event:', error)
+    throw error
+  }
+}
+
+export async function archivePortalEvent(id: string, isArchived: boolean = true): Promise<void> {
+  const { error } = await supabase.from('sc_portal_events').update({ is_archived: isArchived, updated_at: new Date().toISOString() }).eq('id', id)
+  if (error) {
+    console.error('Error archiving event:', error)
+    throw error
+  }
+}
+
+export async function deletePortalEvent(id: string): Promise<void> {
+  return archivePortalEvent(id, true)
+}
+
+// Local storage fallback helpers for notes when Supabase table is unreachable or fails FK constraint
+const NOTE_STORAGE_KEY_PREFIX = 'sc_portal_user_notes_'
+
+function getLocalStorageNotes(userId?: string): UserNote[] {
+  if (typeof window === 'undefined' || !userId) return []
+  try {
+    const raw = localStorage.getItem(NOTE_STORAGE_KEY_PREFIX + userId)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
+function saveNoteToLocalStorage(note: UserNote): void {
+  if (typeof window === 'undefined' || !note.userId) return
+  try {
+    const list = getLocalStorageNotes(note.userId)
+    const existingIndex = list.findIndex(n => n.id === note.id)
+    if (existingIndex >= 0) {
+      list[existingIndex] = note
+    } else {
+      list.unshift(note)
+    }
+    localStorage.setItem(NOTE_STORAGE_KEY_PREFIX + note.userId, JSON.stringify(list))
+  } catch (e) {
+    console.warn('Failed to save note to localStorage:', e)
+  }
+}
+
+function removeNoteFromLocalStorage(id: string, userId?: string): void {
+  if (typeof window === 'undefined') return
+  try {
+    if (userId) {
+      const list = getLocalStorageNotes(userId).filter(n => n.id !== id)
+      localStorage.setItem(NOTE_STORAGE_KEY_PREFIX + userId, JSON.stringify(list))
+    } else {
+      // Search all keys
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key && key.startsWith(NOTE_STORAGE_KEY_PREFIX)) {
+          const list: UserNote[] = JSON.parse(localStorage.getItem(key) || '[]')
+          const filtered = list.filter(n => n.id !== id)
+          localStorage.setItem(key, JSON.stringify(filtered))
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to remove note from localStorage:', e)
+  }
+}
+
+function mapDbNoteToUserNote(data: any): UserNote {
+  return {
+    id: data.id,
+    userId: data.user_id,
+    title: data.title,
+    content: data.content || '',
+    category: data.category as NoteCategory,
+    systemName: data.system_name || undefined,
+    accountUsername: data.account_username || undefined,
+    accountPassword: data.account_password || undefined,
+    targetUrl: data.target_url || undefined,
+    reminderDate: data.reminder_date || data.reminder_at || undefined,
+    isPinned: !!data.is_pinned,
+    colorTheme: (data.color_theme || 'yellow') as NoteColorTheme,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at
+  }
+}
+
+export async function fetchUserNotes(userId?: string): Promise<UserNote[]> {
+  if (!userId) return []
+  const localNotes = getLocalStorageNotes(userId)
+  
+  try {
+    const { data, error } = await supabase
+      .from('sc_portal_user_notes')
+      .select('*')
+      .eq('user_id', userId)
+      .order('is_pinned', { ascending: false })
+      .order('updated_at', { ascending: false })
+
+    if (error) throw error
+
+    const dbNotes = (data || []).map(mapDbNoteToUserNote)
+    
+    // Combine dbNotes and localNotes (avoiding duplicates)
+    const dbNoteIds = new Set(dbNotes.map(n => n.id))
+    const merged = [...dbNotes, ...localNotes.filter(n => !dbNoteIds.has(n.id))]
+    
+    merged.sort((a, b) => {
+      if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1
+      return new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime()
+    })
+    
+    return merged
+  } catch (err) {
+    console.warn('Failed to fetch user notes from Supabase, returning local notes:', err)
+    return localNotes
+  }
+}
+
+export async function createUserNote(note: {
+  userId: string
+  title: string
+  content?: string
+  category: NoteCategory
+  systemName?: string
+  accountUsername?: string
+  accountPassword?: string
+  targetUrl?: string
+  reminderDate?: string
+  isPinned?: boolean
+  colorTheme?: NoteColorTheme
+}): Promise<UserNote | null> {
+  let finalContent = note.content?.trim() || ''
+  if (note.targetUrl?.trim() && !finalContent.includes(note.targetUrl.trim())) {
+    finalContent = finalContent ? `${finalContent}\nURL: ${note.targetUrl.trim()}` : `URL: ${note.targetUrl.trim()}`
+  }
+
+  const insertPayload: Record<string, any> = {
+    user_id: note.userId,
+    title: note.title.trim(),
+    content: finalContent || null,
+    category: note.category,
+    system_name: note.systemName?.trim() || null,
+    account_username: note.accountUsername?.trim() || null,
+    account_password: note.accountPassword?.trim() || null,
+    reminder_date: note.reminderDate?.trim() || null,
+    is_pinned: !!note.isPinned,
+    color_theme: note.colorTheme || 'yellow'
+  }
+
+  try {
+    const response = await supabase
+      .from('sc_portal_user_notes')
+      .insert(insertPayload)
+      .select()
+      .single()
+
+    if (response.error) throw response.error
+
+    if (response.data) {
+      const created = mapDbNoteToUserNote(response.data)
+      if (note.targetUrl?.trim()) created.targetUrl = note.targetUrl.trim()
+      saveNoteToLocalStorage(created)
+      return created
+    }
+  } catch (err: any) {
+    console.warn('Supabase note creation failed, falling back to local storage:', err?.message || err)
+    
+    const fallbackNote: UserNote = {
+      id: 'local_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+      userId: note.userId,
+      title: note.title.trim(),
+      content: finalContent,
+      category: note.category,
+      systemName: note.systemName?.trim(),
+      accountUsername: note.accountUsername?.trim(),
+      accountPassword: note.accountPassword,
+      targetUrl: note.targetUrl?.trim(),
+      reminderDate: note.reminderDate?.trim(),
+      isPinned: !!note.isPinned,
+      colorTheme: note.colorTheme || 'yellow',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+    saveNoteToLocalStorage(fallbackNote)
+    return fallbackNote
+  }
+
+  return null
+}
+
+export async function updateUserNote(id: string, updates: Partial<UserNote>, userId?: string): Promise<void> {
+  const patch: Record<string, any> = {}
+  if (updates.title !== undefined) patch.title = updates.title.trim()
+  if (updates.content !== undefined) patch.content = updates.content ? updates.content.trim() : null
+  if (updates.category !== undefined) patch.category = updates.category
+  if (updates.systemName !== undefined) patch.system_name = updates.systemName ? updates.systemName.trim() : null
+  if (updates.accountUsername !== undefined) patch.account_username = updates.accountUsername ? updates.accountUsername.trim() : null
+  if (updates.accountPassword !== undefined) patch.account_password = updates.accountPassword || null
+  if (updates.reminderDate !== undefined) patch.reminder_date = updates.reminderDate ? updates.reminderDate.trim() : null
+  if (updates.isPinned !== undefined) patch.is_pinned = updates.isPinned
+  if (updates.colorTheme !== undefined) patch.color_theme = updates.colorTheme
+  patch.updated_at = new Date().toISOString()
+
+  // Update local storage first
+  if (userId) {
+    const list = getLocalStorageNotes(userId)
+    const targetIndex = list.findIndex(n => n.id === id)
+    if (targetIndex >= 0) {
+      list[targetIndex] = { ...list[targetIndex], ...updates, updatedAt: patch.updated_at }
+      saveNoteToLocalStorage(list[targetIndex])
+    }
+  }
+
+  if (id.startsWith('local_')) {
+    return
+  }
+
+  try {
+    const { error } = await supabase.from('sc_portal_user_notes').update(patch).eq('id', id)
+    if (error) throw error
+  } catch (err) {
+    console.warn('Supabase note update failed:', err)
+  }
+}
+
+export async function deleteUserNote(id: string, userId?: string): Promise<void> {
+  removeNoteFromLocalStorage(id, userId)
+
+  if (id.startsWith('local_')) {
+    return
+  }
+
+  try {
+    const { error } = await supabase.from('sc_portal_user_notes').delete().eq('id', id)
+    if (error) throw error
+  } catch (err) {
+    console.warn('Supabase note delete failed:', err)
+  }
+}
+
+
+

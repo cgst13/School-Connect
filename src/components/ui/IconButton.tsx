@@ -1,66 +1,45 @@
-import { ButtonHTMLAttributes, ReactNode, forwardRef } from 'react'
-import { Tooltip } from './Tooltip'
+import { ReactNode, ButtonHTMLAttributes } from 'react'
 
 export interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   icon: ReactNode
   'aria-label': string
   tooltip?: string
-  tooltipPosition?: 'top' | 'bottom' | 'left' | 'right'
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger'
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'success'
   size?: 'sm' | 'md' | 'lg'
 }
 
-export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
-  (
-    {
-      icon,
-      'aria-label': ariaLabel,
-      tooltip,
-      tooltipPosition = 'top',
-      variant = 'secondary',
-      size = 'md',
-      className = '',
-      disabled,
-      ...props
-    },
-    ref
-  ) => {
-    const variantClasses = {
-      primary: 'bg-[#0B1F3A] text-white hover:bg-[#07152A] active:scale-[0.97] border border-transparent shadow-xs',
-      secondary: 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:border-slate-300 hover:text-slate-900 active:scale-[0.97] shadow-xs',
-      ghost: 'bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900 active:scale-[0.97]',
-      danger: 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white active:scale-[0.97] shadow-xs',
-    }
-
-    const sizeClasses = {
-      sm: 'p-1.5 text-xs rounded-md min-w-[28px] min-h-[28px]',
-      md: 'p-2 text-sm rounded-lg min-w-[36px] min-h-[36px]',
-      lg: 'p-2.5 text-base rounded-xl min-w-[44px] min-h-[44px]',
-    }
-
-    const buttonElement = (
-      <button
-        ref={ref}
-        type="button"
-        aria-label={ariaLabel}
-        disabled={disabled}
-        className={`inline-flex items-center justify-center font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0B1F3A] focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none cursor-pointer ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
-        {...props}
-      >
-        {icon}
-      </button>
-    )
-
-    if (tooltip) {
-      return (
-        <Tooltip content={tooltip} position={tooltipPosition}>
-          {buttonElement}
-        </Tooltip>
-      )
-    }
-
-    return buttonElement
+export function IconButton({
+  icon,
+  'aria-label': ariaLabel,
+  tooltip,
+  variant = 'ghost',
+  size = 'md',
+  className = '',
+  ...props
+}: IconButtonProps) {
+  const sizeStyles = {
+    sm: 'w-8 h-8 text-xs',
+    md: 'w-10 h-10 text-sm',
+    lg: 'w-11 h-11 text-base',
   }
-)
 
-IconButton.displayName = 'IconButton'
+  const variantStyles = {
+    primary: 'bg-[#6675E8] text-white hover:bg-[#5463DA] shadow-xs active:scale-95',
+    secondary: 'bg-white text-[#1F2937] border border-[#E8EAF0] hover:bg-[#EEF0FF] hover:border-[#BFD7FF] hover:text-[#6675E8] shadow-xs active:scale-95',
+    ghost: 'text-[#64748B] hover:bg-[#EEF0FF] hover:text-[#6675E8] active:scale-95',
+    danger: 'bg-[#FFF0F5] text-[#992B54] border border-[#F7C7D9] hover:bg-[#F7C7D9] active:scale-95',
+    success: 'bg-[#F0FAF5] text-[#1E6B48] border border-[#BFE8D5] hover:bg-[#BFE8D5] active:scale-95',
+  }
+
+  return (
+    <button
+      type="button"
+      aria-label={ariaLabel}
+      title={tooltip || ariaLabel}
+      className={`inline-flex items-center justify-center rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6675E8]/40 disabled:opacity-40 disabled:pointer-events-none cursor-pointer ${sizeStyles[size]} ${variantStyles[variant]} ${className}`}
+      {...props}
+    >
+      {icon}
+    </button>
+  )
+}

@@ -4,9 +4,10 @@ import { PageLoader } from '@/components/ui/EmptyState'
 
 interface ProtectedRouteProps {
   children: React.ReactNode
+  requireAdmin?: boolean
 }
 
-export function ProtectedRoute({ children }: ProtectedRouteProps) {
+export function ProtectedRoute({ children, requireAdmin }: ProtectedRouteProps) {
   const { user, admin, loading } = useAuth()
 
   if (loading) return <PageLoader />
@@ -26,6 +27,16 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
         </div>
       </div>
     )
+  }
+
+  const isAdminUser =
+    admin.role === 'admin' ||
+    admin.role === 'superadmin' ||
+    admin.role === 'psds' ||
+    (admin.role === 'ao_2' && !!admin.district_name)
+
+  if (requireAdmin && !isAdminUser) {
+    return <Navigate to="/portal" replace />
   }
 
   return <>{children}</>

@@ -31,12 +31,6 @@ const navGroups: NavGroup[] = [
       { to: '/admin/settings', label: 'System Settings', icon: <Settings size={18} /> },
     ],
   },
-  {
-    title: 'Platform Navigation',
-    items: [
-      { to: '/portal', label: 'Global Portal Hub', icon: <Grid size={18} /> },
-    ],
-  },
 ]
 
 

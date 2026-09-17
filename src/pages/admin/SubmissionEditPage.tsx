@@ -20,11 +20,11 @@ import { fetchCompetencySuggestions, fetchDifficultyFactorsSuggestions, fetchUnt
 import { useAuth } from '@/features/auth/useAuth'
 import { useToast } from '@/hooks/useToast'
 import type { TermcatSubmission, FullSubmissionFormData, School, GradeLevel, LearningArea, SchoolYear, Term } from '@/types'
-import { ArrowLeft, Save, Sparkles } from 'lucide-react'
+import { ArrowLeft, Save, Sparkles, Lock } from 'lucide-react'
 
 export function SubmissionEditPage() {
   const { id } = useParams<{ id: string }>()
-  const { admin } = useAuth()
+  const { admin, isSchoolPermitted } = useAuth()
   const { toast } = useToast()
   const navigate = useNavigate()
 
@@ -193,6 +193,31 @@ export function SubmissionEditPage() {
 
   if (loading) return <AdminLayout><PageLoader /></AdminLayout>
   if (!submission) return <AdminLayout><div className="card p-8 text-center"><p>Submission not found.</p></div></AdminLayout>
+
+  if (!isSchoolPermitted(submission.school_id)) {
+    return (
+      <AdminLayout>
+        <div className="bg-[#EFF3F9] rounded-[32px] p-8 shadow-neu-out border border-white/80 text-center max-w-lg mx-auto my-12 space-y-5">
+          <div className="w-16 h-16 rounded-3xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto shadow-neu-out-sm border border-rose-200">
+            <Lock className="w-8 h-8" />
+          </div>
+          <div>
+            <h2 className="text-xl font-black text-[#2D3748]">Access Restricted</h2>
+            <p className="text-xs text-[#64748B] mt-2 leading-relaxed font-medium">
+              You are only authorized to view and edit submissions for your assigned school.
+            </p>
+          </div>
+          <Link
+            to="/admin/submissions"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-bold text-white bg-gradient-to-r from-[#7181F5] to-[#5463DA] shadow-neu-btn"
+          >
+            <ArrowLeft size={16} />
+            Back to Submissions
+          </Link>
+        </div>
+      </AdminLayout>
+    )
+  }
 
   const isKS1 = submission.form_type === 'ks1'
 
