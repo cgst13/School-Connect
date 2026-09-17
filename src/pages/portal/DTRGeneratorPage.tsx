@@ -224,7 +224,7 @@ export function DTRGeneratorPage() {
 
   // Table Entries for active month
   const [entries, setEntries] = useState<DTRDayEntry[]>([])
-  const [activeTab, setActiveTab] = useState<'editor' | 'preview'>('editor')
+  const [activeTab, setActiveTab] = useState<'editor' | 'preview'>('preview')
 
   // Load persistent config
   useEffect(() => {
