@@ -939,11 +939,12 @@ export function DTRGeneratorPage() {
               </button>
 
               <button
-                onClick={handlePrintDTR}
+                type="button"
+                onClick={() => setTab('my_dtrs')}
                 className="px-5 py-3 rounded-full bg-white text-[#795CEE] hover:bg-[#F6EFFF] font-black text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer border border-white active:animate-button-sparkle"
               >
                 <Printer size={16} />
-                Print Form 48
+                <span>Print (My DTRs)</span>
               </button>
             </div>
           </div>
@@ -1191,6 +1192,18 @@ export function DTRGeneratorPage() {
                             className="px-3 py-1.5 rounded-xl bg-[#8B72F4] text-white font-extrabold text-xs shadow-xs hover:opacity-95"
                           >
                             Load & Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleLoadRecord(record)
+                              setTimeout(() => window.print(), 350)
+                            }}
+                            className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#8B72F4] to-[#795CEE] text-white font-extrabold text-xs shadow-xs hover:opacity-95 inline-flex items-center gap-1.5 cursor-pointer"
+                            title="Print Form 48 for this record"
+                          >
+                            <Printer size={13} />
+                            <span>Print</span>
                           </button>
                           <button
                             type="button"
