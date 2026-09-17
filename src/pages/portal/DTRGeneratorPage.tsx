@@ -36,7 +36,11 @@ import {
   Check,
   ChevronRight,
   X,
-  UserPlus
+  UserPlus,
+  PartyPopper,
+  CalendarPlus,
+  Tag,
+  Plus
 } from 'lucide-react'
 import { fetchAllAdmins, fetchSchools } from '@/lib/supabase/queries'
 
@@ -71,6 +75,13 @@ export interface SavedDTRRecord {
   updatedAt: string
 }
 
+export interface CustomHolidayItem {
+  id: string
+  dateStr: string // "MM-DD" for recurring or "YYYY-MM-DD" for specific date
+  title: string
+  isRecurring: boolean
+}
+
 const MONTH_NAMES = [
   'JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE',
   'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'
@@ -95,6 +106,7 @@ const STANDARD_PH_HOLIDAYS: Record<string, string> = {
 
 const DTR_STORAGE_KEY = 'schoolconnect_dtr_config_v1'
 const DTR_HISTORY_KEY = 'schoolconnect_dtr_history_v2'
+const DTR_CUSTOM_HOLIDAYS_KEY = 'schoolconnect_dtr_custom_holidays_v1'
 
 export function DTRGeneratorPage() {
   const { admin } = useAuth()
@@ -102,6 +114,9 @@ export function DTRGeneratorPage() {
 
   // Sidebar Open/Close Toggle
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true)
+
+  // Local Holidays Modal State
+  const [isHolidayModalOpen, setIsHolidayModalOpen] = useState<boolean>(false)
 
   // Form State
   const [employeeName, setEmployeeName] = useState<string>(() => {
@@ -145,6 +160,48 @@ export function DTRGeneratorPage() {
   })
   const [activeRecordId, setActiveRecordId] = useState<string | null>(null)
   const [historySearch, setHistorySearch] = useState<string>('')
+
+  // Custom Local Holidays State
+  const [customHolidays, setCustomHolidays] = useState<CustomHolidayItem[]>(() => {
+    try {
+      const raw = localStorage.getItem(DTR_CUSTOM_HOLIDAYS_KEY)
+      if (raw) return JSON.parse(raw)
+    } catch {}
+    // Default Romblon & District Local Holidays
+    return [
+      { id: 'hol_1', dateStr: '03-18', title: 'Romblon Liberation Day', isRecurring: true },
+      { id: 'hol_2', dateStr: '01-16', title: 'Concepcion District Day', isRecurring: true }
+    ]
+  })
+
+  // New Custom Holiday Input Form State
+  const [newHolidayMonth, setNewHolidayMonth] = useState<number>(new Date().getMonth() + 1)
+  const [newHolidayDay, setNewHolidayDay] = useState<number>(1)
+  const [newHolidayYear, setNewHolidayYear] = useState<string>('') // Optional specific year
+  const [newHolidayTitle, setNewHolidayTitle] = useState<string>('')
+  const [newHolidayIsRecurring, setNewHolidayIsRecurring] = useState<boolean>(true)
+
+  // Save custom holidays to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(DTR_CUSTOM_HOLIDAYS_KEY, JSON.stringify(customHolidays))
+    } catch {}
+  }, [customHolidays])
+
+  // Computed Combined Holiday Lookup Map (National + Custom Local)
+  const combinedHolidaysMap = useMemo(() => {
+    const map: Record<string, string> = { ...STANDARD_PH_HOLIDAYS }
+
+    for (const h of customHolidays) {
+      const formattedTitle = h.title.toUpperCase().startsWith('HOLIDAY')
+        ? h.title
+        : `HOLIDAY (${h.title})`
+
+      map[h.dateStr] = formattedTitle
+    }
+
+    return map
+  }, [customHolidays])
 
   // Load School Heads & Staff Profiles from Supabase database
   useEffect(() => {
@@ -224,6 +281,7 @@ export function DTRGeneratorPage() {
 
   // Table Entries for active month
   const [entries, setEntries] = useState<DTRDayEntry[]>([])
+  // DEFAULT TAB VIEW SET TO 'preview' AS REQUESTED
   const [activeTab, setActiveTab] = useState<'editor' | 'preview'>('preview')
 
   // Load persistent config
@@ -247,7 +305,7 @@ export function DTRGeneratorPage() {
     } catch {}
   }, [savedRecords])
 
-  // Initialize or generate DTR table entries whenever Month or Year changes (if creating new)
+  // Initialize or generate DTR table entries whenever Month, Year, or Custom Holidays change
   const buildInitialDays = (year: number, month: number): DTRDayEntry[] => {
     const daysInMonth = new Date(year, month, 0).getDate()
     const list: DTRDayEntry[] = []
@@ -282,8 +340,10 @@ export function DTRGeneratorPage() {
       const mm = String(month).padStart(2, '0')
       const dd = String(day).padStart(2, '0')
       const monthDayKey = `${mm}-${dd}`
+      const fullDateKey = `${year}-${mm}-${dd}`
 
-      const holidayTitle = STANDARD_PH_HOLIDAYS[monthDayKey]
+      // Check full date key (specific year) first, then recurring month-day key
+      const holidayTitle = combinedHolidaysMap[fullDateKey] || combinedHolidaysMap[monthDayKey]
       const isHoliday = !!holidayTitle
 
       let status: DTRDayEntry['status'] = 'work'
@@ -293,7 +353,7 @@ export function DTRGeneratorPage() {
 
       list.push({
         dayNumber: day,
-        dateString: `${year}-${mm}-${dd}`,
+        dateString: fullDateKey,
         dayOfWeek: dateObj.toLocaleDateString('en-US', { weekday: 'long' }),
         isWeekend,
         isSaturday: isSat,
@@ -312,13 +372,13 @@ export function DTRGeneratorPage() {
     return list
   }
 
-  // Populate table when year or month changes if not loading a saved history record
+  // Re-apply holiday evaluation when month, year, or custom holidays change
   useEffect(() => {
     if (!activeRecordId) {
       const initial = buildInitialDays(selectedYear, selectedMonth)
       setEntries(initial)
     }
-  }, [selectedYear, selectedMonth])
+  }, [selectedYear, selectedMonth, combinedHolidaysMap])
 
   // Helper: Generate random integer inclusive
   const getRandomInt = (min: number, max: number) => {
@@ -380,6 +440,40 @@ export function DTRGeneratorPage() {
       copy[index] = { ...copy[index], [field]: value }
       return copy
     })
+  }
+
+  // Add a new Custom Local Holiday
+  const handleAddCustomHoliday = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newHolidayTitle.trim()) {
+      toast('Please enter a holiday title.', 'error')
+      return
+    }
+
+    const mm = String(newHolidayMonth).padStart(2, '0')
+    const dd = String(newHolidayDay).padStart(2, '0')
+    
+    let dateStr = `${mm}-${dd}` // Recurring default
+    if (!newHolidayIsRecurring && newHolidayYear) {
+      dateStr = `${newHolidayYear}-${mm}-${dd}` // Specific year
+    }
+
+    const item: CustomHolidayItem = {
+      id: `hol_${Date.now()}`,
+      dateStr,
+      title: newHolidayTitle.trim(),
+      isRecurring: newHolidayIsRecurring
+    }
+
+    setCustomHolidays(prev => [...prev, item])
+    setNewHolidayTitle('')
+    toast(`Added local holiday "${item.title}" (${dateStr})`, 'success')
+  }
+
+  // Delete Custom Holiday
+  const handleDeleteCustomHoliday = (id: string, title: string) => {
+    setCustomHolidays(prev => prev.filter(h => h.id !== id))
+    toast(`Removed local holiday "${title}"`, 'info')
   }
 
   // Reset times for current month
@@ -606,18 +700,27 @@ export function DTRGeneratorPage() {
                 Daily Time Record (DTR) Generator
               </h1>
               <p className="text-xs sm:text-sm text-white/90 max-w-2xl leading-relaxed font-medium">
-                Generate official non-late Civil Service Form No. 48 Daily Time Records, manage history, and generate DTRs for teachers or personnel with 2-in-1 printable side-by-side layout.
+                Generate official non-late Civil Service Form No. 48 Daily Time Records, manage history, custom local holidays, and proxy DTRs with 2-in-1 printable layout.
               </p>
             </div>
 
             <div className="flex items-center gap-2.5 flex-wrap shrink-0">
               <button
                 type="button"
+                onClick={() => setIsHolidayModalOpen(true)}
+                className="px-4 py-3 rounded-full bg-amber-400 text-amber-950 font-extrabold text-xs shadow-md transition-all flex items-center gap-2 border border-amber-200 cursor-pointer hover:bg-amber-300"
+              >
+                <PartyPopper size={16} />
+                <span>Local Holidays ({customHolidays.length})</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                 className="px-4 py-3 rounded-full bg-white/20 hover:bg-white/30 text-white font-bold text-xs backdrop-blur-md transition-all flex items-center gap-2 border border-white/40 cursor-pointer"
               >
                 {isSidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
-                <span>{isSidebarOpen ? 'Hide History & Proxy Panel' : 'History & Proxy Panel'}</span>
+                <span>{isSidebarOpen ? 'Hide Panel' : 'History Panel'}</span>
               </button>
 
               <button
@@ -1230,6 +1333,156 @@ export function DTRGeneratorPage() {
           </div>
         </div>
       </div>
+
+      {/* MANAGE CUSTOM LOCAL HOLIDAYS MODAL */}
+      {isHolidayModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto animate-fade-in no-print">
+          <div className="bg-white rounded-[32px] max-w-lg w-full p-6 sm:p-7 shadow-2xl border-4 border-[#FAF5F0] space-y-5 relative">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-amber-400 text-amber-950 font-black shadow-xs">
+                  <PartyPopper size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-[#2D2638] font-display">
+                    Local & Custom Holidays Manager
+                  </h3>
+                  <p className="text-xs text-[#7A7289] font-medium">
+                    Add district/town fiestas or local non-working days
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsHolidayModalOpen(false)}
+                className="p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Add Holiday Form */}
+            <form onSubmit={handleAddCustomHoliday} className="p-4 rounded-2xl bg-[#FAF5F0] border border-slate-200 space-y-3">
+              <h4 className="text-xs font-black text-[#2D2638] uppercase tracking-wide flex items-center gap-1.5">
+                <CalendarPlus size={14} className="text-[#8B72F4]" />
+                Add New Local Holiday
+              </h4>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Month</label>
+                  <select
+                    value={newHolidayMonth}
+                    onChange={e => setNewHolidayMonth(Number(e.target.value))}
+                    className="w-full px-2.5 py-1.5 rounded-xl text-xs font-bold bg-white border border-slate-200 text-[#2D2638]"
+                  >
+                    {MONTH_NAMES.map((m, idx) => (
+                      <option key={m} value={idx + 1}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Day of Month</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={31}
+                    value={newHolidayDay}
+                    onChange={e => setNewHolidayDay(Number(e.target.value))}
+                    className="w-full px-2.5 py-1.5 rounded-xl text-xs font-bold bg-white border border-slate-200 text-[#2D2638]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-700 block mb-1">Holiday Title / Name</label>
+                <input
+                  type="text"
+                  value={newHolidayTitle}
+                  onChange={e => setNewHolidayTitle(e.target.value)}
+                  placeholder="e.g. Romblon Liberation Day / Concepcion Town Fiesta"
+                  className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200 text-[#2D2638] focus:ring-2 focus:ring-[#8B72F4]/30"
+                />
+              </div>
+
+              <div className="flex items-center justify-between pt-1">
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={newHolidayIsRecurring}
+                    onChange={e => setNewHolidayIsRecurring(e.target.checked)}
+                    className="rounded text-[#8B72F4] focus:ring-[#8B72F4]"
+                  />
+                  <span>Repeats every year on this date</span>
+                </label>
+
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#8B72F4] to-[#795CEE] text-white font-extrabold text-xs shadow-sm hover:opacity-95 transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Plus size={14} />
+                  Add Holiday
+                </button>
+              </div>
+            </form>
+
+            {/* List of Active Custom Holidays */}
+            <div className="space-y-2">
+              <h4 className="text-xs font-extrabold text-[#2D2638] uppercase tracking-wider">
+                Active District Local Holidays ({customHolidays.length})
+              </h4>
+
+              <div className="max-h-52 overflow-y-auto space-y-2 pr-1">
+                {customHolidays.length === 0 ? (
+                  <p className="text-xs text-slate-400 italic text-center py-4">No custom local holidays added yet.</p>
+                ) : (
+                  customHolidays.map(item => (
+                    <div
+                      key={item.id}
+                      className="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between gap-3 shadow-2xs"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Tag size={14} className="text-amber-500 shrink-0" />
+                        <div>
+                          <p className="text-xs font-bold text-[#2D2638]">{item.title}</p>
+                          <div className="flex items-center gap-2 text-[10px] text-slate-500">
+                            <span className="font-extrabold text-[#8B72F4]">{item.dateStr}</span>
+                            <span>•</span>
+                            <span>{item.isRecurring ? 'Annual Holiday' : 'One-time Date'}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteCustomHoliday(item.id, item.title)}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer"
+                        title="Remove Holiday"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-slate-100 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsHolidayModalOpen(false)}
+                className="px-5 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition-all cursor-pointer"
+              >
+                Close & Re-evaluate DTR
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* PRINT AREA ONLY (Triggered on window.print()) */}
       <div className="print-area hidden">
