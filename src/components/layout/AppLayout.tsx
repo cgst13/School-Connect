@@ -540,7 +540,7 @@ export function AppLayout({
 
           {/* Footer */}
           <footer className="border-t border-black/5 bg-[#FAF5F0] py-4 px-6 text-center text-xs text-[#7A7289] no-print mt-auto">
-            <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+            <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-2">
               <span className="font-semibold">School Connect &copy; {new Date().getFullYear()} &bull; Concepcion District, Concepcion, Romblon</span>
               <span className="text-[11px] text-[#A39BAF] font-bold">Department of Education &bull; Division of Romblon</span>
             </div>

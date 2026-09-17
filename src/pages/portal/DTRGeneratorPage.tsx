@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { SchoolConnectLayout, type NavGroup } from '@/components/layouts/SchoolConnectLayout'
 import { useAuth } from '@/features/auth/useAuth'
 import { useToast } from '@/hooks/useToast'
@@ -42,7 +43,14 @@ import {
   Database,
   Loader2,
   Cloud,
-  History
+  History,
+  LayoutDashboard,
+  UserX,
+  FileSpreadsheet,
+  Settings as SettingsIcon,
+  ToggleLeft,
+  ToggleRight,
+  ChevronDown
 } from 'lucide-react'
 import {
   fetchAllAdmins,
@@ -94,35 +102,58 @@ export interface CustomHolidayItem {
   isRecurring: boolean
 }
 
+export interface LeaveRecordItem {
+  id: string
+  employeeName: string
+  leaveType: 'Vacation Leave' | 'Sick Leave' | 'Mandatory Leave' | 'Special Privilege Leave' | 'Maternity Leave' | 'Solo Parent Leave'
+  startDate: string
+  endDate: string
+  status: 'Approved' | 'Pending' | 'Draft'
+  remarks?: string
+}
+
+export interface AbsenceRecordItem {
+  id: string
+  employeeName: string
+  date: string
+  reason: string
+  isExcused: boolean
+}
+
 const MONTH_NAMES = [
   'JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE',
   'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'
 ]
 
 // Standard Philippine National Holidays (Default Lookup)
-const STANDARD_PH_HOLIDAYS: Record<string, string> = {
-  '01-01': 'HOLIDAY (New Year\'s Day)',
-  '04-09': 'HOLIDAY (Araw ng Kagitingan)',
-  '05-01': 'HOLIDAY (Labor Day)',
-  '06-12': 'HOLIDAY (Philippine Independence Day)',
-  '08-21': 'HOLIDAY (Ninoy Aquino Day)',
-  '08-31': 'HOLIDAY (National Heroes Day)',
-  '11-01': 'HOLIDAY (All Saints\' Day)',
-  '11-02': 'HOLIDAY (All Souls\' Day)',
-  '11-30': 'HOLIDAY (Bonifacio Day)',
-  '12-08': 'HOLIDAY (Feast of Immaculate Conception)',
-  '12-25': 'HOLIDAY (Christmas Day)',
-  '12-30': 'HOLIDAY (Rizal Day)',
-  '12-31': 'HOLIDAY (Last Day of the Year)'
-}
+const INITIAL_NATIONAL_HOLIDAYS: { key: string; name: string; dateStr: string; isActive: boolean }[] = [
+  { key: '01-01', name: 'New Year\'s Day', dateStr: 'Jan 01', isActive: true },
+  { key: '04-09', name: 'Araw ng Kagitingan', dateStr: 'Apr 09', isActive: true },
+  { key: '05-01', name: 'Labor Day', dateStr: 'May 01', isActive: true },
+  { key: '06-12', name: 'Philippine Independence Day', dateStr: 'Jun 12', isActive: true },
+  { key: '08-21', name: 'Ninoy Aquino Day', dateStr: 'Aug 21', isActive: true },
+  { key: '08-31', name: 'National Heroes Day', dateStr: 'Aug 31', isActive: true },
+  { key: '11-01', name: 'All Saints\' Day', dateStr: 'Nov 01', isActive: true },
+  { key: '11-02', name: 'All Souls\' Day', dateStr: 'Nov 02', isActive: true },
+  { key: '11-30', name: 'Bonifacio Day', dateStr: 'Nov 30', isActive: true },
+  { key: '12-08', name: 'Feast of Immaculate Conception', dateStr: 'Dec 08', isActive: true },
+  { key: '12-25', name: 'Christmas Day', dateStr: 'Dec 25', isActive: true },
+  { key: '12-30', name: 'Rizal Day', dateStr: 'Dec 30', isActive: true },
+  { key: '12-31', name: 'Last Day of the Year', dateStr: 'Dec 31', isActive: true }
+]
 
+// SIDEBAR NAVIGATION SYSTEM (MATCHING REQUESTED MENU)
 const dtrNavGroups: NavGroup[] = [
   {
-    title: 'CS Form 48 DTR Generator',
+    title: 'DTR Generator System',
     items: [
-      { to: '/dtr', label: 'DTR Main Generator', icon: <Clock size={18} /> },
-      { to: '/dtr?tab=preview', label: 'Form 48 Side-by-Side Preview', icon: <Printer size={18} /> },
-      { to: '/dtr?tab=editor', label: 'Data Sheet Editor & Times', icon: <Edit3 size={18} /> }
+      { to: '/dtr?tab=dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
+      { to: '/dtr?tab=my_dtrs', label: 'My DTRs', icon: <FolderOpen size={18} /> },
+      { to: '/dtr?tab=generate', label: 'Generate DTR', icon: <Sparkles size={18} /> },
+      { to: '/dtr?tab=holidays', label: 'Holidays', icon: <PartyPopper size={18} /> },
+      { to: '/dtr?tab=absences', label: 'Absences', icon: <UserX size={18} /> },
+      { to: '/dtr?tab=leave', label: 'Leave', icon: <FileSpreadsheet size={18} /> },
+      { to: '/dtr?tab=settings', label: 'Settings', icon: <SettingsIcon size={18} /> }
     ]
   }
 ]
@@ -130,10 +161,20 @@ const dtrNavGroups: NavGroup[] = [
 export function DTRGeneratorPage() {
   const { admin } = useAuth()
   const { toast } = useToast()
+  const [searchParams, setSearchParams] = useSearchParams()
 
-  // Modals State
-  const [isHolidayModalOpen, setIsHolidayModalOpen] = useState<boolean>(false)
-  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState<boolean>(false)
+  // Active Tab View from URL query parameter (Default to 'dashboard' or 'generate')
+  const currentTab = useMemo(() => {
+    const t = searchParams.get('tab')
+    if (t && ['dashboard', 'my_dtrs', 'generate', 'holidays', 'absences', 'leave', 'settings'].includes(t)) {
+      return t
+    }
+    return 'dashboard' // Default main menu view
+  }, [searchParams])
+
+  const setTab = (tabName: string) => {
+    setSearchParams({ tab: tabName })
+  }
 
   // Supabase Loading & Saving States
   const [isLoadingSupabase, setIsLoadingSupabase] = useState<boolean>(true)
@@ -175,11 +216,31 @@ export function DTRGeneratorPage() {
   const [activeRecordId, setActiveRecordId] = useState<string | null>(null)
   const [historySearch, setHistorySearch] = useState<string>('')
 
+  // National Holidays State
+  const [nationalHolidays, setNationalHolidays] = useState(INITIAL_NATIONAL_HOLIDAYS)
+
   // Custom Local Holidays State (Synced to Supabase)
   const [customHolidays, setCustomHolidays] = useState<CustomHolidayItem[]>([
     { id: 'hol_1', dateStr: '03-18', title: 'Romblon Liberation Day', isRecurring: true },
     { id: 'hol_2', dateStr: '01-16', title: 'Concepcion District Day', isRecurring: true }
   ])
+
+  // Absences State
+  const [absencesList, setAbsencesList] = useState<AbsenceRecordItem[]>([
+    { id: 'abs_1', employeeName: 'MICHELLE S. MOSQUERA', date: '2026-06-15', reason: 'Personal Emergency', isExcused: true }
+  ])
+  const [newAbsenceDate, setNewAbsenceDate] = useState<string>('')
+  const [newAbsenceReason, setNewAbsenceReason] = useState<string>('')
+  const [newAbsenceExcused, setNewAbsenceExcused] = useState<boolean>(true)
+
+  // Leave State (Form 6)
+  const [leaveRecords, setLeaveRecords] = useState<LeaveRecordItem[]>([
+    { id: 'lev_1', employeeName: 'MICHELLE S. MOSQUERA', leaveType: 'Vacation Leave', startDate: '2026-06-22', endDate: '2026-06-24', status: 'Approved', remarks: 'Official District Leave' }
+  ])
+  const [newLeaveType, setNewLeaveType] = useState<LeaveRecordItem['leaveType']>('Vacation Leave')
+  const [newLeaveStart, setNewLeaveStart] = useState<string>('')
+  const [newLeaveEnd, setNewLeaveEnd] = useState<string>('')
+  const [newLeaveRemarks, setNewLeaveRemarks] = useState<string>('')
 
   // New Custom Holiday Input Form State
   const [newHolidayMonth, setNewHolidayMonth] = useState<number>(new Date().getMonth() + 1)
@@ -187,6 +248,18 @@ export function DTRGeneratorPage() {
   const [newHolidayYear, setNewHolidayYear] = useState<string>('') // Optional specific year
   const [newHolidayTitle, setNewHolidayTitle] = useState<string>('')
   const [newHolidayIsRecurring, setNewHolidayIsRecurring] = useState<boolean>(true)
+
+  // Generator Time Range Configurations (Default: Non-late working ranges)
+  const [amArrivalRange, setAmArrivalRange] = useState({ start: 15, end: 58 }) // 6:15 AM - 6:58 AM (Start at 7:00 AM)
+  const [amDepartureRange, setAmDepartureRange] = useState({ start: 30, end: 42 }) // 11:30 AM - 11:42 AM
+  const [pmArrivalRange, setPmArrivalRange] = useState({ start: 22, end: 58 }) // 12:22 PM - 12:58 PM (Start at 1:00 PM)
+  const [pmDepartureRange, setPmDepartureRange] = useState({ start: 0, end: 12 }) // 5:00 PM - 5:12 PM
+
+  const [includeSaturdays, setIncludeSaturdays] = useState<boolean>(false)
+  const [includeSundays, setIncludeSundays] = useState<boolean>(false)
+
+  // Sub-tab view inside Generate DTR view ('preview' or 'editor')
+  const [generateSubTab, setGenerateSubTab] = useState<'preview' | 'editor'>('preview')
 
   // Load DTR Records & Custom Holidays directly from Supabase Database on mount
   useEffect(() => {
@@ -288,8 +361,16 @@ export function DTRGeneratorPage() {
 
   // Computed Combined Holiday Lookup Map (National + Custom Local)
   const combinedHolidaysMap = useMemo(() => {
-    const map: Record<string, string> = { ...STANDARD_PH_HOLIDAYS }
+    const map: Record<string, string> = {}
 
+    // Add active national holidays
+    for (const nh of nationalHolidays) {
+      if (nh.isActive) {
+        map[nh.key] = `HOLIDAY (${nh.name})`
+      }
+    }
+
+    // Add custom local holidays
     for (const h of customHolidays) {
       const formattedTitle = h.title.toUpperCase().startsWith('HOLIDAY')
         ? h.title
@@ -299,7 +380,7 @@ export function DTRGeneratorPage() {
     }
 
     return map
-  }, [customHolidays])
+  }, [nationalHolidays, customHolidays])
 
   // Auto-derive Signatory Name & Title based on official DepEd governance rules:
   // - Teacher & AO II -> Signatory is the School Head / Principal
@@ -314,19 +395,8 @@ export function DTRGeneratorPage() {
     ? 'Schools Division Superintendent'
     : (schoolHeadTitle.trim() || 'School Head')
 
-  // Generator Time Range Configurations (Default: Non-late working ranges)
-  const [amArrivalRange, setAmArrivalRange] = useState({ start: 15, end: 58 }) // 6:15 AM - 6:58 AM (Start at 7:00 AM)
-  const [amDepartureRange, setAmDepartureRange] = useState({ start: 30, end: 42 }) // 11:30 AM - 11:42 AM
-  const [pmArrivalRange, setPmArrivalRange] = useState({ start: 22, end: 58 }) // 12:22 PM - 12:58 PM (Start at 1:00 PM)
-  const [pmDepartureRange, setPmDepartureRange] = useState({ start: 0, end: 12 }) // 5:00 PM - 5:12 PM
-
-  const [includeSaturdays, setIncludeSaturdays] = useState<boolean>(false)
-  const [includeSundays, setIncludeSundays] = useState<boolean>(false)
-
   // Table Entries for active month
   const [entries, setEntries] = useState<DTRDayEntry[]>([])
-  // DEFAULT TAB VIEW SET TO 'preview' AS REQUESTED
-  const [activeTab, setActiveTab] = useState<'editor' | 'preview'>('preview')
 
   // Initialize or generate DTR table entries whenever Month, Year, or Custom Holidays change
   const buildInitialDays = (year: number, month: number): DTRDayEntry[] => {
@@ -465,6 +535,14 @@ export function DTRGeneratorPage() {
     })
   }
 
+  // Toggle National Holiday Active State
+  const handleToggleNationalHoliday = (key: string) => {
+    setNationalHolidays(prev =>
+      prev.map(h => (h.key === key ? { ...h, isActive: !h.isActive } : h))
+    )
+    toast('Updated national holiday settings.', 'info')
+  }
+
   // Add a new Custom Local Holiday directly to Supabase Database
   const handleAddCustomHoliday = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -513,6 +591,63 @@ export function DTRGeneratorPage() {
     } catch (err: any) {
       toast('Failed to delete holiday from Supabase: ' + (err.message || 'Error'), 'error')
     }
+  }
+
+  // Add Absence Item
+  const handleAddAbsence = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newAbsenceDate || !newAbsenceReason.trim()) {
+      toast('Please specify date and reason for absence.', 'error')
+      return
+    }
+
+    const item: AbsenceRecordItem = {
+      id: `abs_${Date.now()}`,
+      employeeName: employeeName.toUpperCase(),
+      date: newAbsenceDate,
+      reason: newAbsenceReason.trim(),
+      isExcused: newAbsenceExcused
+    }
+
+    setAbsencesList(prev => [item, ...prev])
+    setNewAbsenceDate('')
+    setNewAbsenceReason('')
+    toast(`Logged absence for ${employeeName.toUpperCase()} on ${newAbsenceDate}`, 'success')
+  }
+
+  const handleDeleteAbsence = (id: string) => {
+    setAbsencesList(prev => prev.filter(a => a.id !== id))
+    toast('Deleted absence log.', 'info')
+  }
+
+  // Add Leave Item (Form 6)
+  const handleAddLeave = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newLeaveStart || !newLeaveEnd) {
+      toast('Please specify start and end dates for leave.', 'error')
+      return
+    }
+
+    const item: LeaveRecordItem = {
+      id: `lev_${Date.now()}`,
+      employeeName: employeeName.toUpperCase(),
+      leaveType: newLeaveType,
+      startDate: newLeaveStart,
+      endDate: newLeaveEnd,
+      status: 'Approved',
+      remarks: newLeaveRemarks.trim() || 'Approved Form 6 Leave'
+    }
+
+    setLeaveRecords(prev => [item, ...prev])
+    setNewLeaveStart('')
+    setNewLeaveEnd('')
+    setNewLeaveRemarks('')
+    toast(`Filed ${newLeaveType} for ${employeeName.toUpperCase()}`, 'success')
+  }
+
+  const handleDeleteLeave = (id: string) => {
+    setLeaveRecords(prev => prev.filter(l => l.id !== id))
+    toast('Deleted leave record.', 'info')
   }
 
   // Reset times for current month
@@ -613,8 +748,8 @@ export function DTRGeneratorPage() {
     if (record.schoolHeadName) setSchoolHeadName(record.schoolHeadName)
     setEntries(record.entries)
     setActiveRecordId(record.id)
-    setIsHistoryModalOpen(false)
-    toast(`Loaded DTR record for ${record.employeeName} (${MONTH_NAMES[record.month - 1]} ${record.year}) from Supabase.`, 'info')
+    setTab('generate')
+    toast(`Loaded DTR record for ${record.employeeName} (${MONTH_NAMES[record.month - 1]} ${record.year}) into generator.`, 'info')
   }
 
   // Delete Record from Supabase Database
@@ -643,7 +778,7 @@ export function DTRGeneratorPage() {
 
     const initial = buildInitialDays(selectedYear, selectedMonth)
     setEntries(initial)
-    setIsHistoryModalOpen(false)
+    setTab('generate')
     toast('Started a new DTR session.', 'info')
   }
 
@@ -680,6 +815,7 @@ export function DTRGeneratorPage() {
     })
 
     setEntries(updated)
+    setTab('generate')
     toast(`Generated non-late DTR for ${staff.name} (${staff.roleTitle}).`, 'success')
   }
 
@@ -769,40 +905,37 @@ export function DTRGeneratorPage() {
         }
       `}</style>
 
-      <div className="space-y-6 w-full pb-16 animate-fade-in no-print max-w-6xl mx-auto">
+      <div className="space-y-6 w-full pb-16 animate-fade-in no-print">
         {/* Top Pastel Header Banner */}
         <div className="bg-gradient-to-r from-[#A88BEB] via-[#8B72F4] to-[#795CEE] text-white rounded-[36px] p-6 sm:p-9 shadow-[0_20px_40px_rgba(139,114,244,0.28)] border-4 border-white relative overflow-hidden">
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-2">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-white border border-white/30 text-xs font-bold backdrop-blur-md shadow-xs">
                 <Clock size={14} className="text-amber-300" />
-                Civil Service Form No. 48 System • Supabase Cloud Synced
+                Civil Service Form No. 48 DTR Management System
               </div>
               <h1 className="text-2xl sm:text-3xl font-black tracking-tight font-display">
-                Daily Time Record (DTR) Generator
+                {currentTab === 'dashboard' && 'DTR System Dashboard'}
+                {currentTab === 'my_dtrs' && 'My Saved DTRs & History'}
+                {currentTab === 'generate' && 'Daily Time Record Generator'}
+                {currentTab === 'holidays' && 'National & Local Holidays Manager'}
+                {currentTab === 'absences' && 'Personnel Absences Tracking'}
+                {currentTab === 'leave' && 'Form 6 Official Leave Records'}
+                {currentTab === 'settings' && 'Working Hours & Range Settings'}
               </h1>
               <p className="text-xs sm:text-sm text-white/90 max-w-2xl leading-relaxed font-medium">
-                Generate official non-late Civil Service Form No. 48 Daily Time Records, manage Supabase synced history, local holidays, and proxy DTRs with 2-in-1 printable layout.
+                Official Concepcion District Daily Time Record management system synced with Supabase Cloud Database.
               </p>
             </div>
 
             <div className="flex items-center gap-2.5 flex-wrap shrink-0">
               <button
                 type="button"
-                onClick={() => setIsHistoryModalOpen(true)}
+                onClick={() => setTab('generate')}
                 className="px-4 py-3 rounded-full bg-white/20 hover:bg-white/30 text-white font-bold text-xs backdrop-blur-md transition-all flex items-center gap-2 border border-white/40 cursor-pointer"
               >
-                <History size={16} />
-                <span>DTR History ({savedRecords.length})</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsHolidayModalOpen(true)}
-                className="px-4 py-3 rounded-full bg-amber-400 text-amber-950 font-extrabold text-xs shadow-md transition-all flex items-center gap-2 border border-amber-200 cursor-pointer hover:bg-amber-300"
-              >
-                <PartyPopper size={16} />
-                <span>Local Holidays ({customHolidays.length})</span>
+                <Sparkles size={16} />
+                <span>Generate DTR</span>
               </button>
 
               <button
@@ -810,768 +943,1267 @@ export function DTRGeneratorPage() {
                 className="px-5 py-3 rounded-full bg-white text-[#795CEE] hover:bg-[#F6EFFF] font-black text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer border border-white active:animate-button-sparkle"
               >
                 <Printer size={16} />
-                Print DTR (2-in-1 Layout)
+                Print Form 48
               </button>
             </div>
           </div>
         </div>
 
-        {/* MAIN DTR CONTROLS & EDITOR / PREVIEW */}
-        <div className="space-y-6 w-full">
-          {/* CONTROLS & CONFIGURATION PANEL */}
-          <div className="clay-card p-6 space-y-6">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-[#F0E6DD]">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-2xl bg-gradient-to-br from-[#A88BEB] to-[#8B72F4] text-white shadow-xs">
-                  <Sliders size={18} />
+        {/* VIEW 1: DASHBOARD OVERVIEW */}
+        {currentTab === 'dashboard' && (
+          <div className="space-y-6">
+            {/* Stat Cards Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="clay-card p-5 space-y-2 border-l-4 border-l-[#8B72F4]">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-[#7A7289] uppercase tracking-wider">Saved DTRs</span>
+                  <FolderOpen size={20} className="text-[#8B72F4]" />
                 </div>
-                <div>
-                  <h3 className="text-sm font-black text-[#2D2638] font-display">
-                    DTR Configuration & Parameters
-                    {activeRecordId && (
-                      <span className="ml-2 px-2.5 py-0.5 rounded-full bg-[#8B72F4] text-white text-[10px] font-bold uppercase tracking-wider">
-                        Editing Supabase Record
-                      </span>
-                    )}
-                  </h3>
-                  <p className="text-xs text-[#7A7289] font-medium">Set employee details, month/year, working hours, and non-late ranges</p>
-                </div>
+                <p className="text-2xl font-black text-[#2D2638] font-display">{savedRecords.length}</p>
+                <p className="text-[11px] text-[#7A7289]">Synced in Supabase DB</p>
               </div>
 
-              {/* Tab Navigation Controls */}
-              <div className="flex items-center gap-2 p-1 bg-[#FAF5F0] rounded-full border border-white shadow-2xs">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('editor')}
-                  className={`px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                    activeTab === 'editor'
-                      ? 'bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] text-white shadow-md'
-                      : 'text-[#7A7289] hover:text-[#2D2638]'
-                  }`}
-                >
-                  <Edit3 size={14} className="inline mr-1.5" />
-                  Table Editor & Controls
-                </button>
+              <div className="clay-card p-5 space-y-2 border-l-4 border-l-amber-400">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-[#7A7289] uppercase tracking-wider">Local Holidays</span>
+                  <PartyPopper size={20} className="text-amber-500" />
+                </div>
+                <p className="text-2xl font-black text-[#2D2638] font-display">{customHolidays.length}</p>
+                <p className="text-[11px] text-[#7A7289]">District & Town Fiestas</p>
+              </div>
 
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('preview')}
-                  className={`px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                    activeTab === 'preview'
-                      ? 'bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] text-white shadow-md'
-                      : 'text-[#7A7289] hover:text-[#2D2638]'
-                  }`}
-                >
-                  <Printer size={14} className="inline mr-1.5" />
-                  2-in-1 Side-by-Side Preview
-                </button>
+              <div className="clay-card p-5 space-y-2 border-l-4 border-l-emerald-400">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-[#7A7289] uppercase tracking-wider">Active Staff</span>
+                  <Users size={20} className="text-emerald-500" />
+                </div>
+                <p className="text-2xl font-black text-[#2D2638] font-display">{allStaffProfiles.length || 1}</p>
+                <p className="text-[11px] text-[#7A7289]">Registered Personnel</p>
+              </div>
+
+              <div className="clay-card p-5 space-y-2 border-l-4 border-l-purple-400">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-[#7A7289] uppercase tracking-wider">Active Period</span>
+                  <Calendar size={20} className="text-purple-500" />
+                </div>
+                <p className="text-lg font-black text-[#2D2638] font-display uppercase">{monthYearLabel}</p>
+                <p className="text-[11px] text-[#7A7289]">Target DTR Month</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-              {/* Employee Name */}
-              <div className="lg:col-span-2">
-                <div className="flex items-center justify-between mb-1">
-                  <label className="form-label text-xs font-bold text-[#2D2638] block">Employee Full Name</label>
-                  {allStaffProfiles.length > 0 && (
-                    <span className="text-[10px] text-[#8B72F4] font-bold">Quick Select Staff:</span>
-                  )}
+            {/* Quick Action Cards Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div
+                onClick={() => setTab('generate')}
+                className="clay-card p-6 cursor-pointer hover:border-[#8B72F4] transition-all group space-y-3 bg-gradient-to-br from-white to-[#F6EFFF]/40"
+              >
+                <div className="p-3 rounded-2xl bg-[#8B72F4] text-white w-fit group-hover:scale-110 transition-transform">
+                  <Sparkles size={24} />
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="relative flex-1">
-                    <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A39BAF]" />
-                    <input
-                      type="text"
-                      value={employeeName}
-                      onChange={e => setEmployeeName(e.target.value.toUpperCase())}
-                      placeholder="e.g. MICHELLE S. MOSQUERA"
-                      className="w-full pl-9 pr-3 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30 uppercase"
-                    />
-                  </div>
+                <h3 className="text-base font-black text-[#2D2638] font-display">Generate New DTR</h3>
+                <p className="text-xs text-[#7A7289]">
+                  Generate non-late punch times for teachers, AO II, School Head, or PSDS with 2-in-1 print preview.
+                </p>
+                <span className="text-xs font-extrabold text-[#8B72F4] inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                  Open Generator <ChevronRight size={14} />
+                </span>
+              </div>
 
-                  {allStaffProfiles.length > 0 && (
-                    <select
-                      value={selectedProxyStaffId}
-                      onChange={e => {
-                        setSelectedProxyStaffId(e.target.value)
-                        if (e.target.value) {
-                          handleGenerateForProxyStaff(e.target.value)
-                        }
-                      }}
-                      className="w-44 px-2 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
-                      title="Select District Personnel to Generate DTR for Someone"
-                    >
-                      <option value="">-- Generate for Staff --</option>
-                      {allStaffProfiles.map(s => (
-                        <option key={s.id} value={s.id}>
-                          {s.name} ({s.roleTitle})
-                        </option>
-                      ))}
-                    </select>
-                  )}
+              <div
+                onClick={() => setTab('my_dtrs')}
+                className="clay-card p-6 cursor-pointer hover:border-[#8B72F4] transition-all group space-y-3 bg-gradient-to-br from-white to-[#EEF0FF]/40"
+              >
+                <div className="p-3 rounded-2xl bg-[#3B49B8] text-white w-fit group-hover:scale-110 transition-transform">
+                  <FolderOpen size={24} />
                 </div>
+                <h3 className="text-base font-black text-[#2D2638] font-display">My Saved DTRs</h3>
+                <p className="text-xs text-[#7A7289]">
+                  View, edit, update, delete, or print your archived Civil Service Form 48 DTRs.
+                </p>
+                <span className="text-xs font-extrabold text-[#3B49B8] inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                  View Saved DTRs <ChevronRight size={14} />
+                </span>
               </div>
 
-              {/* Target Month */}
-              <div>
-                <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">Target Month</label>
-                <select
-                  value={selectedMonth}
-                  onChange={e => setSelectedMonth(Number(e.target.value))}
-                  className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
-                >
-                  {MONTH_NAMES.map((name, idx) => (
-                    <option key={name} value={idx + 1}>
-                      {name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Target Year */}
-              <div>
-                <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">Target Year</label>
-                <input
-                  type="number"
-                  value={selectedYear}
-                  onChange={e => setSelectedYear(Number(e.target.value))}
-                  className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
-                />
-              </div>
-
-              {/* Official Hours Banner String */}
-              <div>
-                <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">Official Hours Header Text</label>
-                <input
-                  type="text"
-                  value={officialHoursText}
-                  onChange={e => setOfficialHoursText(e.target.value)}
-                  placeholder="Regular days 7:00–11:30AM / 1:00–5:00PM"
-                  className="w-full px-3 py-2 rounded-xl text-xs font-semibold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
-                />
+              <div
+                onClick={() => setTab('holidays')}
+                className="clay-card p-6 cursor-pointer hover:border-amber-400 transition-all group space-y-3 bg-gradient-to-br from-white to-amber-50/40"
+              >
+                <div className="p-3 rounded-2xl bg-amber-500 text-white w-fit group-hover:scale-110 transition-transform">
+                  <PartyPopper size={24} />
+                </div>
+                <h3 className="text-base font-black text-[#2D2638] font-display">Holidays Manager</h3>
+                <p className="text-xs text-[#7A7289]">
+                  Manage national holidays and add custom local district holidays/town fiestas.
+                </p>
+                <span className="text-xs font-extrabold text-amber-600 inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                  Manage Holidays <ChevronRight size={14} />
+                </span>
               </div>
             </div>
 
-            {/* Signatory Governance & Role Parameters */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-[#F0E6DD]/60">
-              {/* DTR Personnel Role Selector */}
-              <div>
-                <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">DTR Personnel Category</label>
-                <select
-                  value={dtrTargetRole}
-                  onChange={e => setDtrTargetRole(e.target.value as any)}
-                  className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
-                >
-                  <option value="teacher">Teacher (School Head Signatory)</option>
-                  <option value="ao_2">Administrative Officer (AO II) (School Head Signatory)</option>
-                  <option value="school_head">School Head (Division Superintendent Signatory)</option>
-                  <option value="psds">PSDS (Division Superintendent Signatory)</option>
-                </select>
-              </div>
-
-              {/* Official Signatory Display / Selection */}
-              <div>
-                {isDivisionSignatory ? (
-                  <div>
-                    <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">Official Signatory (Fixed)</label>
-                    <div className="px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex items-center justify-between text-xs font-bold">
-                      <span>ROGER F. CAPA, CESO VI</span>
-                      <span className="text-[10px] bg-amber-200/60 px-2 py-0.5 rounded-md text-amber-950 font-black">SDS</span>
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">School Head / Principal Name</label>
-                    {schoolHeadOptions.length > 0 ? (
-                      <select
-                        value={schoolHeadName}
-                        onChange={e => setSchoolHeadName(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
-                      >
-                        {schoolHeadOptions.map(h => (
-                          <option key={h.id} value={h.name}>
-                            {h.name} {h.schoolNames}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input
-                        type="text"
-                        value={schoolHeadName}
-                        onChange={e => setSchoolHeadName(e.target.value)}
-                        placeholder="e.g. MARIA L. SANTOS"
-                        className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
-                      />
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-end gap-2">
-                <button
-                  type="button"
-                  onClick={handleGenerateRandomTimes}
-                  className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#8B72F4] to-[#795CEE] text-white hover:opacity-95 font-extrabold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:animate-button-sparkle"
-                >
-                  <Sparkles size={16} className="text-amber-300" />
-                  Generate Non-Late Times
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleSaveToHistory}
-                  disabled={isSavingDb}
-                  className="py-2.5 px-3.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-                  title="Save current DTR to Supabase Database"
-                >
-                  {isSavingDb ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                  <span>{activeRecordId ? 'Update Supabase' : 'Save to Supabase'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleResetTimes}
-                  className="p-2.5 rounded-xl bg-white text-[#7A7289] hover:text-red-600 hover:bg-red-50 border border-slate-200 transition-all cursor-pointer"
-                  title="Reset table to blank"
-                >
-                  <RotateCcw size={16} />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* TAB 1: TABLE EDITOR & MANUAL TIME INPUT */}
-          {activeTab === 'editor' && (
+            {/* Recent DTR Records Preview Table */}
             <div className="clay-card p-6 space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-black text-[#2D2638] font-display">
-                    CS Form No. 48 Data Sheet ({monthYearLabel})
-                  </h3>
-                  <p className="text-xs text-[#7A7289] font-medium">
-                    Directly edit arrival/departure times, undertime, or day statuses (Work, Saturday, Sunday, Holiday, Leave)
-                  </p>
+                  <h3 className="text-sm font-black text-[#2D2638] font-display">Recent DTR Activity</h3>
+                  <p className="text-xs text-[#7A7289]">Recent Civil Service Form 48 records saved to Supabase</p>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="px-3 py-1 rounded-full bg-[#EEF0FF] text-[#3B49B8] text-xs font-bold border border-[#BFD7FF]">
-                    {entries.filter(e => e.status === 'work').length} Regular Work Days
-                  </span>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setTab('my_dtrs')}
+                  className="text-xs font-extrabold text-[#8B72F4] hover:underline"
+                >
+                  View All ({savedRecords.length})
+                </button>
               </div>
 
-              {/* Interactive Data Table */}
-              <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
-                <table className="w-full text-left border-collapse text-xs">
+              <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-slate-100 border-b border-slate-200 text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">
-                      <th className="py-2.5 px-3 w-12 text-center">Day</th>
-                      <th className="py-2.5 px-3 w-28">Weekday</th>
-                      <th className="py-2.5 px-3 w-36">Day Status</th>
-                      <th className="py-2.5 px-3 text-center bg-blue-50/70 border-l border-r border-blue-200/60" colSpan={2}>
-                        A.M. (Morning)
-                      </th>
-                      <th className="py-2.5 px-3 text-center bg-purple-50/70 border-r border-purple-200/60" colSpan={2}>
-                        P.M. (Afternoon)
-                      </th>
-                      <th className="py-2.5 px-3 text-center" colSpan={2}>
-                        Undertime
-                      </th>
-                    </tr>
-                    <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500">
-                      <th></th>
-                      <th></th>
-                      <th></th>
-                      <th className="py-1 px-2 text-center bg-blue-50/50">Arrival</th>
-                      <th className="py-1 px-2 text-center bg-blue-50/50 border-r border-blue-200/60">Departure</th>
-                      <th className="py-1 px-2 text-center bg-purple-50/50">Arrival</th>
-                      <th className="py-1 px-2 text-center bg-purple-50/50 border-r border-purple-200/60">Departure</th>
-                      <th className="py-1 px-2 text-center">Hours</th>
-                      <th className="py-1 px-2 text-center">Mins</th>
+                    <tr className="bg-slate-100 text-slate-700 font-extrabold uppercase border-b border-slate-200">
+                      <th className="py-3 px-4">Employee Name</th>
+                      <th className="py-3 px-4">Category</th>
+                      <th className="py-3 px-4">Month & Year</th>
+                      <th className="py-3 px-4">Work Days</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
-
                   <tbody className="divide-y divide-slate-200">
-                    {entries.map((entry, idx) => {
-                      if (entry.status === 'blank') {
-                        return (
-                          <tr key={idx} className="bg-slate-900 text-slate-900">
-                            <td className="py-2 px-3 text-center font-bold text-slate-400">{entry.dayNumber}</td>
-                            <td colSpan={8} className="py-2 px-3 text-center italic text-slate-500 text-[11px]">
-                              [ No Date in Month ]
-                            </td>
-                          </tr>
-                        )
-                      }
-
-                      return (
-                        <tr
-                          key={idx}
-                          className={`hover:bg-slate-50 transition-colors ${
-                            entry.isWeekend ? 'bg-amber-50/40' : entry.isHoliday ? 'bg-indigo-50/40' : ''
-                          }`}
-                        >
-                          {/* Day Number */}
-                          <td className="py-2 px-3 text-center font-extrabold text-slate-800">
-                            {entry.dayNumber}
-                          </td>
-
-                          {/* Weekday Name */}
-                          <td className="py-2 px-3 font-semibold text-slate-600">
-                            {entry.dayOfWeek}
-                          </td>
-
-                          {/* Status Selector */}
-                          <td className="py-2 px-3">
-                            <select
-                              value={entry.status}
-                              onChange={e => handleCellChange(idx, 'status', e.target.value)}
-                              className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
-                            >
-                              <option value="work">Regular Work Day</option>
-                              <option value="saturday">SATURDAY</option>
-                              <option value="sunday">SUNDAY</option>
-                              <option value="holiday">HOLIDAY</option>
-                              <option value="leave">ON LEAVE</option>
-                              <option value="travel">OFFICIAL BUSINESS</option>
-                            </select>
-                          </td>
-
-                          {/* If Work day, show 4 time inputs. Otherwise show status banner spanning across */}
-                          {entry.status === 'work' ? (
-                            <>
-                              {/* AM Arrival */}
-                              <td className="py-1.5 px-2 bg-blue-50/30">
-                                <input
-                                  type="text"
-                                  value={entry.amArrival}
-                                  onChange={e => handleCellChange(idx, 'amArrival', e.target.value)}
-                                  placeholder="6:35"
-                                  className="w-full text-center px-1.5 py-1 rounded font-bold text-slate-800 bg-white border border-slate-200 focus:ring-2 focus:ring-blue-400"
-                                />
-                              </td>
-
-                              {/* AM Departure */}
-                              <td className="py-1.5 px-2 bg-blue-50/30 border-r border-blue-200/60">
-                                <input
-                                  type="text"
-                                  value={entry.amDeparture}
-                                  onChange={e => handleCellChange(idx, 'amDeparture', e.target.value)}
-                                  placeholder="11:35"
-                                  className="w-full text-center px-1.5 py-1 rounded font-bold text-slate-800 bg-white border border-slate-200 focus:ring-2 focus:ring-blue-400"
-                                />
-                              </td>
-
-                              {/* PM Arrival */}
-                              <td className="py-1.5 px-2 bg-purple-50/30">
-                                <input
-                                  type="text"
-                                  value={entry.pmArrival}
-                                  onChange={e => handleCellChange(idx, 'pmArrival', e.target.value)}
-                                  placeholder="12:32"
-                                  className="w-full text-center px-1.5 py-1 rounded font-bold text-slate-800 bg-white border border-slate-200 focus:ring-2 focus:ring-purple-400"
-                                />
-                              </td>
-
-                              {/* PM Departure */}
-                              <td className="py-1.5 px-2 bg-purple-50/30 border-r border-purple-200/60">
-                                <input
-                                  type="text"
-                                  value={entry.pmDeparture}
-                                  onChange={e => handleCellChange(idx, 'pmDeparture', e.target.value)}
-                                  placeholder="5:02"
-                                  className="w-full text-center px-1.5 py-1 rounded font-bold text-slate-800 bg-white border border-slate-200 focus:ring-2 focus:ring-purple-400"
-                                />
-                              </td>
-
-                              {/* Undertime Hours */}
-                              <td className="py-1.5 px-2">
-                                <input
-                                  type="text"
-                                  value={entry.undertimeHours}
-                                  onChange={e => handleCellChange(idx, 'undertimeHours', e.target.value)}
-                                  placeholder=""
-                                  className="w-full text-center px-1.5 py-1 rounded font-semibold text-slate-700 bg-[#FAF5F0] border border-white"
-                                />
-                              </td>
-
-                              {/* Undertime Minutes */}
-                              <td className="py-1.5 px-2">
-                                <input
-                                  type="text"
-                                  value={entry.undertimeMinutes}
-                                  onChange={e => handleCellChange(idx, 'undertimeMinutes', e.target.value)}
-                                  placeholder=""
-                                  className="w-full text-center px-1.5 py-1 rounded font-semibold text-slate-700 bg-[#FAF5F0] border border-white"
-                                />
-                              </td>
-                            </>
-                          ) : (
-                            <td colSpan={6} className="py-2 px-3 text-center font-black tracking-wide uppercase text-slate-700">
-                              {entry.status === 'saturday' && 'SATURDAY'}
-                              {entry.status === 'sunday' && 'SUNDAY'}
-                              {entry.status === 'holiday' && (entry.holidayTitle || 'HOLIDAY')}
-                              {entry.status === 'leave' && 'ON OFFICIAL LEAVE'}
-                              {entry.status === 'travel' && 'OFFICIAL BUSINESS (O.B.)'}
-                            </td>
-                          )}
-                        </tr>
-                      )
-                    })}
+                    {savedRecords.slice(0, 5).map(record => (
+                      <tr key={record.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-3 px-4 font-bold text-slate-800">{record.employeeName}</td>
+                        <td className="py-3 px-4 font-semibold uppercase text-[#8B72F4]">{record.role}</td>
+                        <td className="py-3 px-4 font-semibold">
+                          {MONTH_NAMES[record.month - 1]} {record.year}
+                        </td>
+                        <td className="py-3 px-4 font-bold text-emerald-700">
+                          {record.entries.filter(e => e.status === 'work').length} Days
+                        </td>
+                        <td className="py-3 px-4 text-right space-x-2">
+                          <button
+                            type="button"
+                            onClick={() => handleLoadRecord(record)}
+                            className="px-2.5 py-1 rounded-lg bg-[#8B72F4] text-white font-bold text-[11px]"
+                          >
+                            Load
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteRecord(record.id, record.employeeName)}
+                            className="p-1 rounded-lg text-slate-400 hover:text-red-600"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {savedRecords.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="py-6 text-center text-slate-400 italic">
+                          No DTR records saved yet. Click "Generate DTR" to create your first record!
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* TAB 2: LIVE 2-IN-1 DUAL COPY PREVIEW */}
-          {activeTab === 'preview' && (
-            <div className="clay-card p-6 space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-black text-[#2D2638] font-display">
-                    Civil Service Form No. 48 — 2-in-1 Side-by-Side Preview
-                  </h3>
-                  <p className="text-xs text-[#7A7289] font-medium">
-                    Standard Philippine Civil Service DTR layout formatted dual-copy on one sheet of paper
-                  </p>
+        {/* VIEW 2: MY DTRS & HISTORY VIEW */}
+        {currentTab === 'my_dtrs' && (
+          <div className="clay-card p-6 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#F0E6DD]">
+              <div>
+                <h3 className="text-base font-black text-[#2D2638] font-display flex items-center gap-2">
+                  <FolderOpen className="text-[#8B72F4]" size={20} />
+                  My Saved DTRs & History
+                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">
+                    Supabase Synced
+                  </span>
+                </h3>
+                <p className="text-xs text-[#7A7289]">View, edit, update, delete, or print your archived DTRs</p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A39BAF]" />
+                  <input
+                    type="text"
+                    value={historySearch}
+                    onChange={e => setHistorySearch(e.target.value)}
+                    placeholder="Search by name or month..."
+                    className="pl-8 pr-3 py-2 rounded-xl text-xs font-medium bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638]"
+                  />
                 </div>
 
                 <button
-                  onClick={handlePrintDTR}
-                  className="px-5 py-2.5 rounded-full bg-gradient-to-r from-[#8B72F4] to-[#795CEE] text-white font-extrabold text-xs shadow-md hover:opacity-95 transition-all flex items-center gap-2 cursor-pointer"
+                  type="button"
+                  onClick={handleNewDTR}
+                  className="px-4 py-2 rounded-xl bg-[#8B72F4] text-white font-extrabold text-xs shadow-md hover:opacity-95 transition-all flex items-center gap-1.5 cursor-pointer"
                 >
-                  <Printer size={16} />
-                  Print Form No. 48
+                  <PlusCircle size={16} />
+                  New Session
                 </button>
               </div>
-
-              {/* Screen Preview Render */}
-              <div className="p-4 rounded-3xl bg-slate-100 border border-slate-200 overflow-x-auto">
-                <CSForm48DualRender
-                  employeeName={employeeName}
-                  monthYearLabel={monthYearLabel}
-                  officialHoursText={officialHoursText}
-                  saturdaysText={saturdaysText}
-                  entries={entries}
-                  supervisorName={finalSupervisorName}
-                  supervisorTitle={finalSupervisorTitle}
-                />
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* DTR HISTORY RECORDS MODAL */}
-      {isHistoryModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto animate-fade-in no-print">
-          <div className="bg-white rounded-[32px] max-w-xl w-full p-6 sm:p-7 shadow-2xl border-4 border-[#FAF5F0] space-y-5 relative">
-            <div className="flex items-start justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-2xl bg-gradient-to-br from-[#A88BEB] to-[#8B72F4] text-white font-black shadow-xs">
-                  <FolderOpen size={20} />
-                </div>
-                <div>
-                  <h3 className="text-base font-black text-[#2D2638] font-display flex items-center gap-1.5">
-                    Saved DTR History Records
-                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-black">
-                      Supabase Cloud DB
-                    </span>
-                  </h3>
-                  <p className="text-xs text-[#7A7289] font-medium">
-                    Load, edit, or delete archived Civil Service Form 48 DTRs
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setIsHistoryModalOpen(false)}
-                className="p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all cursor-pointer"
-              >
-                <X size={18} />
-              </button>
             </div>
 
-            {/* Actions Bar & Search */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-              <div className="relative w-full sm:w-72">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A39BAF]" />
-                <input
-                  type="text"
-                  value={historySearch}
-                  onChange={e => setHistorySearch(e.target.value)}
-                  placeholder="Search by employee name or month..."
-                  className="w-full pl-8 pr-3 py-2 rounded-xl text-xs font-medium bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
-                />
-                {historySearch && (
-                  <button
-                    onClick={() => setHistorySearch('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  >
-                    <X size={12} />
-                  </button>
-                )}
-              </div>
+            {/* DTR History Table */}
+            <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-100 text-slate-700 font-extrabold uppercase border-b border-slate-200">
+                    <th className="py-3 px-4">Employee Name</th>
+                    <th className="py-3 px-4">Role Category</th>
+                    <th className="py-3 px-4">Month & Year</th>
+                    <th className="py-3 px-4">Work Days</th>
+                    <th className="py-3 px-4">Last Updated</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {filteredHistory.map(record => {
+                    const isActive = record.id === activeRecordId
+                    const workDays = record.entries.filter(e => e.status === 'work').length
 
-              <button
-                type="button"
-                onClick={handleNewDTR}
-                className="w-full sm:w-auto px-4 py-2 rounded-xl bg-[#F6EFFF] text-[#8B72F4] hover:bg-[#8B72F4] hover:text-white transition-all text-xs font-bold flex items-center justify-center gap-1.5 border border-[#8B72F4]/30 cursor-pointer"
-              >
-                <PlusCircle size={14} />
-                Start Blank Session
-              </button>
-            </div>
-
-            {/* History Cards List */}
-            <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
-              {isLoadingSupabase ? (
-                <div className="p-8 text-center text-slate-400 font-bold text-xs space-y-2">
-                  <Loader2 size={26} className="animate-spin mx-auto text-[#8B72F4]" />
-                  <p>Loading database records...</p>
-                </div>
-              ) : filteredHistory.length === 0 ? (
-                <div className="p-8 text-center bg-[#FAF5F0] rounded-2xl border border-dashed border-slate-300 space-y-2">
-                  <FileText size={32} className="mx-auto text-slate-300" />
-                  <p className="text-xs font-bold text-slate-600">No DTR history records found</p>
-                  <p className="text-[10px] text-slate-400">Generate a DTR and click "Save to Supabase" to archive</p>
-                </div>
-              ) : (
-                filteredHistory.map(record => {
-                  const isActive = record.id === activeRecordId
-                  const monthLabel = MONTH_NAMES[record.month - 1] || 'JUNE'
-                  const workDays = record.entries.filter(e => e.status === 'work').length
-
-                  return (
-                    <div
-                      key={record.id}
-                      className={`p-4 rounded-2xl border transition-all space-y-2.5 ${
-                        isActive
-                          ? 'bg-[#F6EFFF] border-[#8B72F4] shadow-sm'
-                          : 'bg-white border-slate-200 hover:border-[#8B72F4]/40 hover:shadow-2xs'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-black text-[#2D2638]">{record.employeeName}</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="px-2.5 py-0.5 rounded-md bg-[#EEF0FF] text-[#3B49B8] text-xs font-extrabold uppercase">
-                              {monthLabel} {record.year}
-                            </span>
-                            <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-xs font-bold">
-                              {workDays} Work Days
-                            </span>
-                          </div>
-                        </div>
-
-                        <span className="text-xs text-slate-400 font-semibold shrink-0">
+                    return (
+                      <tr
+                        key={record.id}
+                        className={`hover:bg-slate-50 transition-colors ${
+                          isActive ? 'bg-[#F6EFFF]' : ''
+                        }`}
+                      >
+                        <td className="py-3.5 px-4 font-extrabold text-slate-800">{record.employeeName}</td>
+                        <td className="py-3.5 px-4 font-bold uppercase text-[#8B72F4]">{record.role}</td>
+                        <td className="py-3.5 px-4 font-bold">
+                          {MONTH_NAMES[record.month - 1]} {record.year}
+                        </td>
+                        <td className="py-3.5 px-4 font-bold text-emerald-700">{workDays} Days</td>
+                        <td className="py-3.5 px-4 text-slate-400 font-medium">
                           {new Date(record.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                        <span className="text-xs font-bold text-slate-500 uppercase tracking-tight">
-                          Category: {record.role}
-                        </span>
-
-                        <div className="flex items-center gap-2">
+                        </td>
+                        <td className="py-3.5 px-4 text-right space-x-2">
                           <button
                             type="button"
                             onClick={() => handleLoadRecord(record)}
-                            className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${
-                              isActive
-                                ? 'bg-[#8B72F4] text-white shadow-xs'
-                                : 'bg-slate-100 hover:bg-[#8B72F4] text-slate-700 hover:text-white'
-                            }`}
+                            className="px-3 py-1.5 rounded-xl bg-[#8B72F4] text-white font-extrabold text-xs shadow-xs hover:opacity-95"
                           >
-                            <Eye size={14} />
-                            {isActive ? 'Editing' : 'Load into Form'}
+                            Load & Edit
                           </button>
-
                           <button
                             type="button"
                             onClick={() => handleDeleteRecord(record.id, record.employeeName)}
-                            className="p-1.5 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer border border-transparent hover:border-red-200"
-                            title="Delete Record from Supabase"
+                            className="p-1.5 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200"
+                            title="Delete Record"
                           >
                             <Trash2 size={16} />
                           </button>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })
-              )}
-            </div>
-
-            <div className="pt-2 border-t border-slate-100 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setIsHistoryModalOpen(false)}
-                className="px-5 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition-all cursor-pointer"
-              >
-                Close History
-              </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                  {filteredHistory.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-slate-400 italic">
+                        No saved DTR records found in database.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* MANAGE CUSTOM LOCAL HOLIDAYS MODAL */}
-      {isHolidayModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto animate-fade-in no-print">
-          <div className="bg-white rounded-[32px] max-w-lg w-full p-6 sm:p-7 shadow-2xl border-4 border-[#FAF5F0] space-y-5 relative">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-2xl bg-amber-400 text-amber-950 font-black shadow-xs">
-                  <PartyPopper size={20} />
+        {/* VIEW 3: GENERATE DTR VIEW (DEFAULT / PREVIEW & EDITOR) */}
+        {currentTab === 'generate' && (
+          <div className="space-y-6">
+            {/* CONTROLS & CONFIGURATION PANEL */}
+            <div className="clay-card p-6 space-y-6">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-[#F0E6DD]">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-2xl bg-gradient-to-br from-[#A88BEB] to-[#8B72F4] text-white shadow-xs">
+                    <Sliders size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-[#2D2638] font-display">
+                      DTR Configuration & Parameters
+                      {activeRecordId && (
+                        <span className="ml-2 px-2.5 py-0.5 rounded-full bg-[#8B72F4] text-white text-[10px] font-bold uppercase tracking-wider">
+                          Editing Supabase Record
+                        </span>
+                      )}
+                    </h3>
+                    <p className="text-xs text-[#7A7289] font-medium">Set employee details, month/year, working hours, and non-late ranges</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-base font-black text-[#2D2638] font-display flex items-center gap-1.5">
-                    Local & Custom Holidays
-                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-black">
-                      Supabase DB
-                    </span>
-                  </h3>
-                  <p className="text-xs text-[#7A7289] font-medium">
-                    Add district/town fiestas or local non-working days
-                  </p>
+
+                {/* Sub-tab Navigation Controls */}
+                <div className="flex items-center gap-2 p-1 bg-[#FAF5F0] rounded-full border border-white shadow-2xs">
+                  <button
+                    type="button"
+                    onClick={() => setGenerateSubTab('preview')}
+                    className={`px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                      generateSubTab === 'preview'
+                        ? 'bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] text-white shadow-md'
+                        : 'text-[#7A7289] hover:text-[#2D2638]'
+                    }`}
+                  >
+                    <Printer size={14} className="inline mr-1.5" />
+                    2-in-1 Side-by-Side Preview
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setGenerateSubTab('editor')}
+                    className={`px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                      generateSubTab === 'editor'
+                        ? 'bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] text-white shadow-md'
+                        : 'text-[#7A7289] hover:text-[#2D2638]'
+                    }`}
+                  >
+                    <Edit3 size={14} className="inline mr-1.5" />
+                    Table Editor & Controls
+                  </button>
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setIsHolidayModalOpen(false)}
-                className="p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all cursor-pointer"
-              >
-                <X size={18} />
-              </button>
-            </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                {/* Employee Name & Proxy Personnel Picker */}
+                <div className="lg:col-span-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="form-label text-xs font-bold text-[#2D2638] block">Employee Full Name</label>
+                    {allStaffProfiles.length > 0 && (
+                      <span className="text-[10px] text-[#8B72F4] font-bold">Generate for Someone:</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A39BAF]" />
+                      <input
+                        type="text"
+                        value={employeeName}
+                        onChange={e => setEmployeeName(e.target.value.toUpperCase())}
+                        placeholder="e.g. MICHELLE S. MOSQUERA"
+                        className="w-full pl-9 pr-3 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30 uppercase"
+                      />
+                    </div>
 
-            {/* Add Holiday Form */}
-            <form onSubmit={handleAddCustomHoliday} className="p-4 rounded-2xl bg-[#FAF5F0] border border-slate-200 space-y-3">
-              <h4 className="text-xs font-black text-[#2D2638] uppercase tracking-wide flex items-center gap-1.5">
-                <CalendarPlus size={14} className="text-[#8B72F4]" />
-                Add New Local Holiday
-              </h4>
+                    {allStaffProfiles.length > 0 && (
+                      <select
+                        value={selectedProxyStaffId}
+                        onChange={e => {
+                          setSelectedProxyStaffId(e.target.value)
+                          if (e.target.value) {
+                            handleGenerateForProxyStaff(e.target.value)
+                          }
+                        }}
+                        className="w-44 px-2 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
+                        title="Select District Personnel to Generate DTR for Someone"
+                      >
+                        <option value="">-- Choose Staff --</option>
+                        {allStaffProfiles.map(s => (
+                          <option key={s.id} value={s.id}>
+                            {s.name} ({s.roleTitle})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                </div>
 
-              <div className="grid grid-cols-2 gap-2">
+                {/* Target Month */}
                 <div>
-                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Month</label>
+                  <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">Target Month</label>
                   <select
-                    value={newHolidayMonth}
-                    onChange={e => setNewHolidayMonth(Number(e.target.value))}
-                    className="w-full px-2.5 py-1.5 rounded-xl text-xs font-bold bg-white border border-slate-200 text-[#2D2638]"
+                    value={selectedMonth}
+                    onChange={e => setSelectedMonth(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
                   >
-                    {MONTH_NAMES.map((m, idx) => (
-                      <option key={m} value={idx + 1}>
-                        {m}
+                    {MONTH_NAMES.map((name, idx) => (
+                      <option key={name} value={idx + 1}>
+                        {name}
                       </option>
                     ))}
                   </select>
                 </div>
 
+                {/* Target Year */}
                 <div>
-                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Day of Month</label>
+                  <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">Target Year</label>
                   <input
                     type="number"
-                    min={1}
-                    max={31}
-                    value={newHolidayDay}
-                    onChange={e => setNewHolidayDay(Number(e.target.value))}
-                    className="w-full px-2.5 py-1.5 rounded-xl text-xs font-bold bg-white border border-slate-200 text-[#2D2638]"
+                    value={selectedYear}
+                    onChange={e => setSelectedYear(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
+                  />
+                </div>
+
+                {/* Official Hours Banner String */}
+                <div>
+                  <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">Official Hours Header Text</label>
+                  <input
+                    type="text"
+                    value={officialHoursText}
+                    onChange={e => setOfficialHoursText(e.target.value)}
+                    placeholder="Regular days 7:00–11:30AM / 1:00–5:00PM"
+                    className="w-full px-3 py-2 rounded-xl text-xs font-semibold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="text-[11px] font-bold text-slate-700 block mb-1">Holiday Title / Name</label>
-                <input
-                  type="text"
-                  value={newHolidayTitle}
-                  onChange={e => setNewHolidayTitle(e.target.value)}
-                  placeholder="e.g. Romblon Liberation Day / Concepcion Town Fiesta"
-                  className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200 text-[#2D2638] focus:ring-2 focus:ring-[#8B72F4]/30"
-                />
+              {/* Signatory Governance & Role Parameters */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-[#F0E6DD]/60">
+                {/* DTR Personnel Role Selector */}
+                <div>
+                  <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">DTR Personnel Category</label>
+                  <select
+                    value={dtrTargetRole}
+                    onChange={e => setDtrTargetRole(e.target.value as any)}
+                    className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
+                  >
+                    <option value="teacher">Teacher (School Head Signatory)</option>
+                    <option value="ao_2">Administrative Officer (AO II) (School Head Signatory)</option>
+                    <option value="school_head">School Head (Division Superintendent Signatory)</option>
+                    <option value="psds">PSDS (Division Superintendent Signatory)</option>
+                  </select>
+                </div>
+
+                {/* Official Signatory Display / Selection */}
+                <div>
+                  {isDivisionSignatory ? (
+                    <div>
+                      <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">Official Signatory (Fixed)</label>
+                      <div className="px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex items-center justify-between text-xs font-bold">
+                        <span>ROGER F. CAPA, CESO VI</span>
+                        <span className="text-[10px] bg-amber-200/60 px-2 py-0.5 rounded-md text-amber-950 font-black">SDS</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">School Head / Principal Name</label>
+                      {schoolHeadOptions.length > 0 ? (
+                        <select
+                          value={schoolHeadName}
+                          onChange={e => setSchoolHeadName(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
+                        >
+                          {schoolHeadOptions.map(h => (
+                            <option key={h.id} value={h.name}>
+                              {h.name} {h.schoolNames}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          value={schoolHeadName}
+                          onChange={e => setSchoolHeadName(e.target.value)}
+                          placeholder="e.g. MARIA L. SANTOS"
+                          className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-end gap-2">
+                  <button
+                    type="button"
+                    onClick={handleGenerateRandomTimes}
+                    className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#8B72F4] to-[#795CEE] text-white hover:opacity-95 font-extrabold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:animate-button-sparkle"
+                  >
+                    <Sparkles size={16} className="text-amber-300" />
+                    Generate Non-Late Times
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSaveToHistory}
+                    disabled={isSavingDb}
+                    className="py-2.5 px-3.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    title="Save current DTR to Supabase Database"
+                  >
+                    {isSavingDb ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    <span>{activeRecordId ? 'Update Supabase' : 'Save to Supabase'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleResetTimes}
+                    className="p-2.5 rounded-xl bg-white text-[#7A7289] hover:text-red-600 hover:bg-red-50 border border-slate-200 transition-all cursor-pointer"
+                    title="Reset table to blank"
+                  >
+                    <RotateCcw size={16} />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* SUB-VIEW 1: LIVE 2-IN-1 DUAL COPY PREVIEW */}
+            {generateSubTab === 'preview' && (
+              <div className="clay-card p-6 space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-black text-[#2D2638] font-display">
+                      Civil Service Form No. 48 — 2-in-1 Side-by-Side Preview
+                    </h3>
+                    <p className="text-xs text-[#7A7289] font-medium">
+                      Standard Philippine Civil Service DTR layout formatted dual-copy on one sheet of paper
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={handlePrintDTR}
+                    className="px-5 py-2.5 rounded-full bg-gradient-to-r from-[#8B72F4] to-[#795CEE] text-white font-extrabold text-xs shadow-md hover:opacity-95 transition-all flex items-center gap-2 cursor-pointer"
+                  >
+                    <Printer size={16} />
+                    Print Form No. 48
+                  </button>
+                </div>
+
+                {/* Screen Preview Render */}
+                <div className="p-4 rounded-3xl bg-slate-100 border border-slate-200 overflow-x-auto">
+                  <CSForm48DualRender
+                    employeeName={employeeName}
+                    monthYearLabel={monthYearLabel}
+                    officialHoursText={officialHoursText}
+                    saturdaysText={saturdaysText}
+                    entries={entries}
+                    supervisorName={finalSupervisorName}
+                    supervisorTitle={finalSupervisorTitle}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* SUB-VIEW 2: TABLE EDITOR & MANUAL TIME INPUT */}
+            {generateSubTab === 'editor' && (
+              <div className="clay-card p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-black text-[#2D2638] font-display">
+                      CS Form No. 48 Data Sheet ({monthYearLabel})
+                    </h3>
+                    <p className="text-xs text-[#7A7289] font-medium">
+                      Directly edit arrival/departure times, undertime, or day statuses (Work, Saturday, Sunday, Holiday, Leave)
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="px-3 py-1 rounded-full bg-[#EEF0FF] text-[#3B49B8] text-xs font-bold border border-[#BFD7FF]">
+                      {entries.filter(e => e.status === 'work').length} Regular Work Days
+                    </span>
+                  </div>
+                </div>
+
+                {/* Interactive Data Table */}
+                <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-slate-100 border-b border-slate-200 text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">
+                        <th className="py-2.5 px-3 w-12 text-center">Day</th>
+                        <th className="py-2.5 px-3 w-28">Weekday</th>
+                        <th className="py-2.5 px-3 w-36">Day Status</th>
+                        <th className="py-2.5 px-3 text-center bg-blue-50/70 border-l border-r border-blue-200/60" colSpan={2}>
+                          A.M. (Morning)
+                        </th>
+                        <th className="py-2.5 px-3 text-center bg-purple-50/70 border-r border-purple-200/60" colSpan={2}>
+                          P.M. (Afternoon)
+                        </th>
+                        <th className="py-2.5 px-3 text-center" colSpan={2}>
+                          Undertime
+                        </th>
+                      </tr>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500">
+                        <th></th>
+                        <th></th>
+                        <th></th>
+                        <th className="py-1 px-2 text-center bg-blue-50/50">Arrival</th>
+                        <th className="py-1 px-2 text-center bg-blue-50/50 border-r border-blue-200/60">Departure</th>
+                        <th className="py-1 px-2 text-center bg-purple-50/50">Arrival</th>
+                        <th className="py-1 px-2 text-center bg-purple-50/50 border-r border-purple-200/60">Departure</th>
+                        <th className="py-1 px-2 text-center">Hours</th>
+                        <th className="py-1 px-2 text-center">Mins</th>
+                      </tr>
+                    </thead>
+
+                    <tbody className="divide-y divide-slate-200">
+                      {entries.map((entry, idx) => {
+                        if (entry.status === 'blank') {
+                          return (
+                            <tr key={idx} className="bg-slate-900 text-slate-900">
+                              <td className="py-2 px-3 text-center font-bold text-slate-400">{entry.dayNumber}</td>
+                              <td colSpan={8} className="py-2 px-3 text-center italic text-slate-500 text-[11px]">
+                                [ No Date in Month ]
+                              </td>
+                            </tr>
+                          )
+                        }
+
+                        return (
+                          <tr
+                            key={idx}
+                            className={`hover:bg-slate-50 transition-colors ${
+                              entry.isWeekend ? 'bg-amber-50/40' : entry.isHoliday ? 'bg-indigo-50/40' : ''
+                            }`}
+                          >
+                            {/* Day Number */}
+                            <td className="py-2 px-3 text-center font-extrabold text-slate-800">
+                              {entry.dayNumber}
+                            </td>
+
+                            {/* Weekday Name */}
+                            <td className="py-2 px-3 font-semibold text-slate-600">
+                              {entry.dayOfWeek}
+                            </td>
+
+                            {/* Status Selector */}
+                            <td className="py-2 px-3">
+                              <select
+                                value={entry.status}
+                                onChange={e => handleCellChange(idx, 'status', e.target.value)}
+                                className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
+                              >
+                                <option value="work">Regular Work Day</option>
+                                <option value="saturday">SATURDAY</option>
+                                <option value="sunday">SUNDAY</option>
+                                <option value="holiday">HOLIDAY</option>
+                                <option value="leave">ON LEAVE</option>
+                                <option value="travel">OFFICIAL BUSINESS</option>
+                              </select>
+                            </td>
+
+                            {/* If Work day, show 4 time inputs. Otherwise show status banner spanning across */}
+                            {entry.status === 'work' ? (
+                              <>
+                                {/* AM Arrival */}
+                                <td className="py-1.5 px-2 bg-blue-50/30">
+                                  <input
+                                    type="text"
+                                    value={entry.amArrival}
+                                    onChange={e => handleCellChange(idx, 'amArrival', e.target.value)}
+                                    placeholder="6:35"
+                                    className="w-full text-center px-1.5 py-1 rounded font-bold text-slate-800 bg-white border border-slate-200 focus:ring-2 focus:ring-blue-400"
+                                  />
+                                </td>
+
+                                {/* AM Departure */}
+                                <td className="py-1.5 px-2 bg-blue-50/30 border-r border-blue-200/60">
+                                  <input
+                                    type="text"
+                                    value={entry.amDeparture}
+                                    onChange={e => handleCellChange(idx, 'amDeparture', e.target.value)}
+                                    placeholder="11:35"
+                                    className="w-full text-center px-1.5 py-1 rounded font-bold text-slate-800 bg-white border border-slate-200 focus:ring-2 focus:ring-blue-400"
+                                  />
+                                </td>
+
+                                {/* PM Arrival */}
+                                <td className="py-1.5 px-2 bg-purple-50/30">
+                                  <input
+                                    type="text"
+                                    value={entry.pmArrival}
+                                    onChange={e => handleCellChange(idx, 'pmArrival', e.target.value)}
+                                    placeholder="12:32"
+                                    className="w-full text-center px-1.5 py-1 rounded font-bold text-slate-800 bg-white border border-slate-200 focus:ring-2 focus:ring-purple-400"
+                                  />
+                                </td>
+
+                                {/* PM Departure */}
+                                <td className="py-1.5 px-2 bg-purple-50/30 border-r border-purple-200/60">
+                                  <input
+                                    type="text"
+                                    value={entry.pmDeparture}
+                                    onChange={e => handleCellChange(idx, 'pmDeparture', e.target.value)}
+                                    placeholder="5:02"
+                                    className="w-full text-center px-1.5 py-1 rounded font-bold text-slate-800 bg-white border border-slate-200 focus:ring-2 focus:ring-purple-400"
+                                  />
+                                </td>
+
+                                {/* Undertime Hours */}
+                                <td className="py-1.5 px-2">
+                                  <input
+                                    type="text"
+                                    value={entry.undertimeHours}
+                                    onChange={e => handleCellChange(idx, 'undertimeHours', e.target.value)}
+                                    placeholder=""
+                                    className="w-full text-center px-1.5 py-1 rounded font-semibold text-slate-700 bg-[#FAF5F0] border border-white"
+                                  />
+                                </td>
+
+                                {/* Undertime Minutes */}
+                                <td className="py-1.5 px-2">
+                                  <input
+                                    type="text"
+                                    value={entry.undertimeMinutes}
+                                    onChange={e => handleCellChange(idx, 'undertimeMinutes', e.target.value)}
+                                    placeholder=""
+                                    className="w-full text-center px-1.5 py-1 rounded font-semibold text-slate-700 bg-[#FAF5F0] border border-white"
+                                  />
+                                </td>
+                              </>
+                            ) : (
+                              <td colSpan={6} className="py-2 px-3 text-center font-black tracking-wide uppercase text-slate-700">
+                                {entry.status === 'saturday' && 'SATURDAY'}
+                                {entry.status === 'sunday' && 'SUNDAY'}
+                                {entry.status === 'holiday' && (entry.holidayTitle || 'HOLIDAY')}
+                                {entry.status === 'leave' && 'ON OFFICIAL LEAVE'}
+                                {entry.status === 'travel' && 'OFFICIAL BUSINESS (O.B.)'}
+                              </td>
+                            )}
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* VIEW 4: HOLIDAYS MANAGER VIEW */}
+        {currentTab === 'holidays' && (
+          <div className="space-y-6">
+            {/* Local Holidays Section */}
+            <div className="clay-card p-6 space-y-5">
+              <div className="flex items-center justify-between pb-3 border-b border-[#F0E6DD]">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-2xl bg-amber-400 text-amber-950 font-black shadow-xs">
+                    <PartyPopper size={22} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-[#2D2638] font-display flex items-center gap-2">
+                      Local & District Custom Holidays
+                      <span className="text-[9px] px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-extrabold">
+                        Supabase Synced
+                      </span>
+                    </h3>
+                    <p className="text-xs text-[#7A7289]">Add district/town fiestas or local non-working days for Concepcion District</p>
+                  </div>
+                </div>
+
+                <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-900 text-xs font-bold border border-amber-200">
+                  {customHolidays.length} Active Local Holidays
+                </span>
               </div>
 
-              <div className="flex items-center justify-between pt-1">
-                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={newHolidayIsRecurring}
-                    onChange={e => setNewHolidayIsRecurring(e.target.checked)}
-                    className="rounded text-[#8B72F4] focus:ring-[#8B72F4]"
-                  />
-                  <span>Repeats every year on this date</span>
-                </label>
+              {/* Add Holiday Form */}
+              <form onSubmit={handleAddCustomHoliday} className="p-4 rounded-2xl bg-[#FAF5F0] border border-slate-200 space-y-3">
+                <h4 className="text-xs font-black text-[#2D2638] uppercase tracking-wide flex items-center gap-1.5">
+                  <CalendarPlus size={14} className="text-[#8B72F4]" />
+                  Add New Local Holiday
+                </h4>
 
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#8B72F4] to-[#795CEE] text-white font-extrabold text-xs shadow-sm hover:opacity-95 transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Plus size={14} />
-                  Save to DB
-                </button>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">Month</label>
+                    <select
+                      value={newHolidayMonth}
+                      onChange={e => setNewHolidayMonth(Number(e.target.value))}
+                      className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200 text-[#2D2638]"
+                    >
+                      {MONTH_NAMES.map((m, idx) => (
+                        <option key={m} value={idx + 1}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">Day of Month</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={31}
+                      value={newHolidayDay}
+                      onChange={e => setNewHolidayDay(Number(e.target.value))}
+                      className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200 text-[#2D2638]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">Holiday Title / Name</label>
+                    <input
+                      type="text"
+                      value={newHolidayTitle}
+                      onChange={e => setNewHolidayTitle(e.target.value)}
+                      placeholder="e.g. Romblon Liberation Day / Town Fiesta"
+                      className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200 text-[#2D2638] focus:ring-2 focus:ring-[#8B72F4]/30"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={newHolidayIsRecurring}
+                      onChange={e => setNewHolidayIsRecurring(e.target.checked)}
+                      className="rounded text-[#8B72F4] focus:ring-[#8B72F4]"
+                    />
+                    <span>Repeats every year on this date (Annual)</span>
+                  </label>
+
+                  <button
+                    type="submit"
+                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#8B72F4] to-[#795CEE] text-white font-extrabold text-xs shadow-md hover:opacity-95 transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Plus size={16} />
+                    Save Local Holiday
+                  </button>
+                </div>
+              </form>
+
+              {/* Local Holidays List */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-2">
+                {customHolidays.map(item => (
+                  <div
+                    key={item.id}
+                    className="p-3.5 rounded-2xl bg-white border border-slate-200 flex items-center justify-between gap-3 shadow-2xs hover:border-amber-300 transition-all"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Tag size={16} className="text-amber-500 shrink-0" />
+                      <div>
+                        <p className="text-xs font-extrabold text-[#2D2638]">{item.title}</p>
+                        <p className="text-[10px] text-slate-500 font-bold">
+                          <span className="text-[#8B72F4] font-black">{item.dateStr}</span> • {item.isRecurring ? 'Annual' : 'Specific Year'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteCustomHoliday(item.id, item.title)}
+                      className="p-1.5 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all"
+                      title="Delete Local Holiday"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* National Holidays Section */}
+            <div className="clay-card p-6 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-[#F0E6DD]">
+                <div>
+                  <h3 className="text-base font-black text-[#2D2638] font-display">Official National Holidays</h3>
+                  <p className="text-xs text-[#7A7289]">Standard Philippine Regular & Special Non-Working Holidays</p>
+                </div>
+                <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-800 text-xs font-bold border border-blue-200">
+                  {nationalHolidays.filter(h => h.isActive).length} Active National Holidays
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                {nationalHolidays.map(nh => (
+                  <div
+                    key={nh.key}
+                    onClick={() => handleToggleNationalHoliday(nh.key)}
+                    className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                      nh.isActive
+                        ? 'bg-white border-[#8B72F4]/60 shadow-2xs'
+                        : 'bg-slate-50 border-slate-200 opacity-60'
+                    }`}
+                  >
+                    <div className="space-y-0.5">
+                      <p className="text-xs font-extrabold text-[#2D2638]">{nh.name}</p>
+                      <p className="text-[10px] text-[#8B72F4] font-extrabold">{nh.dateStr}</p>
+                    </div>
+
+                    <button type="button" className="text-[#8B72F4]">
+                      {nh.isActive ? <ToggleRight size={22} /> : <ToggleLeft size={22} className="text-slate-400" />}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* VIEW 5: ABSENCES VIEW */}
+        {currentTab === 'absences' && (
+          <div className="clay-card p-6 space-y-6">
+            <div className="flex items-center justify-between pb-4 border-b border-[#F0E6DD]">
+              <div>
+                <h3 className="text-base font-black text-[#2D2638] font-display flex items-center gap-2">
+                  <UserX className="text-rose-500" size={20} />
+                  Personnel Absences Tracking
+                </h3>
+                <p className="text-xs text-[#7A7289]">Log and record absence days for personnel</p>
+              </div>
+              <span className="px-3 py-1 rounded-full bg-rose-50 text-rose-700 text-xs font-bold border border-rose-200">
+                {absencesList.length} Logged Absences
+              </span>
+            </div>
+
+            {/* Log Absence Form */}
+            <form onSubmit={handleAddAbsence} className="p-4 rounded-2xl bg-[#FAF5F0] border border-slate-200 space-y-3">
+              <h4 className="text-xs font-black text-[#2D2638] uppercase tracking-wide">Log New Absence</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Absence Date</label>
+                  <input
+                    type="date"
+                    value={newAbsenceDate}
+                    onChange={e => setNewAbsenceDate(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Reason / Explanation</label>
+                  <input
+                    type="text"
+                    value={newAbsenceReason}
+                    onChange={e => setNewAbsenceReason(e.target.value)}
+                    placeholder="e.g. Family Emergency / Medical Absence"
+                    className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200"
+                  />
+                </div>
+
+                <div className="flex items-end gap-3">
+                  <label className="flex items-center gap-2 text-xs font-bold text-slate-700 mb-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newAbsenceExcused}
+                      onChange={e => setNewAbsenceExcused(e.target.checked)}
+                      className="rounded text-[#8B72F4]"
+                    />
+                    <span>Excused Absence</span>
+                  </label>
+
+                  <button
+                    type="submit"
+                    className="flex-1 py-2 px-4 rounded-xl bg-[#8B72F4] text-white font-extrabold text-xs shadow-md cursor-pointer"
+                  >
+                    Log Absence
+                  </button>
+                </div>
               </div>
             </form>
 
-            {/* List of Active Custom Holidays */}
-            <div className="space-y-2">
-              <h4 className="text-xs font-extrabold text-[#2D2638] uppercase tracking-wider">
-                Active District Local Holidays ({customHolidays.length})
-              </h4>
+            {/* Absences Table */}
+            <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-100 text-slate-700 font-extrabold uppercase border-b border-slate-200">
+                    <th className="py-3 px-4">Employee Name</th>
+                    <th className="py-3 px-4">Absence Date</th>
+                    <th className="py-3 px-4">Reason</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {absencesList.map(item => (
+                    <tr key={item.id} className="hover:bg-slate-50">
+                      <td className="py-3.5 px-4 font-bold text-slate-800">{item.employeeName}</td>
+                      <td className="py-3.5 px-4 font-extrabold text-[#8B72F4]">{item.date}</td>
+                      <td className="py-3.5 px-4 font-medium text-slate-700">{item.reason}</td>
+                      <td className="py-3.5 px-4">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${
+                          item.isExcused ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                        }`}>
+                          {item.isExcused ? 'Excused' : 'Unexcused'}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right">
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteAbsence(item.id)}
+                          className="p-1 rounded-lg text-slate-400 hover:text-red-600"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {absencesList.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="py-6 text-center text-slate-400 italic">No absence logs recorded.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
-              <div className="max-h-52 overflow-y-auto space-y-2 pr-1">
-                {customHolidays.length === 0 ? (
-                  <p className="text-xs text-slate-400 italic text-center py-4">No custom local holidays added yet.</p>
-                ) : (
-                  customHolidays.map(item => (
-                    <div
-                      key={item.id}
-                      className="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between gap-3 shadow-2xs"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <Tag size={14} className="text-amber-500 shrink-0" />
-                        <div>
-                          <p className="text-xs font-bold text-[#2D2638]">{item.title}</p>
-                          <div className="flex items-center gap-2 text-[10px] text-slate-500">
-                            <span className="font-extrabold text-[#8B72F4]">{item.dateStr}</span>
-                            <span>•</span>
-                            <span>{item.isRecurring ? 'Annual Holiday' : 'One-time Date'}</span>
-                          </div>
-                        </div>
-                      </div>
+        {/* VIEW 6: LEAVE (FORM 6) VIEW */}
+        {currentTab === 'leave' && (
+          <div className="clay-card p-6 space-y-6">
+            <div className="flex items-center justify-between pb-4 border-b border-[#F0E6DD]">
+              <div>
+                <h3 className="text-base font-black text-[#2D2638] font-display flex items-center gap-2">
+                  <FileSpreadsheet className="text-blue-500" size={20} />
+                  Form 6 Official Leave Records
+                </h3>
+                <p className="text-xs text-[#7A7289]">Track official Form 6 Application for Leave entries</p>
+              </div>
+              <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-800 text-xs font-bold border border-blue-200">
+                {leaveRecords.length} Approved Leaves
+              </span>
+            </div>
 
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteCustomHoliday(item.id, item.title)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer"
-                        title="Remove Holiday from Supabase"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+            {/* File Leave Form */}
+            <form onSubmit={handleAddLeave} className="p-4 rounded-2xl bg-[#FAF5F0] border border-slate-200 space-y-3">
+              <h4 className="text-xs font-black text-[#2D2638] uppercase tracking-wide">File Form 6 Leave Record</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Leave Category</label>
+                  <select
+                    value={newLeaveType}
+                    onChange={e => setNewLeaveType(e.target.value as any)}
+                    className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200"
+                  >
+                    <option value="Vacation Leave">Vacation Leave</option>
+                    <option value="Sick Leave">Sick Leave</option>
+                    <option value="Mandatory Leave">Mandatory Leave</option>
+                    <option value="Special Privilege Leave">Special Privilege Leave</option>
+                    <option value="Maternity Leave">Maternity Leave</option>
+                    <option value="Solo Parent Leave">Solo Parent Leave</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Start Date</label>
+                  <input
+                    type="date"
+                    value={newLeaveStart}
+                    onChange={e => setNewLeaveStart(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 block mb-1">End Date</label>
+                  <input
+                    type="date"
+                    value={newLeaveEnd}
+                    onChange={e => setNewLeaveEnd(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200"
+                  />
+                </div>
+
+                <div className="flex items-end">
+                  <button
+                    type="submit"
+                    className="w-full py-2 px-4 rounded-xl bg-[#8B72F4] text-white font-extrabold text-xs shadow-md cursor-pointer"
+                  >
+                    File Leave Record
+                  </button>
+                </div>
+              </div>
+            </form>
+
+            {/* Leave Records Table */}
+            <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-100 text-slate-700 font-extrabold uppercase border-b border-slate-200">
+                    <th className="py-3 px-4">Employee Name</th>
+                    <th className="py-3 px-4">Leave Type</th>
+                    <th className="py-3 px-4">Inclusive Dates</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {leaveRecords.map(item => (
+                    <tr key={item.id} className="hover:bg-slate-50">
+                      <td className="py-3.5 px-4 font-bold text-slate-800">{item.employeeName}</td>
+                      <td className="py-3.5 px-4 font-extrabold text-[#8B72F4]">{item.leaveType}</td>
+                      <td className="py-3.5 px-4 font-bold">
+                        {item.startDate} to {item.endDate}
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold">
+                          {item.status}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right">
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteLeave(item.id)}
+                          className="p-1 rounded-lg text-slate-400 hover:text-red-600"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {leaveRecords.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="py-6 text-center text-slate-400 italic">No leave records filed.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* VIEW 7: SETTINGS VIEW */}
+        {currentTab === 'settings' && (
+          <div className="clay-card p-6 space-y-6">
+            <div className="pb-4 border-b border-[#F0E6DD]">
+              <h3 className="text-base font-black text-[#2D2638] font-display flex items-center gap-2">
+                <SettingsIcon className="text-[#8B72F4]" size={20} />
+                Working Hours & DTR System Settings
+              </h3>
+              <p className="text-xs text-[#7A7289]">Set office working hours, Saturday schedule text, and non-late generator time ranges</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Working Hours Text Configurations */}
+              <div className="p-5 rounded-2xl bg-[#FAF5F0] border border-slate-200 space-y-4">
+                <h4 className="text-xs font-black text-[#2D2638] uppercase tracking-wide">Prescribed Working Hours Header Strings</h4>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Regular Days Working Hours Text</label>
+                  <input
+                    type="text"
+                    value={officialHoursText}
+                    onChange={e => setOfficialHoursText(e.target.value)}
+                    placeholder="Regular days 7:00–11:30AM / 1:00–5:00PM"
+                    className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">Printed on Civil Service Form No. 48 header</p>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Saturdays Schedule Text</label>
+                  <input
+                    type="text"
+                    value={saturdaysText}
+                    onChange={e => setSaturdaysText(e.target.value)}
+                    placeholder="e.g. 8:00–12:00NN or Leave blank"
+                    className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200"
+                  />
+                </div>
+              </div>
+
+              {/* Random Generator Minute Range Parameters */}
+              <div className="p-5 rounded-2xl bg-[#FAF5F0] border border-slate-200 space-y-4">
+                <h4 className="text-xs font-black text-[#2D2638] uppercase tracking-wide">Non-Late Random Generator Minute Ranges</h4>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">A.M. Arrival (6:xx AM)</label>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min={0}
+                        max={59}
+                        value={amArrivalRange.start}
+                        onChange={e => setAmArrivalRange({ ...amArrivalRange, start: Number(e.target.value) })}
+                        className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-white border border-slate-200"
+                      />
+                      <span className="text-xs text-slate-400">to</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={59}
+                        value={amArrivalRange.end}
+                        onChange={e => setAmArrivalRange({ ...amArrivalRange, end: Number(e.target.value) })}
+                        className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-white border border-slate-200"
+                      />
                     </div>
-                  ))
-                )}
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">A.M. Departure (11:xx AM)</label>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min={0}
+                        max={59}
+                        value={amDepartureRange.start}
+                        onChange={e => setAmDepartureRange({ ...amDepartureRange, start: Number(e.target.value) })}
+                        className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-white border border-slate-200"
+                      />
+                      <span className="text-xs text-slate-400">to</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={59}
+                        value={amDepartureRange.end}
+                        onChange={e => setAmDepartureRange({ ...amDepartureRange, end: Number(e.target.value) })}
+                        className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-white border border-slate-200"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">P.M. Arrival (12:xx PM)</label>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min={0}
+                        max={59}
+                        value={pmArrivalRange.start}
+                        onChange={e => setPmArrivalRange({ ...pmArrivalRange, start: Number(e.target.value) })}
+                        className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-white border border-slate-200"
+                      />
+                      <span className="text-xs text-slate-400">to</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={59}
+                        value={pmArrivalRange.end}
+                        onChange={e => setPmArrivalRange({ ...pmArrivalRange, end: Number(e.target.value) })}
+                        className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-white border border-slate-200"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">P.M. Departure (5:xx PM)</label>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min={0}
+                        max={59}
+                        value={pmDepartureRange.start}
+                        onChange={e => setPmDepartureRange({ ...pmDepartureRange, start: Number(e.target.value) })}
+                        className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-white border border-slate-200"
+                      />
+                      <span className="text-xs text-slate-400">to</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={59}
+                        value={pmDepartureRange.end}
+                        onChange={e => setPmDepartureRange({ ...pmDepartureRange, end: Number(e.target.value) })}
+                        className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-white border border-slate-200"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="pt-2 border-t border-slate-100 flex justify-end">
+            <div className="pt-2 flex justify-end">
               <button
                 type="button"
-                onClick={() => setIsHolidayModalOpen(false)}
-                className="px-5 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition-all cursor-pointer"
+                onClick={() => toast('Saved Working Hours & System Settings successfully!', 'success')}
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#8B72F4] to-[#795CEE] text-white font-extrabold text-xs shadow-md hover:opacity-95 transition-all flex items-center gap-2 cursor-pointer"
               >
-                Close & Re-evaluate DTR
+                <Save size={16} />
+                Save System Settings
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* PRINT AREA ONLY (Triggered on window.print()) */}
       <div className="print-area hidden">

@@ -535,7 +535,7 @@ export function SchoolConnectLayout({
 
           {/* Global School Connect Footer */}
           <footer className="border-t border-black/5 bg-[#EFF3F9] py-4 px-6 text-center text-xs text-[#64748B] no-print mt-auto rounded-b-[28px]">
-            <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+            <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-2">
               <span className="font-semibold">School Connect &copy; {new Date().getFullYear()} &bull; Concepcion District, Concepcion, Romblon</span>
               <span className="text-[11px] text-[#94A3B8] font-bold">Department of Education &bull; Division of Romblon</span>
             </div>

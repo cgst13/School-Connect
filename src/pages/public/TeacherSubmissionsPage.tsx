@@ -77,7 +77,7 @@ export function TeacherSubmissionsPage() {
   if (!teacherName || submissions.length === 0) {
     return (
       <PublicLayout>
-        <div className="w-full px-4 sm:px-8 py-12 space-y-4 max-w-5xl mx-auto">
+        <div className="w-full px-4 sm:px-8 py-12 space-y-4">
           <Link to="/" className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-white border border-purple-100 text-xs font-bold text-[#795CEE] shadow-xs hover:bg-[#F6EFFF] transition-all no-print">
             <ArrowLeft size={15} /> Back to Portal Home
           </Link>
@@ -95,7 +95,7 @@ export function TeacherSubmissionsPage() {
 
   return (
     <PublicLayout>
-      <div className="w-full px-4 sm:px-8 py-6 sm:py-8 space-y-6 max-w-7xl mx-auto animate-fade-in">
+      <div className="w-full px-4 sm:px-8 py-6 sm:py-8 space-y-6 animate-fade-in">
         {/* Header Navigation */}
         <div className="flex items-center justify-between gap-3 flex-wrap no-print">
           <Link
