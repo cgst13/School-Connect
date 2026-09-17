@@ -201,7 +201,7 @@ export function SchoolConnectLayout({
   return (
     <div className="h-dvh max-h-dvh relative bg-gradient-to-br from-[#F4EFFC] via-[#EBF3FE] to-[#FFF1F6] text-[#2D2638] flex flex-col w-full overflow-hidden font-sans">
       {/* Responsive Fixed Non-Scrollable Background Wallpaper */}
-      <picture className="fixed inset-0 w-screen h-[100dvh] min-h-[100dvh] overflow-hidden pointer-events-none z-0">
+      <picture className="fixed inset-0 w-screen h-[100dvh] min-h-[100dvh] overflow-hidden pointer-events-none z-0 no-print">
         <source media="(max-width: 768px)" srcSet="/images/bg-mobile.png" />
         <img
           src="/images/bg-desktop.png"
@@ -211,13 +211,13 @@ export function SchoolConnectLayout({
       </picture>
 
       {/* Dynamic Pastel Ambient Glow Orbs */}
-      <div className="fixed top-[-12%] left-[-8%] w-[540px] h-[540px] rounded-full bg-gradient-to-tr from-[#DDD6FE]/40 to-[#C4B5FD]/20 blur-3xl pointer-events-none animate-float-slow z-0" />
-      <div className="fixed top-[15%] right-[-8%] w-[580px] h-[580px] rounded-full bg-gradient-to-br from-[#BAE6FD]/40 to-[#93C5FD]/20 blur-3xl pointer-events-none animate-float-reverse z-0" />
-      <div className="fixed bottom-[-10%] left-[10%] w-[480px] h-[480px] rounded-full bg-gradient-to-tr from-[#A7F3D0]/30 to-[#6EE7B7]/20 blur-3xl pointer-events-none z-0" />
+      <div className="fixed top-[-12%] left-[-8%] w-[540px] h-[540px] rounded-full bg-gradient-to-tr from-[#DDD6FE]/40 to-[#C4B5FD]/20 blur-3xl pointer-events-none animate-float-slow z-0 no-print" />
+      <div className="fixed top-[15%] right-[-8%] w-[580px] h-[580px] rounded-full bg-gradient-to-br from-[#BAE6FD]/40 to-[#93C5FD]/20 blur-3xl pointer-events-none animate-float-reverse z-0 no-print" />
+      <div className="fixed bottom-[-10%] left-[10%] w-[480px] h-[480px] rounded-full bg-gradient-to-tr from-[#A7F3D0]/30 to-[#6EE7B7]/20 blur-3xl pointer-events-none z-0 no-print" />
 
       {/* Subtle Micro-Grid Texture Overlay */}
       <div 
-        className="fixed inset-0 w-screen h-[100dvh] opacity-[0.035] pointer-events-none z-0" 
+        className="fixed inset-0 w-screen h-[100dvh] opacity-[0.035] pointer-events-none z-0 no-print" 
         style={{ backgroundImage: `radial-gradient(#475569 1px, transparent 1px)`, backgroundSize: '28px 28px' }} 
       />
 
@@ -393,7 +393,7 @@ export function SchoolConnectLayout({
           <>
             {/* Desktop Sidebar */}
             <aside
-              className={`hidden lg:flex flex-col flex-shrink-0 bg-[#EFE6FA] rounded-[32px] border border-white/80 h-full transition-all duration-300 z-30 shadow-[0_14px_30px_rgba(185,170,210,0.18)] ${
+              className={`hidden lg:flex flex-col flex-shrink-0 bg-[#EFE6FA] rounded-[32px] border border-white/80 h-full transition-all duration-300 z-30 shadow-[0_14px_30px_rgba(185,170,210,0.18)] no-print ${
                 isCollapsed ? 'w-20 p-3' : 'w-64 p-5'
               }`}
             >

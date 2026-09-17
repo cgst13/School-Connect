@@ -853,46 +853,69 @@ export function DTRGeneratorPage() {
         @media print {
           @page {
             size: letter portrait;
-            margin: 8mm;
+            margin: 6mm;
           }
-          body {
+          html, body, #root, main {
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
+            overflow: visible !important;
+            margin: 0 !important;
+            padding: 0 !important;
             background: white !important;
             color: black !important;
             font-family: "Times New Roman", Times, serif !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
-          /* Hide Web UI chrome */
-          nav, header, footer, .no-print, .clay-card, button, input, select {
+          /* Hide Web UI chrome & non-printable elements */
+          nav, header, footer, aside, picture, .no-print, .clay-card, button, input, select {
             display: none !important;
           }
-          .print-area {
+          /* Force display of .print-area overriding Tailwind hidden */
+          .print-area, div.print-area, .print-area.hidden {
             display: block !important;
+            visibility: visible !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
             width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
+            background: white !important;
+            z-index: 99999 !important;
           }
           .dtr-dual-container {
             display: flex !important;
             flex-direction: row !important;
             justify-content: space-between !important;
             align-items: flex-start !important;
-            gap: 12px !important;
+            gap: 10px !important;
             width: 100% !important;
+            background: white !important;
+            color: black !important;
           }
           .dtr-card-single {
             width: 48.5% !important;
             border: 1.5px solid black !important;
-            padding: 8px 10px !important;
+            padding: 6px 8px !important;
             box-sizing: border-box !important;
             font-size: 8.5pt !important;
             line-height: 1.15 !important;
+            background: white !important;
+            color: black !important;
+          }
+          .dtr-table {
+            width: 100% !important;
+            border-collapse: collapse !important;
           }
           .dtr-table th, .dtr-table td {
             border: 1px solid black !important;
             text-align: center !important;
-            padding: 1.5px 2px !important;
-            font-size: 8pt !important;
+            padding: 1px 2px !important;
+            font-size: 7.8pt !important;
+            color: black !important;
+            background: white !important;
           }
           .dtr-table th {
             font-weight: bold !important;
