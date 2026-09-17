@@ -568,8 +568,8 @@ export function SubmissionsPage() {
                 <div>
                   <label className="form-label text-xs">School</label>
                   <select className="form-select text-sm" value={filters.school_id || ''} onChange={e => setFilter('school_id', e.target.value)}>
-                    <option value="">All</option>
-                    {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    <option value="">All Schools</option>
+                    {permittedSchools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                 </div>
                 <div>
@@ -804,8 +804,8 @@ export function SubmissionsPage() {
                     value={statusSchoolId}
                     onChange={e => setStatusSchoolId(e.target.value)}
                   >
-                    <option value="">All Schools ({schools.length})</option>
-                    {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    <option value="">All Schools ({permittedSchools.length})</option>
+                    {permittedSchools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                 </div>
 

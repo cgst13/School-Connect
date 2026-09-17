@@ -62,14 +62,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
   }
 
-  // Returns true if user has global unrestricted access across ALL schools (superadmin, psds, or admin/AO2 without school restrictions)
+  // Returns true if user has global unrestricted access across ALL schools (superadmin, admin, psds, or user without assigned school restrictions)
   const hasFullAccess = () => {
     if (!admin) return true // Default fallback for unauthenticated / demo
-    if (admin.role === 'superadmin' || admin.role === 'psds') return true
-    if ((admin.role === 'admin' || (admin.role === 'ao_2' && !!admin.district_name)) && (!admin.assigned_school_ids || admin.assigned_school_ids.length === 0)) {
+    if (admin.role === 'superadmin' || admin.role === 'admin' || admin.role === 'psds') return true
+    if (!admin.assigned_school_ids || admin.assigned_school_ids.length === 0) {
       return true
     }
-    return !admin.assigned_school_ids || admin.assigned_school_ids.length === 0
+    return false
   }
 
   const getPermittedSchoolIds = (allSchoolIds: string[] = []) => {

@@ -8,8 +8,8 @@
     "build": "tsc && vite build",
     "postbuild": "node -e \"import('node:fs').then(fs => fs.copyFileSync('dist/index.html', 'dist/404.html'))\"",
     "preview": "vite preview",
-    "type-check": "tsc --noEmit",
-    "deploy": "npm run build && gh-pages -d dist --dotfiles -u \"cgst13 <cgst13@users.noreply.github.com>\""
+    "predeploy": "npx gh-pages-clean",
+    "deploy": "npm run predeploy && npm run build && gh-pages -d dist --dotfiles -u \"cgst13 <cgst13@users.noreply.github.com>\""
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
