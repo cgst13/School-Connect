@@ -279,7 +279,7 @@ export function FacultyStaffPage() {
         finalSchoolIds = schools.map(s => s.id)
         finalDistrictName = 'Concepcion District'
       } else if (role === 'admin' || role === 'superadmin') {
-        finalSchoolIds = []
+        finalSchoolIds = assignedSchoolIds.length > 0 ? assignedSchoolIds : (editingStaff?.assigned_school_ids || [])
       }
 
       const payload: Partial<AdminProfile> = {

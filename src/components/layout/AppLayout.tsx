@@ -121,6 +121,10 @@ export function AppLayout({
         role: admin.role,
         is_active: admin.is_active,
         avatar_url: settingsAvatarUrl,
+        assigned_school_ids: admin.assigned_school_ids,
+        assigned_grade_ids: admin.assigned_grade_ids,
+        teacher_category: admin.teacher_category,
+        district_name: admin.district_name,
         updated_at: new Date().toISOString()
       }
 

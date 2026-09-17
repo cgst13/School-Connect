@@ -859,19 +859,48 @@ export async function authenticateWithUserTable(email: string, password: string)
 }
 
 export async function upsertStaffProfile(profile: Partial<AdminProfile>): Promise<AdminProfile> {
+  let existing: AdminProfile | null = null
+  if (profile.id) {
+    try {
+      existing = await fetchAdminProfile(profile.id)
+    } catch {
+      existing = null
+    }
+  }
+
+  const assignedSchoolIds = profile.assigned_school_ids !== undefined
+    ? profile.assigned_school_ids
+    : (existing?.assigned_school_ids || [])
+
+  const assignedGradeIds = profile.assigned_grade_ids !== undefined
+    ? profile.assigned_grade_ids
+    : (existing?.assigned_grade_ids || [])
+
+  const teacherCategory = profile.teacher_category !== undefined
+    ? profile.teacher_category
+    : existing?.teacher_category
+
+  const districtName = profile.district_name !== undefined
+    ? profile.district_name
+    : (existing?.district_name || (profile.role === 'psds' ? 'Concepcion District' : undefined))
+
+  const avatarUrl = profile.avatar_url !== undefined
+    ? profile.avatar_url
+    : existing?.avatar_url
+
   const newProfile: AdminProfile = {
     id: profile.id || crypto.randomUUID(),
-    email: (profile.email || '').trim().toLowerCase(),
-    password: profile.password || 'password123',
-    full_name: profile.full_name || '',
-    role: profile.role || 'teacher',
-    is_active: profile.is_active ?? true,
-    avatar_url: profile.avatar_url,
-    teacher_category: profile.teacher_category,
-    assigned_school_ids: profile.assigned_school_ids || [],
-    assigned_grade_ids: profile.assigned_grade_ids || [],
-    district_name: profile.district_name || (profile.role === 'psds' ? 'Concepcion District' : undefined),
-    created_at: profile.created_at || new Date().toISOString(),
+    email: (profile.email || existing?.email || '').trim().toLowerCase(),
+    password: profile.password || existing?.password || 'password123',
+    full_name: profile.full_name || existing?.full_name || '',
+    role: profile.role || existing?.role || 'teacher',
+    is_active: profile.is_active ?? existing?.is_active ?? true,
+    avatar_url: avatarUrl,
+    teacher_category: teacherCategory,
+    assigned_school_ids: assignedSchoolIds,
+    assigned_grade_ids: assignedGradeIds,
+    district_name: districtName,
+    created_at: profile.created_at || existing?.created_at || new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }
 
