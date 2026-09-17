@@ -40,9 +40,21 @@ import {
   PartyPopper,
   CalendarPlus,
   Tag,
-  Plus
+  Plus,
+  Database,
+  Loader2
 } from 'lucide-react'
-import { fetchAllAdmins, fetchSchools } from '@/lib/supabase/queries'
+import {
+  fetchAllAdmins,
+  fetchSchools,
+  fetchDTRRecordsSupabase,
+  saveDTRRecordSupabase,
+  updateDTRRecordSupabase,
+  deleteDTRRecordSupabase,
+  fetchDTRCustomHolidaysSupabase,
+  saveDTRCustomHolidaySupabase,
+  deleteDTRCustomHolidaySupabase
+} from '@/lib/supabase/queries'
 
 export interface DTRDayEntry {
   dayNumber: number
@@ -104,10 +116,6 @@ const STANDARD_PH_HOLIDAYS: Record<string, string> = {
   '12-31': 'HOLIDAY (Last Day of the Year)'
 }
 
-const DTR_STORAGE_KEY = 'schoolconnect_dtr_config_v1'
-const DTR_HISTORY_KEY = 'schoolconnect_dtr_history_v2'
-const DTR_CUSTOM_HOLIDAYS_KEY = 'schoolconnect_dtr_custom_holidays_v1'
-
 export function DTRGeneratorPage() {
   const { admin } = useAuth()
   const { toast } = useToast()
@@ -117,6 +125,10 @@ export function DTRGeneratorPage() {
 
   // Local Holidays Modal State
   const [isHolidayModalOpen, setIsHolidayModalOpen] = useState<boolean>(false)
+
+  // Supabase Loading & Saving States
+  const [isLoadingSupabase, setIsLoadingSupabase] = useState<boolean>(true)
+  const [isSavingDb, setIsSavingDb] = useState<boolean>(false)
 
   // Form State
   const [employeeName, setEmployeeName] = useState<string>(() => {
@@ -149,30 +161,16 @@ export function DTRGeneratorPage() {
   >([])
   const [selectedProxyStaffId, setSelectedProxyStaffId] = useState<string>('')
 
-  // History Records State
-  const [savedRecords, setSavedRecords] = useState<SavedDTRRecord[]>(() => {
-    try {
-      const raw = localStorage.getItem(DTR_HISTORY_KEY)
-      return raw ? JSON.parse(raw) : []
-    } catch {
-      return []
-    }
-  })
+  // History Records State (Synced to Supabase)
+  const [savedRecords, setSavedRecords] = useState<SavedDTRRecord[]>([])
   const [activeRecordId, setActiveRecordId] = useState<string | null>(null)
   const [historySearch, setHistorySearch] = useState<string>('')
 
-  // Custom Local Holidays State
-  const [customHolidays, setCustomHolidays] = useState<CustomHolidayItem[]>(() => {
-    try {
-      const raw = localStorage.getItem(DTR_CUSTOM_HOLIDAYS_KEY)
-      if (raw) return JSON.parse(raw)
-    } catch {}
-    // Default Romblon & District Local Holidays
-    return [
-      { id: 'hol_1', dateStr: '03-18', title: 'Romblon Liberation Day', isRecurring: true },
-      { id: 'hol_2', dateStr: '01-16', title: 'Concepcion District Day', isRecurring: true }
-    ]
-  })
+  // Custom Local Holidays State (Synced to Supabase)
+  const [customHolidays, setCustomHolidays] = useState<CustomHolidayItem[]>([
+    { id: 'hol_1', dateStr: '03-18', title: 'Romblon Liberation Day', isRecurring: true },
+    { id: 'hol_2', dateStr: '01-16', title: 'Concepcion District Day', isRecurring: true }
+  ])
 
   // New Custom Holiday Input Form State
   const [newHolidayMonth, setNewHolidayMonth] = useState<number>(new Date().getMonth() + 1)
@@ -181,32 +179,48 @@ export function DTRGeneratorPage() {
   const [newHolidayTitle, setNewHolidayTitle] = useState<string>('')
   const [newHolidayIsRecurring, setNewHolidayIsRecurring] = useState<boolean>(true)
 
-  // Save custom holidays to localStorage
+  // Load DTR Records & Custom Holidays directly from Supabase Database on mount
   useEffect(() => {
-    try {
-      localStorage.setItem(DTR_CUSTOM_HOLIDAYS_KEY, JSON.stringify(customHolidays))
-    } catch {}
-  }, [customHolidays])
+    let isMounted = true
+    setIsLoadingSupabase(true)
 
-  // Computed Combined Holiday Lookup Map (National + Custom Local)
-  const combinedHolidaysMap = useMemo(() => {
-    const map: Record<string, string> = { ...STANDARD_PH_HOLIDAYS }
+    Promise.all([
+      fetchDTRRecordsSupabase(),
+      fetchDTRCustomHolidaysSupabase(),
+      fetchAllAdmins(),
+      fetchSchools()
+    ]).then(([recordsData, holidaysData, admins, schools]) => {
+      if (!isMounted) return
 
-    for (const h of customHolidays) {
-      const formattedTitle = h.title.toUpperCase().startsWith('HOLIDAY')
-        ? h.title
-        : `HOLIDAY (${h.title})`
+      // 1. Map Supabase DTR records
+      if (recordsData && recordsData.length > 0) {
+        const mapped: SavedDTRRecord[] = recordsData.map((r: any) => ({
+          id: r.id,
+          employeeName: r.employee_name,
+          role: r.role,
+          month: r.month,
+          year: r.year,
+          officialHoursText: r.official_hours_text || 'Regular days 7:00–11:30AM / 1:00–5:00PM',
+          schoolHeadName: r.school_head_name || '',
+          entries: r.entries || [],
+          createdAt: r.created_at,
+          updatedAt: r.updated_at
+        }))
+        setSavedRecords(mapped)
+      }
 
-      map[h.dateStr] = formattedTitle
-    }
+      // 2. Map Supabase Custom Holidays
+      if (holidaysData && holidaysData.length > 0) {
+        const mappedHolidays: CustomHolidayItem[] = holidaysData.map((h: any) => ({
+          id: h.id,
+          dateStr: h.date_str,
+          title: h.title,
+          isRecurring: h.is_recurring
+        }))
+        setCustomHolidays(mappedHolidays)
+      }
 
-    return map
-  }, [customHolidays])
-
-  // Load School Heads & Staff Profiles from Supabase database
-  useEffect(() => {
-    Promise.all([fetchAllAdmins(), fetchSchools()]).then(([admins, schools]) => {
-      // 1. School Head options for signatory
+      // 3. School Head options for signatory
       const heads = admins
         .filter(a => a.role === 'school_head' || (a.role === 'admin' && a.assigned_school_ids && a.assigned_school_ids.length > 0))
         .map(h => {
@@ -225,7 +239,7 @@ export function DTRGeneratorPage() {
         setSchoolHeadName(prev => prev || heads[0].name)
       }
 
-      // 2. All Staff Profiles for Proxy Generation
+      // 4. All Staff Profiles for Proxy Generation
       const staffList = admins.map(a => {
         const sNames = schools
           .filter(s => a.assigned_school_ids?.includes(s.id))
@@ -254,8 +268,29 @@ export function DTRGeneratorPage() {
         }
       })
       setAllStaffProfiles(staffList)
-    }).catch(() => {})
+    }).catch(err => {
+      console.warn('Error fetching Supabase DTR data:', err)
+    }).finally(() => {
+      if (isMounted) setIsLoadingSupabase(false)
+    })
+
+    return () => { isMounted = false }
   }, [])
+
+  // Computed Combined Holiday Lookup Map (National + Custom Local)
+  const combinedHolidaysMap = useMemo(() => {
+    const map: Record<string, string> = { ...STANDARD_PH_HOLIDAYS }
+
+    for (const h of customHolidays) {
+      const formattedTitle = h.title.toUpperCase().startsWith('HOLIDAY')
+        ? h.title
+        : `HOLIDAY (${h.title})`
+
+      map[h.dateStr] = formattedTitle
+    }
+
+    return map
+  }, [customHolidays])
 
   // Auto-derive Signatory Name & Title based on official DepEd governance rules:
   // - Teacher & AO II -> Signatory is the School Head / Principal
@@ -283,27 +318,6 @@ export function DTRGeneratorPage() {
   const [entries, setEntries] = useState<DTRDayEntry[]>([])
   // DEFAULT TAB VIEW SET TO 'preview' AS REQUESTED
   const [activeTab, setActiveTab] = useState<'editor' | 'preview'>('preview')
-
-  // Load persistent config
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(DTR_STORAGE_KEY)
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        if (parsed.employeeName) setEmployeeName(parsed.employeeName)
-        if (parsed.dtrTargetRole) setDtrTargetRole(parsed.dtrTargetRole)
-        if (parsed.schoolHeadName) setSchoolHeadName(parsed.schoolHeadName)
-        if (parsed.officialHoursText) setOfficialHoursText(parsed.officialHoursText)
-      }
-    } catch {}
-  }, [])
-
-  // Save history to localStorage whenever savedRecords changes
-  useEffect(() => {
-    try {
-      localStorage.setItem(DTR_HISTORY_KEY, JSON.stringify(savedRecords))
-    } catch {}
-  }, [savedRecords])
 
   // Initialize or generate DTR table entries whenever Month, Year, or Custom Holidays change
   const buildInitialDays = (year: number, month: number): DTRDayEntry[] => {
@@ -442,8 +456,8 @@ export function DTRGeneratorPage() {
     })
   }
 
-  // Add a new Custom Local Holiday
-  const handleAddCustomHoliday = (e: React.FormEvent) => {
+  // Add a new Custom Local Holiday directly to Supabase Database
+  const handleAddCustomHoliday = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newHolidayTitle.trim()) {
       toast('Please enter a holiday title.', 'error')
@@ -458,22 +472,38 @@ export function DTRGeneratorPage() {
       dateStr = `${newHolidayYear}-${mm}-${dd}` // Specific year
     }
 
-    const item: CustomHolidayItem = {
-      id: `hol_${Date.now()}`,
-      dateStr,
-      title: newHolidayTitle.trim(),
-      isRecurring: newHolidayIsRecurring
-    }
+    try {
+      const saved = await saveDTRCustomHolidaySupabase({
+        created_by_user_id: admin?.id,
+        date_str: dateStr,
+        title: newHolidayTitle.trim(),
+        is_recurring: newHolidayIsRecurring
+      })
 
-    setCustomHolidays(prev => [...prev, item])
-    setNewHolidayTitle('')
-    toast(`Added local holiday "${item.title}" (${dateStr})`, 'success')
+      const item: CustomHolidayItem = {
+        id: saved?.id || `hol_${Date.now()}`,
+        dateStr,
+        title: newHolidayTitle.trim(),
+        isRecurring: newHolidayIsRecurring
+      }
+
+      setCustomHolidays(prev => [...prev, item])
+      setNewHolidayTitle('')
+      toast(`Added local holiday "${item.title}" to Supabase (${dateStr})`, 'success')
+    } catch (err: any) {
+      toast('Failed to save custom holiday: ' + (err.message || 'Supabase Error'), 'error')
+    }
   }
 
-  // Delete Custom Holiday
-  const handleDeleteCustomHoliday = (id: string, title: string) => {
-    setCustomHolidays(prev => prev.filter(h => h.id !== id))
-    toast(`Removed local holiday "${title}"`, 'info')
+  // Delete Custom Holiday from Supabase
+  const handleDeleteCustomHoliday = async (id: string, title: string) => {
+    try {
+      await deleteDTRCustomHolidaySupabase(id)
+      setCustomHolidays(prev => prev.filter(h => h.id !== id))
+      toast(`Removed local holiday "${title}" from Supabase database.`, 'info')
+    } catch (err: any) {
+      toast('Failed to delete holiday from Supabase: ' + (err.message || 'Error'), 'error')
+    }
   }
 
   // Reset times for current month
@@ -484,57 +514,87 @@ export function DTRGeneratorPage() {
     toast('DTR table reset to blank template.', 'info')
   }
 
-  // Save Current DTR to History
-  const handleSaveToHistory = () => {
+  // Save Current DTR directly to Supabase Database
+  const handleSaveToHistory = async () => {
     if (!employeeName.trim()) {
       toast('Please provide employee name before saving.', 'error')
       return
     }
 
+    setIsSavingDb(true)
     const nowIso = new Date().toISOString()
 
-    if (activeRecordId) {
-      // Update existing record
-      setSavedRecords(prev =>
-        prev.map(r => {
-          if (r.id === activeRecordId) {
-            return {
-              ...r,
-              employeeName: employeeName.toUpperCase(),
-              role: dtrTargetRole,
-              month: selectedMonth,
-              year: selectedYear,
-              officialHoursText,
-              schoolHeadName,
-              entries,
-              updatedAt: nowIso
-            }
-          }
-          return r
+    try {
+      if (activeRecordId && !activeRecordId.startsWith('dtr_local_')) {
+        // Update existing record in Supabase
+        await updateDTRRecordSupabase(activeRecordId, {
+          employee_name: employeeName.toUpperCase(),
+          role: dtrTargetRole,
+          month: selectedMonth,
+          year: selectedYear,
+          official_hours_text: officialHoursText,
+          school_head_name: schoolHeadName,
+          entries
         })
-      )
-      toast(`Updated DTR record for ${employeeName.toUpperCase()} (${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}).`, 'success')
-    } else {
-      // Create new record
-      const newRecord: SavedDTRRecord = {
-        id: `dtr_${Date.now()}`,
-        employeeName: employeeName.toUpperCase(),
-        role: dtrTargetRole,
-        month: selectedMonth,
-        year: selectedYear,
-        officialHoursText,
-        schoolHeadName,
-        entries,
-        createdAt: nowIso,
-        updatedAt: nowIso
+
+        setSavedRecords(prev =>
+          prev.map(r => {
+            if (r.id === activeRecordId) {
+              return {
+                ...r,
+                employeeName: employeeName.toUpperCase(),
+                role: dtrTargetRole,
+                month: selectedMonth,
+                year: selectedYear,
+                officialHoursText,
+                schoolHeadName,
+                entries,
+                updatedAt: nowIso
+              }
+            }
+            return r
+          })
+        )
+        toast(`Updated DTR record for ${employeeName.toUpperCase()} in Supabase database.`, 'success')
+      } else {
+        // Create new record in Supabase
+        const savedDb = await saveDTRRecordSupabase({
+          created_by_user_id: admin?.id,
+          employee_name: employeeName.toUpperCase(),
+          role: dtrTargetRole,
+          month: selectedMonth,
+          year: selectedYear,
+          official_hours_text: officialHoursText,
+          school_head_name: schoolHeadName,
+          entries
+        })
+
+        const newRecord: SavedDTRRecord = {
+          id: savedDb?.id || `dtr_${Date.now()}`,
+          employeeName: employeeName.toUpperCase(),
+          role: dtrTargetRole,
+          month: selectedMonth,
+          year: selectedYear,
+          officialHoursText,
+          schoolHeadName,
+          entries,
+          createdAt: savedDb?.created_at || nowIso,
+          updatedAt: savedDb?.updated_at || nowIso
+        }
+
+        setSavedRecords(prev => [newRecord, ...prev])
+        setActiveRecordId(newRecord.id)
+        toast(`Saved DTR for ${employeeName.toUpperCase()} directly to Supabase database!`, 'success')
       }
-      setSavedRecords(prev => [newRecord, ...prev])
-      setActiveRecordId(newRecord.id)
-      toast(`Saved new DTR for ${employeeName.toUpperCase()} (${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}) to History!`, 'success')
+    } catch (err: any) {
+      console.error('Supabase save error:', err)
+      toast('Failed to save to Supabase: ' + (err.message || 'Network error'), 'error')
+    } finally {
+      setIsSavingDb(false)
     }
   }
 
-  // Load Record from History
+  // Load Record from Supabase History
   const handleLoadRecord = (record: SavedDTRRecord) => {
     setEmployeeName(record.employeeName)
     setDtrTargetRole(record.role)
@@ -544,15 +604,20 @@ export function DTRGeneratorPage() {
     if (record.schoolHeadName) setSchoolHeadName(record.schoolHeadName)
     setEntries(record.entries)
     setActiveRecordId(record.id)
-    toast(`Loaded DTR history record for ${record.employeeName} (${MONTH_NAMES[record.month - 1]} ${record.year}).`, 'info')
+    toast(`Loaded DTR record for ${record.employeeName} (${MONTH_NAMES[record.month - 1]} ${record.year}) from Supabase.`, 'info')
   }
 
-  // Delete Record from History
-  const handleDeleteRecord = (id: string, name: string) => {
-    if (confirm(`Are you sure you want to delete DTR history record for "${name}"?`)) {
-      setSavedRecords(prev => prev.filter(r => r.id !== id))
-      if (activeRecordId === id) setActiveRecordId(null)
-      toast(`Deleted DTR record for ${name}.`, 'info')
+  // Delete Record from Supabase Database
+  const handleDeleteRecord = async (id: string, name: string) => {
+    if (confirm(`Are you sure you want to delete DTR record for "${name}" from Supabase database?`)) {
+      try {
+        await deleteDTRRecordSupabase(id)
+        setSavedRecords(prev => prev.filter(r => r.id !== id))
+        if (activeRecordId === id) setActiveRecordId(null)
+        toast(`Deleted DTR record for ${name} from Supabase.`, 'info')
+      } catch (err: any) {
+        toast('Failed to delete from Supabase: ' + (err.message || 'Database error'), 'error')
+      }
     }
   }
 
@@ -694,13 +759,13 @@ export function DTRGeneratorPage() {
             <div className="space-y-2">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-white border border-white/30 text-xs font-bold backdrop-blur-md shadow-xs">
                 <Clock size={14} className="text-amber-300" />
-                Civil Service Form No. 48 System
+                Civil Service Form No. 48 System • Supabase Cloud Synced
               </div>
               <h1 className="text-2xl sm:text-3xl font-black tracking-tight font-display">
                 Daily Time Record (DTR) Generator
               </h1>
               <p className="text-xs sm:text-sm text-white/90 max-w-2xl leading-relaxed font-medium">
-                Generate official non-late Civil Service Form No. 48 Daily Time Records, manage history, custom local holidays, and proxy DTRs with 2-in-1 printable layout.
+                Generate official non-late Civil Service Form No. 48 Daily Time Records, manage Supabase synced history, local holidays, and proxy DTRs with 2-in-1 printable layout.
               </p>
             </div>
 
@@ -790,7 +855,7 @@ export function DTRGeneratorPage() {
                 </div>
               </div>
 
-              {/* SECTION 2: SAVED DTR HISTORY */}
+              {/* SECTION 2: SAVED DTR HISTORY (SUPABASE SYNCED) */}
               <div className="clay-card p-5 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
@@ -798,10 +863,14 @@ export function DTRGeneratorPage() {
                       <FolderOpen size={16} />
                     </div>
                     <div>
-                      <h3 className="text-xs font-black text-[#2D2638] font-display uppercase tracking-wider">
+                      <h3 className="text-xs font-black text-[#2D2638] font-display uppercase tracking-wider flex items-center gap-1.5">
                         DTR History
+                        <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-extrabold">
+                          <Database size={10} />
+                          Supabase
+                        </span>
                       </h3>
-                      <p className="text-[11px] text-[#7A7289] font-medium">{savedRecords.length} Saved Records</p>
+                      <p className="text-[11px] text-[#7A7289] font-medium">{savedRecords.length} Saved Database Records</p>
                     </div>
                   </div>
 
@@ -837,11 +906,16 @@ export function DTRGeneratorPage() {
 
                 {/* History Cards List */}
                 <div className="space-y-2.5 max-h-[520px] overflow-y-auto pr-1">
-                  {filteredHistory.length === 0 ? (
+                  {isLoadingSupabase ? (
+                    <div className="p-6 text-center text-slate-400 font-bold text-xs space-y-2">
+                      <Loader2 size={24} className="animate-spin mx-auto text-[#8B72F4]" />
+                      <p>Loading records from Supabase...</p>
+                    </div>
+                  ) : filteredHistory.length === 0 ? (
                     <div className="p-6 text-center bg-[#FAF5F0] rounded-2xl border border-dashed border-slate-300">
                       <FileText size={28} className="mx-auto text-slate-300 mb-2" />
                       <p className="text-xs font-bold text-slate-600">No DTR history records found</p>
-                      <p className="text-[10px] text-slate-400 mt-1">Generate and click "Save to History" to archive DTRs</p>
+                      <p className="text-[10px] text-slate-400 mt-1">Generate and click "Save to Supabase" to archive DTRs</p>
                     </div>
                   ) : (
                     filteredHistory.map(record => {
@@ -899,7 +973,7 @@ export function DTRGeneratorPage() {
                                 type="button"
                                 onClick={() => handleDeleteRecord(record.id, record.employeeName)}
                                 className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer"
-                                title="Delete Record"
+                                title="Delete Record from Supabase"
                               >
                                 <Trash2 size={12} />
                               </button>
@@ -928,7 +1002,7 @@ export function DTRGeneratorPage() {
                       DTR Configuration & Parameters
                       {activeRecordId && (
                         <span className="ml-2 px-2.5 py-0.5 rounded-full bg-[#8B72F4] text-white text-[10px] font-bold uppercase tracking-wider">
-                          Editing Saved History Record
+                          Editing Supabase Record
                         </span>
                       )}
                     </h3>
@@ -1091,11 +1165,12 @@ export function DTRGeneratorPage() {
                   <button
                     type="button"
                     onClick={handleSaveToHistory}
-                    className="py-2.5 px-3.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                    title="Save current DTR to History"
+                    disabled={isSavingDb}
+                    className="py-2.5 px-3.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    title="Save current DTR to Supabase Database"
                   >
-                    <Save size={16} />
-                    <span>{activeRecordId ? 'Update' : 'Save'}</span>
+                    {isSavingDb ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    <span>{activeRecordId ? 'Update Supabase' : 'Save to Supabase'}</span>
                   </button>
 
                   <button
@@ -1344,8 +1419,11 @@ export function DTRGeneratorPage() {
                   <PartyPopper size={20} />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-[#2D2638] font-display">
-                    Local & Custom Holidays Manager
+                  <h3 className="text-base font-black text-[#2D2638] font-display flex items-center gap-1.5">
+                    Local & Custom Holidays
+                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-black">
+                      Supabase DB
+                    </span>
                   </h3>
                   <p className="text-xs text-[#7A7289] font-medium">
                     Add district/town fiestas or local non-working days
@@ -1425,7 +1503,7 @@ export function DTRGeneratorPage() {
                   className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#8B72F4] to-[#795CEE] text-white font-extrabold text-xs shadow-sm hover:opacity-95 transition-all flex items-center gap-1.5 cursor-pointer"
                 >
                   <Plus size={14} />
-                  Add Holiday
+                  Save to DB
                 </button>
               </div>
             </form>
@@ -1461,7 +1539,7 @@ export function DTRGeneratorPage() {
                         type="button"
                         onClick={() => handleDeleteCustomHoliday(item.id, item.title)}
                         className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer"
-                        title="Remove Holiday"
+                        title="Remove Holiday from Supabase"
                       >
                         <Trash2 size={14} />
                       </button>

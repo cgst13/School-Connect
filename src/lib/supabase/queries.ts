@@ -1767,3 +1767,117 @@ export async function deleteUserNote(id: string, userId?: string): Promise<void>
 
 
 
+// ============================================================
+// CIVIL SERVICE FORM NO. 48 DTR SUPABASE API QUERIES
+// ============================================================
+
+export async function fetchDTRRecordsSupabase(): Promise<any[]> {
+  try {
+    const { data, error } = await supabase
+      .from('sc_dtr_records')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (error) throw error
+    return data || []
+  } catch (err) {
+    console.warn('Supabase fetch DTR records warning:', err)
+    return []
+  }
+}
+
+export async function saveDTRRecordSupabase(record: {
+  created_by_user_id?: string
+  employee_name: string
+  role: string
+  month: number
+  year: number
+  official_hours_text?: string
+  school_head_name?: string
+  entries: any[]
+}): Promise<any> {
+  const { data, error } = await supabase
+    .from('sc_dtr_records')
+    .insert({
+      created_by_user_id: record.created_by_user_id || null,
+      employee_name: record.employee_name,
+      role: record.role,
+      month: record.month,
+      year: record.year,
+      official_hours_text: record.official_hours_text,
+      school_head_name: record.school_head_name,
+      entries: record.entries
+    })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function updateDTRRecordSupabase(id: string, updates: Partial<{
+  employee_name: string
+  role: string
+  month: number
+  year: number
+  official_hours_text: string
+  school_head_name: string
+  entries: any[]
+}>): Promise<void> {
+  const { error } = await supabase
+    .from('sc_dtr_records')
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteDTRRecordSupabase(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('sc_dtr_records')
+    .delete()
+    .eq('id', id)
+  if (error) throw error
+}
+
+export async function fetchDTRCustomHolidaysSupabase(): Promise<any[]> {
+  try {
+    const { data, error } = await supabase
+      .from('sc_dtr_custom_holidays')
+      .select('*')
+      .order('created_at', { ascending: true })
+    if (error) throw error
+    return data || []
+  } catch (err) {
+    console.warn('Supabase fetch DTR custom holidays warning:', err)
+    return []
+  }
+}
+
+export async function saveDTRCustomHolidaySupabase(holiday: {
+  created_by_user_id?: string
+  date_str: string
+  title: string
+  is_recurring: boolean
+}): Promise<any> {
+  const { data, error } = await supabase
+    .from('sc_dtr_custom_holidays')
+    .insert({
+      created_by_user_id: holiday.created_by_user_id || null,
+      date_str: holiday.date_str,
+      title: holiday.title,
+      is_recurring: holiday.is_recurring
+    })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function deleteDTRCustomHolidaySupabase(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('sc_dtr_custom_holidays')
+    .delete()
+    .eq('id', id)
+  if (error) throw error
+}

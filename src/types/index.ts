@@ -392,5 +392,37 @@ export interface CloudFileItem {
   tags?: string[];
   notes?: string;
 }
+// ---- CIVIL SERVICE FORM NO. 48 DTR DATA ----
 
+export interface DTRRecord {
+  id: string;
+  created_by_user_id?: string;
+  employee_name: string;
+  role: 'teacher' | 'ao_2' | 'school_head' | 'psds';
+  month: number;
+  year: number;
+  official_hours_text?: string;
+  school_head_name?: string;
+  entries: any[];
+  created_at?: string;
+  updated_at?: string;
+}
 
+export interface DTRCustomHoliday {
+  id: string;
+  created_by_user_id?: string;
+  date_str: string; // "MM-DD" or "YYYY-MM-DD"
+  title: string;
+  is_recurring: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface DTRUserConfig {
+  user_id: string;
+  employee_name?: string;
+  dtr_target_role?: string;
+  school_head_name?: string;
+  official_hours_text?: string;
+  updated_at?: string;
+}
