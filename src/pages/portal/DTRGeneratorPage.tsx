@@ -23,7 +23,20 @@ import {
   Sun,
   Moon,
   Award,
-  ShieldCheck
+  ShieldCheck,
+  Users,
+  Trash2,
+  PlusCircle,
+  Search,
+  PanelLeftClose,
+  PanelLeftOpen,
+  FolderOpen,
+  UserCheck,
+  Eye,
+  Check,
+  ChevronRight,
+  X,
+  UserPlus
 } from 'lucide-react'
 import { fetchAllAdmins, fetchSchools } from '@/lib/supabase/queries'
 
@@ -43,6 +56,19 @@ export interface DTRDayEntry {
   pmDeparture: string
   undertimeHours: string
   undertimeMinutes: string
+}
+
+export interface SavedDTRRecord {
+  id: string
+  employeeName: string
+  role: 'teacher' | 'ao_2' | 'school_head' | 'psds'
+  month: number
+  year: number
+  officialHoursText: string
+  schoolHeadName: string
+  entries: DTRDayEntry[]
+  createdAt: string
+  updatedAt: string
 }
 
 const MONTH_NAMES = [
@@ -68,10 +94,14 @@ const STANDARD_PH_HOLIDAYS: Record<string, string> = {
 }
 
 const DTR_STORAGE_KEY = 'schoolconnect_dtr_config_v1'
+const DTR_HISTORY_KEY = 'schoolconnect_dtr_history_v2'
 
 export function DTRGeneratorPage() {
   const { admin } = useAuth()
   const { toast } = useToast()
+
+  // Sidebar Open/Close Toggle
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true)
 
   // Form State
   const [employeeName, setEmployeeName] = useState<string>(() => {
@@ -98,9 +128,28 @@ export function DTRGeneratorPage() {
   const [schoolHeadTitle, setSchoolHeadTitle] = useState<string>('School Head / Principal')
   const [schoolHeadOptions, setSchoolHeadOptions] = useState<{ id: string; name: string; schoolNames: string }[]>([])
 
-  // Load School Heads from Supabase database
+  // All District Staff for Proxy Generation ("Generate DTR for Someone")
+  const [allStaffProfiles, setAllStaffProfiles] = useState<
+    { id: string; name: string; role: 'teacher' | 'ao_2' | 'school_head' | 'psds'; roleTitle: string; schoolNames: string }[]
+  >([])
+  const [selectedProxyStaffId, setSelectedProxyStaffId] = useState<string>('')
+
+  // History Records State
+  const [savedRecords, setSavedRecords] = useState<SavedDTRRecord[]>(() => {
+    try {
+      const raw = localStorage.getItem(DTR_HISTORY_KEY)
+      return raw ? JSON.parse(raw) : []
+    } catch {
+      return []
+    }
+  })
+  const [activeRecordId, setActiveRecordId] = useState<string | null>(null)
+  const [historySearch, setHistorySearch] = useState<string>('')
+
+  // Load School Heads & Staff Profiles from Supabase database
   useEffect(() => {
     Promise.all([fetchAllAdmins(), fetchSchools()]).then(([admins, schools]) => {
+      // 1. School Head options for signatory
       const heads = admins
         .filter(a => a.role === 'school_head' || (a.role === 'admin' && a.assigned_school_ids && a.assigned_school_ids.length > 0))
         .map(h => {
@@ -118,6 +167,36 @@ export function DTRGeneratorPage() {
       if (heads.length > 0) {
         setSchoolHeadName(prev => prev || heads[0].name)
       }
+
+      // 2. All Staff Profiles for Proxy Generation
+      const staffList = admins.map(a => {
+        const sNames = schools
+          .filter(s => a.assigned_school_ids?.includes(s.id))
+          .map(s => s.name)
+          .join(', ')
+        let parsedRole: 'teacher' | 'ao_2' | 'school_head' | 'psds' = 'teacher'
+        let rTitle = 'Teacher'
+
+        if (a.role === 'school_head') {
+          parsedRole = 'school_head'
+          rTitle = 'School Head / Principal'
+        } else if (a.role === 'psds') {
+          parsedRole = 'psds'
+          rTitle = 'PSDS'
+        } else if (a.role === 'ao_2') {
+          parsedRole = 'ao_2'
+          rTitle = 'Administrative Officer II (AO II)'
+        }
+
+        return {
+          id: a.id,
+          name: a.full_name,
+          role: parsedRole,
+          roleTitle: rTitle,
+          schoolNames: sNames ? `(${sNames})` : ''
+        }
+      })
+      setAllStaffProfiles(staffList)
     }).catch(() => {})
   }, [])
 
@@ -147,7 +226,7 @@ export function DTRGeneratorPage() {
   const [entries, setEntries] = useState<DTRDayEntry[]>([])
   const [activeTab, setActiveTab] = useState<'editor' | 'preview'>('editor')
 
-  // Load / Save persistent config
+  // Load persistent config
   useEffect(() => {
     try {
       const saved = localStorage.getItem(DTR_STORAGE_KEY)
@@ -161,7 +240,14 @@ export function DTRGeneratorPage() {
     } catch {}
   }, [])
 
-  // Initialize or generate DTR table entries whenever Month or Year changes
+  // Save history to localStorage whenever savedRecords changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(DTR_HISTORY_KEY, JSON.stringify(savedRecords))
+    } catch {}
+  }, [savedRecords])
+
+  // Initialize or generate DTR table entries whenever Month or Year changes (if creating new)
   const buildInitialDays = (year: number, month: number): DTRDayEntry[] => {
     const daysInMonth = new Date(year, month, 0).getDate()
     const list: DTRDayEntry[] = []
@@ -226,10 +312,12 @@ export function DTRGeneratorPage() {
     return list
   }
 
-  // Populate table when year or month changes if empty
+  // Populate table when year or month changes if not loading a saved history record
   useEffect(() => {
-    const initial = buildInitialDays(selectedYear, selectedMonth)
-    setEntries(initial)
+    if (!activeRecordId) {
+      const initial = buildInitialDays(selectedYear, selectedMonth)
+      setEntries(initial)
+    }
   }, [selectedYear, selectedMonth])
 
   // Helper: Generate random integer inclusive
@@ -298,25 +386,130 @@ export function DTRGeneratorPage() {
   const handleResetTimes = () => {
     const reset = buildInitialDays(selectedYear, selectedMonth)
     setEntries(reset)
+    setActiveRecordId(null)
     toast('DTR table reset to blank template.', 'info')
   }
 
-  // Save Config
-  const handleSaveConfig = () => {
-    try {
-      localStorage.setItem(
-        DTR_STORAGE_KEY,
-        JSON.stringify({
-          employeeName,
-          dtrTargetRole,
-          schoolHeadName,
-          officialHoursText
+  // Save Current DTR to History
+  const handleSaveToHistory = () => {
+    if (!employeeName.trim()) {
+      toast('Please provide employee name before saving.', 'error')
+      return
+    }
+
+    const nowIso = new Date().toISOString()
+
+    if (activeRecordId) {
+      // Update existing record
+      setSavedRecords(prev =>
+        prev.map(r => {
+          if (r.id === activeRecordId) {
+            return {
+              ...r,
+              employeeName: employeeName.toUpperCase(),
+              role: dtrTargetRole,
+              month: selectedMonth,
+              year: selectedYear,
+              officialHoursText,
+              schoolHeadName,
+              entries,
+              updatedAt: nowIso
+            }
+          }
+          return r
         })
       )
-      toast('DTR Employee configuration saved successfully.', 'success')
-    } catch {
-      toast('Failed to save config.', 'error')
+      toast(`Updated DTR record for ${employeeName.toUpperCase()} (${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}).`, 'success')
+    } else {
+      // Create new record
+      const newRecord: SavedDTRRecord = {
+        id: `dtr_${Date.now()}`,
+        employeeName: employeeName.toUpperCase(),
+        role: dtrTargetRole,
+        month: selectedMonth,
+        year: selectedYear,
+        officialHoursText,
+        schoolHeadName,
+        entries,
+        createdAt: nowIso,
+        updatedAt: nowIso
+      }
+      setSavedRecords(prev => [newRecord, ...prev])
+      setActiveRecordId(newRecord.id)
+      toast(`Saved new DTR for ${employeeName.toUpperCase()} (${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}) to History!`, 'success')
     }
+  }
+
+  // Load Record from History
+  const handleLoadRecord = (record: SavedDTRRecord) => {
+    setEmployeeName(record.employeeName)
+    setDtrTargetRole(record.role)
+    setSelectedMonth(record.month)
+    setSelectedYear(record.year)
+    setOfficialHoursText(record.officialHoursText || 'Regular days 7:00–11:30AM / 1:00–5:00PM')
+    if (record.schoolHeadName) setSchoolHeadName(record.schoolHeadName)
+    setEntries(record.entries)
+    setActiveRecordId(record.id)
+    toast(`Loaded DTR history record for ${record.employeeName} (${MONTH_NAMES[record.month - 1]} ${record.year}).`, 'info')
+  }
+
+  // Delete Record from History
+  const handleDeleteRecord = (id: string, name: string) => {
+    if (confirm(`Are you sure you want to delete DTR history record for "${name}"?`)) {
+      setSavedRecords(prev => prev.filter(r => r.id !== id))
+      if (activeRecordId === id) setActiveRecordId(null)
+      toast(`Deleted DTR record for ${name}.`, 'info')
+    }
+  }
+
+  // Create New Blank DTR
+  const handleNewDTR = () => {
+    setActiveRecordId(null)
+    setEmployeeName(admin?.full_name || 'MICHELLE S. MOSQUERA')
+    if (admin?.role === 'school_head') setDtrTargetRole('school_head')
+    else if (admin?.role === 'psds') setDtrTargetRole('psds')
+    else if (admin?.role === 'ao_2') setDtrTargetRole('ao_2')
+    else setDtrTargetRole('teacher')
+
+    const initial = buildInitialDays(selectedYear, selectedMonth)
+    setEntries(initial)
+    toast('Started a new DTR session.', 'info')
+  }
+
+  // Proxy Generation: "Generate DTR for Someone"
+  const handleGenerateForProxyStaff = (staffId: string) => {
+    const staff = allStaffProfiles.find(s => s.id === staffId)
+    if (!staff) return
+
+    setEmployeeName(staff.name.toUpperCase())
+    setDtrTargetRole(staff.role)
+    setActiveRecordId(null) // Reset active record ID so saving creates a new entry
+
+    // Generate times for the active month
+    const updated: DTRDayEntry[] = buildInitialDays(selectedYear, selectedMonth).map(entry => {
+      if (entry.status === 'blank' || entry.isSaturday || entry.isSunday || entry.isHoliday) {
+        return entry
+      }
+
+      const amArrMin = getRandomInt(amArrivalRange.start, amArrivalRange.end)
+      const amDepMin = getRandomInt(amDepartureRange.start, amDepartureRange.end)
+      const pmArrMin = getRandomInt(pmArrivalRange.start, pmArrivalRange.end)
+      const pmDepMin = getRandomInt(pmDepartureRange.start, pmDepartureRange.end)
+
+      return {
+        ...entry,
+        status: 'work' as const,
+        amArrival: `6:${String(amArrMin).padStart(2, '0')}`,
+        amDeparture: `11:${String(amDepMin).padStart(2, '0')}`,
+        pmArrival: `12:${String(pmArrMin).padStart(2, '0')}`,
+        pmDeparture: `5:${String(pmDepMin).padStart(2, '0')}`,
+        undertimeHours: '',
+        undertimeMinutes: ''
+      }
+    })
+
+    setEntries(updated)
+    toast(`Generated non-late DTR for ${staff.name} (${staff.roleTitle}).`, 'success')
   }
 
   // Print DTR Handler (2-in-1 Side-by-Side Dual Copy)
@@ -325,6 +518,21 @@ export function DTRGeneratorPage() {
   }
 
   const monthYearLabel = `${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}`
+
+  // Filtered History
+  const filteredHistory = useMemo(() => {
+    if (!historySearch.trim()) return savedRecords
+    const q = historySearch.toLowerCase()
+    return savedRecords.filter(r => {
+      const monthName = MONTH_NAMES[r.month - 1]?.toLowerCase() || ''
+      return (
+        r.employeeName.toLowerCase().includes(q) ||
+        monthName.includes(q) ||
+        String(r.year).includes(q) ||
+        r.role.toLowerCase().includes(q)
+      )
+    })
+  }, [savedRecords, historySearch])
 
   return (
     <SchoolConnectLayout systemTitle="Civil Service Form No. 48 DTR Generator">
@@ -343,7 +551,7 @@ export function DTRGeneratorPage() {
             print-color-adjust: exact !important;
           }
           /* Hide Web UI chrome */
-          nav, header, footer, .no-print, .clay-card, button, input, select {
+          nav, header, footer, .no-print, .clay-card, button, input, select, .dtr-sidebar {
             display: none !important;
           }
           .print-area {
@@ -367,16 +575,6 @@ export function DTRGeneratorPage() {
             box-sizing: border-box !important;
             font-size: 8.5pt !important;
             line-height: 1.15 !important;
-          }
-          .dtr-cut-divider {
-            border-right: 1.5px dashed #666 !important;
-            height: 100% !important;
-          }
-          .dtr-table {
-            width: 100% !important;
-            border-collapse: collapse !important;
-            margin-top: 4px !important;
-            margin-bottom: 6px !important;
           }
           .dtr-table th, .dtr-table td {
             border: 1px solid black !important;
@@ -408,11 +606,20 @@ export function DTRGeneratorPage() {
                 Daily Time Record (DTR) Generator
               </h1>
               <p className="text-xs sm:text-sm text-white/90 max-w-2xl leading-relaxed font-medium">
-                Generate official non-late Civil Service Form No. 48 Daily Time Records with automated random punch time generator, interactive manual editing, and 2-in-1 printable side-by-side layout.
+                Generate official non-late Civil Service Form No. 48 Daily Time Records, manage history, and generate DTRs for teachers or personnel with 2-in-1 printable side-by-side layout.
               </p>
             </div>
 
             <div className="flex items-center gap-2.5 flex-wrap shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className="px-4 py-3 rounded-full bg-white/20 hover:bg-white/30 text-white font-bold text-xs backdrop-blur-md transition-all flex items-center gap-2 border border-white/40 cursor-pointer"
+              >
+                {isSidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
+                <span>{isSidebarOpen ? 'Hide History & Proxy Panel' : 'History & Proxy Panel'}</span>
+              </button>
+
               <button
                 onClick={handlePrintDTR}
                 className="px-5 py-3 rounded-full bg-white text-[#795CEE] hover:bg-[#F6EFFF] font-black text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer border border-white active:animate-button-sparkle"
@@ -424,410 +631,604 @@ export function DTRGeneratorPage() {
           </div>
         </div>
 
-        {/* CONTROLS & CONFIGURATION PANEL */}
-        <div className="clay-card p-6 space-y-6">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-[#F0E6DD]">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-2xl bg-gradient-to-br from-[#A88BEB] to-[#8B72F4] text-white shadow-xs">
-                <Sliders size={18} />
-              </div>
-              <div>
-                <h3 className="text-sm font-black text-[#2D2638] font-display">DTR Configuration & Parameters</h3>
-                <p className="text-xs text-[#7A7289] font-medium">Set employee details, month/year, working hours, and non-late ranges</p>
-              </div>
-            </div>
-
-            {/* Tab Navigation Controls */}
-            <div className="flex items-center gap-2 p-1 bg-[#FAF5F0] rounded-full border border-white shadow-2xs">
-              <button
-                type="button"
-                onClick={() => setActiveTab('editor')}
-                className={`px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                  activeTab === 'editor'
-                    ? 'bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] text-white shadow-md'
-                    : 'text-[#7A7289] hover:text-[#2D2638]'
-                }`}
-              >
-                <Edit3 size={14} className="inline mr-1.5" />
-                Table Editor & Controls
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab('preview')}
-                className={`px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                  activeTab === 'preview'
-                    ? 'bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] text-white shadow-md'
-                    : 'text-[#7A7289] hover:text-[#2D2638]'
-                }`}
-              >
-                <Printer size={14} className="inline mr-1.5" />
-                2-in-1 Side-by-Side Preview
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Employee Name */}
-            <div>
-              <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">Employee Full Name</label>
-              <div className="relative">
-                <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A39BAF]" />
-                <input
-                  type="text"
-                  value={employeeName}
-                  onChange={e => setEmployeeName(e.target.value.toUpperCase())}
-                  placeholder="e.g. MICHELLE S. MOSQUERA"
-                  className="w-full pl-9 pr-3 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30 uppercase"
-                />
-              </div>
-            </div>
-
-            {/* Target Month */}
-            <div>
-              <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">Target Month</label>
-              <select
-                value={selectedMonth}
-                onChange={e => setSelectedMonth(Number(e.target.value))}
-                className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
-              >
-                {MONTH_NAMES.map((name, idx) => (
-                  <option key={name} value={idx + 1}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Target Year */}
-            <div>
-              <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">Target Year</label>
-              <input
-                type="number"
-                value={selectedYear}
-                onChange={e => setSelectedYear(Number(e.target.value))}
-                className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
-              />
-            </div>
-
-            {/* Official Hours Banner String */}
-            <div>
-              <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">Official Hours Header Text</label>
-              <input
-                type="text"
-                value={officialHoursText}
-                onChange={e => setOfficialHoursText(e.target.value)}
-                placeholder="Regular days 7:00–11:30AM / 1:00–5:00PM"
-                className="w-full px-3 py-2 rounded-xl text-xs font-semibold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
-              />
-            </div>
-          </div>
-
-          {/* Signatory Governance & Role Parameters */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-[#F0E6DD]/60">
-            {/* DTR Personnel Role Selector */}
-            <div>
-              <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">DTR Personnel Category</label>
-              <select
-                value={dtrTargetRole}
-                onChange={e => setDtrTargetRole(e.target.value as any)}
-                className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
-              >
-                <option value="teacher">Teacher (School Head Signatory)</option>
-                <option value="ao_2">Administrative Officer (AO II) (School Head Signatory)</option>
-                <option value="school_head">School Head (Division Superintendent Signatory)</option>
-                <option value="psds">PSDS (Division Superintendent Signatory)</option>
-              </select>
-            </div>
-
-            {/* Official Signatory Display / Selection */}
-            <div>
-              {isDivisionSignatory ? (
-                <div>
-                  <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">Official Signatory (Fixed)</label>
-                  <div className="px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex items-center justify-between text-xs font-bold">
-                    <span>ROGER F. CAPA, CESO VI</span>
-                    <span className="text-[10px] bg-amber-200/60 px-2 py-0.5 rounded-md text-amber-950 font-black">SDS</span>
+        {/* MAIN TWO-COLUMN CONTENT WITH RESPONSIVE SIDEBAR */}
+        <div className="flex flex-col lg:flex-row items-start gap-6">
+          {/* LEFT SIDEBAR: HISTORY & PROXY GENERATION */}
+          {isSidebarOpen && (
+            <div className="w-full lg:w-80 shrink-0 space-y-6 dtr-sidebar">
+              {/* SECTION 1: GENERATE FOR SOMEONE (PROXY GENERATION) */}
+              <div className="clay-card p-5 space-y-4 border-l-4 border-l-[#8B72F4]">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-gradient-to-br from-[#8B72F4] to-[#795CEE] text-white shadow-xs">
+                    <UserPlus size={16} />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-black text-[#2D2638] font-display uppercase tracking-wider">
+                      Generate DTR for Someone
+                    </h3>
+                    <p className="text-[11px] text-[#7A7289] font-medium">Select district staff member</p>
                   </div>
                 </div>
-              ) : (
-                <div>
-                  <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">School Head / Principal Name</label>
-                  {schoolHeadOptions.length > 0 ? (
-                    <select
-                      value={schoolHeadName}
-                      onChange={e => setSchoolHeadName(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
+
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold text-[#2D2638] block">Select District Personnel:</label>
+                  <select
+                    value={selectedProxyStaffId}
+                    onChange={e => {
+                      setSelectedProxyStaffId(e.target.value)
+                      if (e.target.value) {
+                        handleGenerateForProxyStaff(e.target.value)
+                      }
+                    }}
+                    className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
+                  >
+                    <option value="">-- Choose Staff Member --</option>
+                    {allStaffProfiles.map(s => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.roleTitle})
+                      </option>
+                    ))}
+                  </select>
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedProxyStaffId('')
+                        setEmployeeName(admin?.full_name || 'MICHELLE S. MOSQUERA')
+                        toast('Switched back to self profile.', 'info')
+                      }}
+                      className="w-full py-2 px-3 rounded-xl bg-white text-[#7A7289] hover:text-[#2D2638] hover:bg-slate-50 border border-slate-200 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                     >
-                      {schoolHeadOptions.map(h => (
-                        <option key={h.id} value={h.name}>
-                          {h.name} {h.schoolNames}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      type="text"
-                      value={schoolHeadName}
-                      onChange={e => setSchoolHeadName(e.target.value)}
-                      placeholder="e.g. MARIA L. SANTOS"
-                      className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
-                    />
+                      <UserCheck size={14} className="text-[#8B72F4]" />
+                      Use My Profile
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 2: SAVED DTR HISTORY */}
+              <div className="clay-card p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-xl bg-gradient-to-br from-[#A88BEB] to-[#8B72F4] text-white shadow-xs">
+                      <FolderOpen size={16} />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-black text-[#2D2638] font-display uppercase tracking-wider">
+                        DTR History
+                      </h3>
+                      <p className="text-[11px] text-[#7A7289] font-medium">{savedRecords.length} Saved Records</p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleNewDTR}
+                    className="p-2 rounded-xl bg-[#F6EFFF] text-[#8B72F4] hover:bg-[#8B72F4] hover:text-white transition-all cursor-pointer border border-[#8B72F4]/20"
+                    title="Start New DTR"
+                  >
+                    <PlusCircle size={16} />
+                  </button>
+                </div>
+
+                {/* Search Filter */}
+                <div className="relative">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A39BAF]" />
+                  <input
+                    type="text"
+                    value={historySearch}
+                    onChange={e => setHistorySearch(e.target.value)}
+                    placeholder="Search history by name/month..."
+                    className="w-full pl-8 pr-3 py-1.5 rounded-xl text-xs font-medium bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
+                  />
+                  {historySearch && (
+                    <button
+                      onClick={() => setHistorySearch('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      <X size={12} />
+                    </button>
                   )}
                 </div>
-              )}
+
+                {/* History Cards List */}
+                <div className="space-y-2.5 max-h-[520px] overflow-y-auto pr-1">
+                  {filteredHistory.length === 0 ? (
+                    <div className="p-6 text-center bg-[#FAF5F0] rounded-2xl border border-dashed border-slate-300">
+                      <FileText size={28} className="mx-auto text-slate-300 mb-2" />
+                      <p className="text-xs font-bold text-slate-600">No DTR history records found</p>
+                      <p className="text-[10px] text-slate-400 mt-1">Generate and click "Save to History" to archive DTRs</p>
+                    </div>
+                  ) : (
+                    filteredHistory.map(record => {
+                      const isActive = record.id === activeRecordId
+                      const monthLabel = MONTH_NAMES[record.month - 1] || 'JUNE'
+                      const workDays = record.entries.filter(e => e.status === 'work').length
+
+                      return (
+                        <div
+                          key={record.id}
+                          className={`p-3.5 rounded-2xl border transition-all space-y-2.5 ${
+                            isActive
+                              ? 'bg-[#F6EFFF] border-[#8B72F4] shadow-sm'
+                              : 'bg-white border-slate-200 hover:border-[#8B72F4]/40 hover:shadow-2xs'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <p className="text-xs font-black text-[#2D2638] line-clamp-1">{record.employeeName}</p>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <span className="px-2 py-0.5 rounded-md bg-[#EEF0FF] text-[#3B49B8] text-[10px] font-extrabold uppercase">
+                                  {monthLabel} {record.year}
+                                </span>
+                                <span className="px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-bold">
+                                  {workDays} Days
+                                </span>
+                              </div>
+                            </div>
+
+                            <span className="text-[10px] text-slate-400 font-semibold shrink-0">
+                              {new Date(record.updatedAt).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-1 border-t border-slate-100">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">
+                              Role: {record.role}
+                            </span>
+
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handleLoadRecord(record)}
+                                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                                  isActive
+                                    ? 'bg-[#8B72F4] text-white shadow-xs'
+                                    : 'bg-slate-100 hover:bg-[#8B72F4] text-slate-700 hover:text-white'
+                                }`}
+                              >
+                                <Eye size={12} />
+                                {isActive ? 'Editing' : 'Load'}
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteRecord(record.id, record.employeeName)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer"
+                                title="Delete Record"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* RIGHT COLUMN: MAIN DTR CONTROLS & EDITOR / PREVIEW */}
+          <div className="flex-1 space-y-6 w-full min-w-0">
+            {/* CONTROLS & CONFIGURATION PANEL */}
+            <div className="clay-card p-6 space-y-6">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-[#F0E6DD]">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-2xl bg-gradient-to-br from-[#A88BEB] to-[#8B72F4] text-white shadow-xs">
+                    <Sliders size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-[#2D2638] font-display">
+                      DTR Configuration & Parameters
+                      {activeRecordId && (
+                        <span className="ml-2 px-2.5 py-0.5 rounded-full bg-[#8B72F4] text-white text-[10px] font-bold uppercase tracking-wider">
+                          Editing Saved History Record
+                        </span>
+                      )}
+                    </h3>
+                    <p className="text-xs text-[#7A7289] font-medium">Set employee details, month/year, working hours, and non-late ranges</p>
+                  </div>
+                </div>
+
+                {/* Tab Navigation Controls */}
+                <div className="flex items-center gap-2 p-1 bg-[#FAF5F0] rounded-full border border-white shadow-2xs">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('editor')}
+                    className={`px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                      activeTab === 'editor'
+                        ? 'bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] text-white shadow-md'
+                        : 'text-[#7A7289] hover:text-[#2D2638]'
+                    }`}
+                  >
+                    <Edit3 size={14} className="inline mr-1.5" />
+                    Table Editor & Controls
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('preview')}
+                    className={`px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                      activeTab === 'preview'
+                        ? 'bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] text-white shadow-md'
+                        : 'text-[#7A7289] hover:text-[#2D2638]'
+                    }`}
+                  >
+                    <Printer size={14} className="inline mr-1.5" />
+                    2-in-1 Side-by-Side Preview
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Employee Name */}
+                <div>
+                  <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">Employee Full Name</label>
+                  <div className="relative">
+                    <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A39BAF]" />
+                    <input
+                      type="text"
+                      value={employeeName}
+                      onChange={e => setEmployeeName(e.target.value.toUpperCase())}
+                      placeholder="e.g. MICHELLE S. MOSQUERA"
+                      className="w-full pl-9 pr-3 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30 uppercase"
+                    />
+                  </div>
+                </div>
+
+                {/* Target Month */}
+                <div>
+                  <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">Target Month</label>
+                  <select
+                    value={selectedMonth}
+                    onChange={e => setSelectedMonth(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
+                  >
+                    {MONTH_NAMES.map((name, idx) => (
+                      <option key={name} value={idx + 1}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Target Year */}
+                <div>
+                  <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">Target Year</label>
+                  <input
+                    type="number"
+                    value={selectedYear}
+                    onChange={e => setSelectedYear(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
+                  />
+                </div>
+
+                {/* Official Hours Banner String */}
+                <div>
+                  <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">Official Hours Header Text</label>
+                  <input
+                    type="text"
+                    value={officialHoursText}
+                    onChange={e => setOfficialHoursText(e.target.value)}
+                    placeholder="Regular days 7:00–11:30AM / 1:00–5:00PM"
+                    className="w-full px-3 py-2 rounded-xl text-xs font-semibold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
+                  />
+                </div>
+              </div>
+
+              {/* Signatory Governance & Role Parameters */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-[#F0E6DD]/60">
+                {/* DTR Personnel Role Selector */}
+                <div>
+                  <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">DTR Personnel Category</label>
+                  <select
+                    value={dtrTargetRole}
+                    onChange={e => setDtrTargetRole(e.target.value as any)}
+                    className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
+                  >
+                    <option value="teacher">Teacher (School Head Signatory)</option>
+                    <option value="ao_2">Administrative Officer (AO II) (School Head Signatory)</option>
+                    <option value="school_head">School Head (Division Superintendent Signatory)</option>
+                    <option value="psds">PSDS (Division Superintendent Signatory)</option>
+                  </select>
+                </div>
+
+                {/* Official Signatory Display / Selection */}
+                <div>
+                  {isDivisionSignatory ? (
+                    <div>
+                      <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">Official Signatory (Fixed)</label>
+                      <div className="px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex items-center justify-between text-xs font-bold">
+                        <span>ROGER F. CAPA, CESO VI</span>
+                        <span className="text-[10px] bg-amber-200/60 px-2 py-0.5 rounded-md text-amber-950 font-black">SDS</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">School Head / Principal Name</label>
+                      {schoolHeadOptions.length > 0 ? (
+                        <select
+                          value={schoolHeadName}
+                          onChange={e => setSchoolHeadName(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
+                        >
+                          {schoolHeadOptions.map(h => (
+                            <option key={h.id} value={h.name}>
+                              {h.name} {h.schoolNames}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          value={schoolHeadName}
+                          onChange={e => setSchoolHeadName(e.target.value)}
+                          placeholder="e.g. MARIA L. SANTOS"
+                          className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-end gap-2">
+                  <button
+                    type="button"
+                    onClick={handleGenerateRandomTimes}
+                    className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#8B72F4] to-[#795CEE] text-white hover:opacity-95 font-extrabold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:animate-button-sparkle"
+                  >
+                    <Sparkles size={16} className="text-amber-300" />
+                    Generate Non-Late Times
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSaveToHistory}
+                    className="py-2.5 px-3.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    title="Save current DTR to History"
+                  >
+                    <Save size={16} />
+                    <span>{activeRecordId ? 'Update' : 'Save'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleResetTimes}
+                    className="p-2.5 rounded-xl bg-white text-[#7A7289] hover:text-red-600 hover:bg-red-50 border border-slate-200 transition-all cursor-pointer"
+                    title="Reset table to blank"
+                  >
+                    <RotateCcw size={16} />
+                  </button>
+                </div>
+              </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex items-end gap-2">
-              <button
-                type="button"
-                onClick={handleGenerateRandomTimes}
-                className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#8B72F4] to-[#795CEE] text-white hover:opacity-95 font-extrabold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:animate-button-sparkle"
-              >
-                <Sparkles size={16} className="text-amber-300" />
-                Generate Non-Late Times
-              </button>
+            {/* TAB 1: TABLE EDITOR & MANUAL TIME INPUT */}
+            {activeTab === 'editor' && (
+              <div className="clay-card p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-black text-[#2D2638] font-display">
+                      CS Form No. 48 Data Sheet ({monthYearLabel})
+                    </h3>
+                    <p className="text-xs text-[#7A7289] font-medium">
+                      Directly edit arrival/departure times, undertime, or day statuses (Work, Saturday, Sunday, Holiday, Leave)
+                    </p>
+                  </div>
 
-              <button
-                type="button"
-                onClick={handleResetTimes}
-                className="p-2.5 rounded-xl bg-white text-[#7A7289] hover:text-red-600 hover:bg-red-50 border border-slate-200 transition-all cursor-pointer"
-                title="Reset table to blank"
-              >
-                <RotateCcw size={16} />
-              </button>
+                  <div className="flex items-center gap-2">
+                    <span className="px-3 py-1 rounded-full bg-[#EEF0FF] text-[#3B49B8] text-xs font-bold border border-[#BFD7FF]">
+                      {entries.filter(e => e.status === 'work').length} Regular Work Days
+                    </span>
+                  </div>
+                </div>
 
-              <button
-                type="button"
-                onClick={handleSaveConfig}
-                className="p-2.5 rounded-xl bg-[#FAF5F0] hover:bg-[#F6EFFF] text-[#8B72F4] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] transition-all cursor-pointer"
-                title="Save Employee Config"
-              >
-                <Save size={16} />
-              </button>
-            </div>
+                {/* Interactive Data Table */}
+                <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-slate-100 border-b border-slate-200 text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">
+                        <th className="py-2.5 px-3 w-12 text-center">Day</th>
+                        <th className="py-2.5 px-3 w-28">Weekday</th>
+                        <th className="py-2.5 px-3 w-36">Day Status</th>
+                        <th className="py-2.5 px-3 text-center bg-blue-50/70 border-l border-r border-blue-200/60" colSpan={2}>
+                          A.M. (Morning)
+                        </th>
+                        <th className="py-2.5 px-3 text-center bg-purple-50/70 border-r border-purple-200/60" colSpan={2}>
+                          P.M. (Afternoon)
+                        </th>
+                        <th className="py-2.5 px-3 text-center" colSpan={2}>
+                          Undertime
+                        </th>
+                      </tr>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500">
+                        <th></th>
+                        <th></th>
+                        <th></th>
+                        <th className="py-1 px-2 text-center bg-blue-50/50">Arrival</th>
+                        <th className="py-1 px-2 text-center bg-blue-50/50 border-r border-blue-200/60">Departure</th>
+                        <th className="py-1 px-2 text-center bg-purple-50/50">Arrival</th>
+                        <th className="py-1 px-2 text-center bg-purple-50/50 border-r border-purple-200/60">Departure</th>
+                        <th className="py-1 px-2 text-center">Hours</th>
+                        <th className="py-1 px-2 text-center">Mins</th>
+                      </tr>
+                    </thead>
+
+                    <tbody className="divide-y divide-slate-200">
+                      {entries.map((entry, idx) => {
+                        if (entry.status === 'blank') {
+                          return (
+                            <tr key={idx} className="bg-slate-900 text-slate-900">
+                              <td className="py-2 px-3 text-center font-bold text-slate-400">{entry.dayNumber}</td>
+                              <td colSpan={8} className="py-2 px-3 text-center italic text-slate-500 text-[11px]">
+                                [ No Date in Month ]
+                              </td>
+                            </tr>
+                          )
+                        }
+
+                        return (
+                          <tr
+                            key={idx}
+                            className={`hover:bg-slate-50 transition-colors ${
+                              entry.isWeekend ? 'bg-amber-50/40' : entry.isHoliday ? 'bg-indigo-50/40' : ''
+                            }`}
+                          >
+                            {/* Day Number */}
+                            <td className="py-2 px-3 text-center font-extrabold text-slate-800">
+                              {entry.dayNumber}
+                            </td>
+
+                            {/* Weekday Name */}
+                            <td className="py-2 px-3 font-semibold text-slate-600">
+                              {entry.dayOfWeek}
+                            </td>
+
+                            {/* Status Selector */}
+                            <td className="py-2 px-3">
+                              <select
+                                value={entry.status}
+                                onChange={e => handleCellChange(idx, 'status', e.target.value)}
+                                className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
+                              >
+                                <option value="work">Regular Work Day</option>
+                                <option value="saturday">SATURDAY</option>
+                                <option value="sunday">SUNDAY</option>
+                                <option value="holiday">HOLIDAY</option>
+                                <option value="leave">ON LEAVE</option>
+                                <option value="travel">OFFICIAL BUSINESS</option>
+                              </select>
+                            </td>
+
+                            {/* If Work day, show 4 time inputs. Otherwise show status banner spanning across */}
+                            {entry.status === 'work' ? (
+                              <>
+                                {/* AM Arrival */}
+                                <td className="py-1.5 px-2 bg-blue-50/30">
+                                  <input
+                                    type="text"
+                                    value={entry.amArrival}
+                                    onChange={e => handleCellChange(idx, 'amArrival', e.target.value)}
+                                    placeholder="6:35"
+                                    className="w-full text-center px-1.5 py-1 rounded font-bold text-slate-800 bg-white border border-slate-200 focus:ring-2 focus:ring-blue-400"
+                                  />
+                                </td>
+
+                                {/* AM Departure */}
+                                <td className="py-1.5 px-2 bg-blue-50/30 border-r border-blue-200/60">
+                                  <input
+                                    type="text"
+                                    value={entry.amDeparture}
+                                    onChange={e => handleCellChange(idx, 'amDeparture', e.target.value)}
+                                    placeholder="11:35"
+                                    className="w-full text-center px-1.5 py-1 rounded font-bold text-slate-800 bg-white border border-slate-200 focus:ring-2 focus:ring-blue-400"
+                                  />
+                                </td>
+
+                                {/* PM Arrival */}
+                                <td className="py-1.5 px-2 bg-purple-50/30">
+                                  <input
+                                    type="text"
+                                    value={entry.pmArrival}
+                                    onChange={e => handleCellChange(idx, 'pmArrival', e.target.value)}
+                                    placeholder="12:32"
+                                    className="w-full text-center px-1.5 py-1 rounded font-bold text-slate-800 bg-white border border-slate-200 focus:ring-2 focus:ring-purple-400"
+                                  />
+                                </td>
+
+                                {/* PM Departure */}
+                                <td className="py-1.5 px-2 bg-purple-50/30 border-r border-purple-200/60">
+                                  <input
+                                    type="text"
+                                    value={entry.pmDeparture}
+                                    onChange={e => handleCellChange(idx, 'pmDeparture', e.target.value)}
+                                    placeholder="5:02"
+                                    className="w-full text-center px-1.5 py-1 rounded font-bold text-slate-800 bg-white border border-slate-200 focus:ring-2 focus:ring-purple-400"
+                                  />
+                                </td>
+
+                                {/* Undertime Hours */}
+                                <td className="py-1.5 px-2">
+                                  <input
+                                    type="text"
+                                    value={entry.undertimeHours}
+                                    onChange={e => handleCellChange(idx, 'undertimeHours', e.target.value)}
+                                    placeholder=""
+                                    className="w-full text-center px-1.5 py-1 rounded font-semibold text-slate-700 bg-white border border-slate-200"
+                                  />
+                                </td>
+
+                                {/* Undertime Minutes */}
+                                <td className="py-1.5 px-2">
+                                  <input
+                                    type="text"
+                                    value={entry.undertimeMinutes}
+                                    onChange={e => handleCellChange(idx, 'undertimeMinutes', e.target.value)}
+                                    placeholder=""
+                                    className="w-full text-center px-1.5 py-1 rounded font-semibold text-slate-700 bg-white border border-slate-200"
+                                  />
+                                </td>
+                              </>
+                            ) : (
+                              <td colSpan={6} className="py-2 px-3 text-center font-black tracking-wide uppercase text-slate-700">
+                                {entry.status === 'saturday' && 'SATURDAY'}
+                                {entry.status === 'sunday' && 'SUNDAY'}
+                                {entry.status === 'holiday' && (entry.holidayTitle || 'HOLIDAY')}
+                                {entry.status === 'leave' && 'ON OFFICIAL LEAVE'}
+                                {entry.status === 'travel' && 'OFFICIAL BUSINESS (O.B.)'}
+                              </td>
+                            )}
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 2: LIVE 2-IN-1 DUAL COPY PREVIEW */}
+            {activeTab === 'preview' && (
+              <div className="clay-card p-6 space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-black text-[#2D2638] font-display">
+                      Civil Service Form No. 48 — 2-in-1 Side-by-Side Preview
+                    </h3>
+                    <p className="text-xs text-[#7A7289] font-medium">
+                      Standard Philippine Civil Service DTR layout formatted dual-copy on one sheet of paper
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={handlePrintDTR}
+                    className="px-5 py-2.5 rounded-full bg-gradient-to-r from-[#8B72F4] to-[#795CEE] text-white font-extrabold text-xs shadow-md hover:opacity-95 transition-all flex items-center gap-2 cursor-pointer"
+                  >
+                    <Printer size={16} />
+                    Print Form No. 48
+                  </button>
+                </div>
+
+                {/* Screen Preview Render */}
+                <div className="p-4 rounded-3xl bg-slate-100 border border-slate-200 overflow-x-auto">
+                  <CSForm48DualRender
+                    employeeName={employeeName}
+                    monthYearLabel={monthYearLabel}
+                    officialHoursText={officialHoursText}
+                    saturdaysText={saturdaysText}
+                    entries={entries}
+                    supervisorName={finalSupervisorName}
+                    supervisorTitle={finalSupervisorTitle}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
-
-        {/* TAB 1: TABLE EDITOR & MANUAL TIME INPUT */}
-        {activeTab === 'editor' && (
-          <div className="clay-card p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-black text-[#2D2638] font-display">
-                  CS Form No. 48 Data Sheet ({monthYearLabel})
-                </h3>
-                <p className="text-xs text-[#7A7289] font-medium">
-                  Directly edit arrival/departure times, undertime, or day statuses (Work, Saturday, Sunday, Holiday, Leave)
-                </p>
-              </div>
-
-              <span className="px-3 py-1 rounded-full bg-[#EEF0FF] text-[#3B49B8] text-xs font-bold border border-[#BFD7FF]">
-                {entries.filter(e => e.status === 'work').length} Regular Work Days
-              </span>
-            </div>
-
-            {/* Interactive Data Table */}
-            <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-slate-100 border-b border-slate-200 text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">
-                    <th className="py-2.5 px-3 w-12 text-center">Day</th>
-                    <th className="py-2.5 px-3 w-28">Weekday</th>
-                    <th className="py-2.5 px-3 w-36">Day Status</th>
-                    <th className="py-2.5 px-3 text-center bg-blue-50/70 border-l border-r border-blue-200/60" colSpan={2}>
-                      A.M. (Morning)
-                    </th>
-                    <th className="py-2.5 px-3 text-center bg-purple-50/70 border-r border-purple-200/60" colSpan={2}>
-                      P.M. (Afternoon)
-                    </th>
-                    <th className="py-2.5 px-3 text-center" colSpan={2}>
-                      Undertime
-                    </th>
-                  </tr>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500">
-                    <th></th>
-                    <th></th>
-                    <th></th>
-                    <th className="py-1 px-2 text-center bg-blue-50/50">Arrival</th>
-                    <th className="py-1 px-2 text-center bg-blue-50/50 border-r border-blue-200/60">Departure</th>
-                    <th className="py-1 px-2 text-center bg-purple-50/50">Arrival</th>
-                    <th className="py-1 px-2 text-center bg-purple-50/50 border-r border-purple-200/60">Departure</th>
-                    <th className="py-1 px-2 text-center">Hours</th>
-                    <th className="py-1 px-2 text-center">Mins</th>
-                  </tr>
-                </thead>
-
-                <tbody className="divide-y divide-slate-200">
-                  {entries.map((entry, idx) => {
-                    if (entry.status === 'blank') {
-                      return (
-                        <tr key={idx} className="bg-slate-900 text-slate-900">
-                          <td className="py-2 px-3 text-center font-bold text-slate-400">{entry.dayNumber}</td>
-                          <td colSpan={8} className="py-2 px-3 text-center italic text-slate-500 text-[11px]">
-                            [ No Date in Month ]
-                          </td>
-                        </tr>
-                      )
-                    }
-
-                    return (
-                      <tr
-                        key={idx}
-                        className={`hover:bg-slate-50 transition-colors ${
-                          entry.isWeekend ? 'bg-amber-50/40' : entry.isHoliday ? 'bg-indigo-50/40' : ''
-                        }`}
-                      >
-                        {/* Day Number */}
-                        <td className="py-2 px-3 text-center font-extrabold text-slate-800">
-                          {entry.dayNumber}
-                        </td>
-
-                        {/* Weekday Name */}
-                        <td className="py-2 px-3 font-semibold text-slate-600">
-                          {entry.dayOfWeek}
-                        </td>
-
-                        {/* Status Selector */}
-                        <td className="py-2 px-3">
-                          <select
-                            value={entry.status}
-                            onChange={e => handleCellChange(idx, 'status', e.target.value)}
-                            className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
-                          >
-                            <option value="work">Regular Work Day</option>
-                            <option value="saturday">SATURDAY</option>
-                            <option value="sunday">SUNDAY</option>
-                            <option value="holiday">HOLIDAY</option>
-                            <option value="leave">ON LEAVE</option>
-                            <option value="travel">OFFICIAL BUSINESS</option>
-                          </select>
-                        </td>
-
-                        {/* If Work day, show 4 time inputs. Otherwise show status banner spanning across */}
-                        {entry.status === 'work' ? (
-                          <>
-                            {/* AM Arrival */}
-                            <td className="py-1.5 px-2 bg-blue-50/30">
-                              <input
-                                type="text"
-                                value={entry.amArrival}
-                                onChange={e => handleCellChange(idx, 'amArrival', e.target.value)}
-                                placeholder="6:35"
-                                className="w-full text-center px-1.5 py-1 rounded font-bold text-slate-800 bg-white border border-slate-200 focus:ring-2 focus:ring-blue-400"
-                              />
-                            </td>
-
-                            {/* AM Departure */}
-                            <td className="py-1.5 px-2 bg-blue-50/30 border-r border-blue-200/60">
-                              <input
-                                type="text"
-                                value={entry.amDeparture}
-                                onChange={e => handleCellChange(idx, 'amDeparture', e.target.value)}
-                                placeholder="11:35"
-                                className="w-full text-center px-1.5 py-1 rounded font-bold text-slate-800 bg-white border border-slate-200 focus:ring-2 focus:ring-blue-400"
-                              />
-                            </td>
-
-                            {/* PM Arrival */}
-                            <td className="py-1.5 px-2 bg-purple-50/30">
-                              <input
-                                type="text"
-                                value={entry.pmArrival}
-                                onChange={e => handleCellChange(idx, 'pmArrival', e.target.value)}
-                                placeholder="12:32"
-                                className="w-full text-center px-1.5 py-1 rounded font-bold text-slate-800 bg-white border border-slate-200 focus:ring-2 focus:ring-purple-400"
-                              />
-                            </td>
-
-                            {/* PM Departure */}
-                            <td className="py-1.5 px-2 bg-purple-50/30 border-r border-purple-200/60">
-                              <input
-                                type="text"
-                                value={entry.pmDeparture}
-                                onChange={e => handleCellChange(idx, 'pmDeparture', e.target.value)}
-                                placeholder="5:02"
-                                className="w-full text-center px-1.5 py-1 rounded font-bold text-slate-800 bg-white border border-slate-200 focus:ring-2 focus:ring-purple-400"
-                              />
-                            </td>
-
-                            {/* Undertime Hours */}
-                            <td className="py-1.5 px-2">
-                              <input
-                                type="text"
-                                value={entry.undertimeHours}
-                                onChange={e => handleCellChange(idx, 'undertimeHours', e.target.value)}
-                                placeholder=""
-                                className="w-full text-center px-1.5 py-1 rounded font-semibold text-slate-700 bg-white border border-slate-200"
-                              />
-                            </td>
-
-                            {/* Undertime Minutes */}
-                            <td className="py-1.5 px-2">
-                              <input
-                                type="text"
-                                value={entry.undertimeMinutes}
-                                onChange={e => handleCellChange(idx, 'undertimeMinutes', e.target.value)}
-                                placeholder=""
-                                className="w-full text-center px-1.5 py-1 rounded font-semibold text-slate-700 bg-white border border-slate-200"
-                              />
-                            </td>
-                          </>
-                        ) : (
-                          <td colSpan={6} className="py-2 px-3 text-center font-black tracking-wide uppercase text-slate-700">
-                            {entry.status === 'saturday' && 'SATURDAY'}
-                            {entry.status === 'sunday' && 'SUNDAY'}
-                            {entry.status === 'holiday' && (entry.holidayTitle || 'HOLIDAY')}
-                            {entry.status === 'leave' && 'ON OFFICIAL LEAVE'}
-                            {entry.status === 'travel' && 'OFFICIAL BUSINESS (O.B.)'}
-                          </td>
-                        )}
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 2: LIVE 2-IN-1 DUAL COPY PREVIEW */}
-        {activeTab === 'preview' && (
-          <div className="clay-card p-6 space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-black text-[#2D2638] font-display">
-                  Civil Service Form No. 48 — 2-in-1 Side-by-Side Preview
-                </h3>
-                <p className="text-xs text-[#7A7289] font-medium">
-                  Standard Philippine Civil Service DTR layout formatted dual-copy on one sheet of paper
-                </p>
-              </div>
-
-              <button
-                onClick={handlePrintDTR}
-                className="px-5 py-2.5 rounded-full bg-gradient-to-r from-[#8B72F4] to-[#795CEE] text-white font-extrabold text-xs shadow-md hover:opacity-95 transition-all flex items-center gap-2 cursor-pointer"
-              >
-                <Printer size={16} />
-                Print Form No. 48
-              </button>
-            </div>
-
-            {/* Screen Preview Render */}
-            <div className="p-4 rounded-3xl bg-slate-100 border border-slate-200 overflow-x-auto">
-              <CSForm48DualRender
-                employeeName={employeeName}
-                monthYearLabel={monthYearLabel}
-                officialHoursText={officialHoursText}
-                saturdaysText={saturdaysText}
-                entries={entries}
-                supervisorName={finalSupervisorName}
-                supervisorTitle={finalSupervisorTitle}
-              />
-            </div>
-          </div>
-        )}
       </div>
 
       {/* PRINT AREA ONLY (Triggered on window.print()) */}
