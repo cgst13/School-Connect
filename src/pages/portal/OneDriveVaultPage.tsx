@@ -52,13 +52,6 @@ const cloudNavGroups: NavGroup[] = [
       { to: '/cloud-vault?type=image', label: 'Images & Photos', icon: <ImageIcon size={18} /> },
       { to: '/cloud-vault?type=archive', label: 'Compressed Archives', icon: <Archive size={18} /> }
     ]
-  },
-  {
-    title: 'SchoolConnect Utilities',
-    items: [
-      { to: '/notes', label: 'Notes & Vault', icon: <FolderOpen size={18} /> },
-      { to: '/portal', label: 'Back to Portal Hub', icon: <Sparkles size={18} /> }
-    ]
   }
 ]
 

@@ -124,14 +124,6 @@ const dtrNavGroups: NavGroup[] = [
       { to: '/dtr?tab=preview', label: 'Form 48 Side-by-Side Preview', icon: <Printer size={18} /> },
       { to: '/dtr?tab=editor', label: 'Data Sheet Editor & Times', icon: <Edit3 size={18} /> }
     ]
-  },
-  {
-    title: 'Concepcion District Systems',
-    items: [
-      { to: '/notes', label: 'Notes & Credentials Vault', icon: <FolderOpen size={18} /> },
-      { to: '/cloud-vault', label: 'OneDrive Cloud Vault', icon: <Cloud size={18} /> },
-      { to: '/portal', label: 'Back to Portal Hub', icon: <Sparkles size={18} /> }
-    ]
   }
 ]
 
