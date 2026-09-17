@@ -842,93 +842,98 @@ export function DTRGeneratorPage() {
   }, [savedRecords, historySearch])
 
   return (
-    <SchoolConnectLayout
-      activeAppId="dtr"
-      systemTitle="Civil Service Form No. 48 DTR Generator"
-      systemSubtitle="Concepcion District Non-Late DTR & Official Signatory System"
-      navGroups={dtrNavGroups}
-    >
-      {/* PRINT-ONLY TWO-IN-ONE CS FORM 48 STYLES */}
-      <style>{`
-        @media print {
-          @page {
-            size: letter portrait;
-            margin: 6mm;
-          }
-          html, body, #root, main {
-            height: auto !important;
-            min-height: 0 !important;
-            max-height: none !important;
-            overflow: visible !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            background: white !important;
-            color: black !important;
-            font-family: "Times New Roman", Times, serif !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          /* Hide Web UI chrome & non-printable elements */
-          nav, header, footer, aside, picture, .no-print, .clay-card, button, input, select {
-            display: none !important;
-          }
-          /* Force display of .print-area overriding Tailwind hidden */
-          .print-area, div.print-area, .print-area.hidden {
-            display: block !important;
-            visibility: visible !important;
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            background: white !important;
-            z-index: 99999 !important;
-          }
-          .dtr-dual-container {
-            display: flex !important;
-            flex-direction: row !important;
-            justify-content: space-between !important;
-            align-items: flex-start !important;
-            gap: 10px !important;
-            width: 100% !important;
-            background: white !important;
-            color: black !important;
-          }
-          .dtr-card-single {
-            width: 48.5% !important;
-            border: 1.5px solid black !important;
-            padding: 6px 8px !important;
-            box-sizing: border-box !important;
-            font-size: 8.5pt !important;
-            line-height: 1.15 !important;
-            background: white !important;
-            color: black !important;
-          }
-          .dtr-table {
-            width: 100% !important;
-            border-collapse: collapse !important;
-          }
-          .dtr-table th, .dtr-table td {
-            border: 1px solid black !important;
-            text-align: center !important;
-            padding: 1px 2px !important;
-            font-size: 7.8pt !important;
-            color: black !important;
-            background: white !important;
-          }
-          .dtr-table th {
-            font-weight: bold !important;
-            text-transform: uppercase !important;
-          }
-          .bg-black-fill {
-            background-color: black !important;
-            color: black !important;
-          }
-        }
-      `}</style>
+    <>
+      <div className="no-print">
+        <SchoolConnectLayout
+          activeAppId="dtr"
+          systemTitle="Civil Service Form No. 48 DTR Generator"
+          systemSubtitle="Concepcion District Non-Late DTR & Official Signatory System"
+          navGroups={dtrNavGroups}
+        >
+          {/* PRINT-ONLY TWO-IN-ONE CS FORM 48 STYLES */}
+          <style>{`
+            @media screen {
+              .dtr-print-only-root {
+                display: none !important;
+              }
+            }
+            @media print {
+              @page {
+                size: letter portrait;
+                margin: 5mm;
+              }
+              html, body, #root {
+                background: white !important;
+                color: black !important;
+                height: auto !important;
+                min-height: 0 !important;
+                max-height: none !important;
+                overflow: visible !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                font-family: "Times New Roman", Times, serif !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              /* Hide Web UI chrome & layout wrappers completely */
+              .no-print, nav, header, footer, aside, picture, .clay-card, button, input, select {
+                display: none !important;
+              }
+              /* Force display of .dtr-print-only-root */
+              .dtr-print-only-root {
+                display: block !important;
+                visibility: visible !important;
+                position: relative !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: white !important;
+                color: black !important;
+              }
+              .dtr-dual-container {
+                display: flex !important;
+                flex-direction: row !important;
+                justify-content: space-between !important;
+                align-items: flex-start !important;
+                gap: 10px !important;
+                width: 100% !important;
+                background: white !important;
+                color: black !important;
+              }
+              .dtr-card-single {
+                width: 48.5% !important;
+                border: 1.5px solid black !important;
+                padding: 6px 8px !important;
+                box-sizing: border-box !important;
+                font-size: 8.5pt !important;
+                line-height: 1.15 !important;
+                background: white !important;
+                color: black !important;
+              }
+              .dtr-table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+              }
+              .dtr-table th, .dtr-table td {
+                border: 1px solid black !important;
+                text-align: center !important;
+                padding: 1px 2px !important;
+                font-size: 7.8pt !important;
+                color: black !important;
+                background: white !important;
+              }
+              .dtr-table th {
+                font-weight: bold !important;
+                text-transform: uppercase !important;
+              }
+              .bg-black-fill {
+                background-color: black !important;
+                color: black !important;
+              }
+            }
+          `}</style>
 
-      <div className="space-y-6 w-full pb-16 animate-fade-in no-print">
+          <div className="space-y-6 w-full pb-16 animate-fade-in no-print">
         {/* Top Pastel Header Banner */}
         <div className="bg-gradient-to-r from-[#A88BEB] via-[#8B72F4] to-[#795CEE] text-white rounded-[36px] p-6 sm:p-9 shadow-[0_20px_40px_rgba(139,114,244,0.28)] border-4 border-white relative overflow-hidden">
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -2173,8 +2178,11 @@ export function DTRGeneratorPage() {
         )}
       </div>
 
-      {/* PRINT AREA ONLY (Triggered on window.print()) */}
-      <div className="print-area hidden">
+        </SchoolConnectLayout>
+      </div>
+
+      {/* STANDALONE PRINT AREA OUTSIDE SchoolConnectLayout */}
+      <div className="dtr-print-only-root">
         <CSForm48DualRender
           employeeName={employeeName}
           monthYearLabel={monthYearLabel}
@@ -2185,7 +2193,7 @@ export function DTRGeneratorPage() {
           supervisorTitle={finalSupervisorTitle}
         />
       </div>
-    </SchoolConnectLayout>
+    </>
   )
 }
 
