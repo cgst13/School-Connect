@@ -601,9 +601,11 @@ export function DTRGeneratorPage() {
       return
     }
 
+    const currentUserName = (admin?.full_name || employeeName).toUpperCase()
+
     const item: AbsenceRecordItem = {
       id: `abs_${Date.now()}`,
-      employeeName: employeeName.toUpperCase(),
+      employeeName: currentUserName,
       date: newAbsenceDate,
       reason: newAbsenceReason.trim(),
       isExcused: newAbsenceExcused
@@ -612,7 +614,7 @@ export function DTRGeneratorPage() {
     setAbsencesList(prev => [item, ...prev])
     setNewAbsenceDate('')
     setNewAbsenceReason('')
-    toast(`Logged absence for ${employeeName.toUpperCase()} on ${newAbsenceDate}`, 'success')
+    toast(`Logged absence for ${currentUserName} on ${newAbsenceDate}`, 'success')
   }
 
   const handleDeleteAbsence = (id: string) => {
@@ -628,9 +630,11 @@ export function DTRGeneratorPage() {
       return
     }
 
+    const currentUserName = (admin?.full_name || employeeName).toUpperCase()
+
     const item: LeaveRecordItem = {
       id: `lev_${Date.now()}`,
-      employeeName: employeeName.toUpperCase(),
+      employeeName: currentUserName,
       leaveType: newLeaveType,
       startDate: newLeaveStart,
       endDate: newLeaveEnd,
@@ -642,7 +646,7 @@ export function DTRGeneratorPage() {
     setNewLeaveStart('')
     setNewLeaveEnd('')
     setNewLeaveRemarks('')
-    toast(`Filed ${newLeaveType} for ${employeeName.toUpperCase()}`, 'success')
+    toast(`Filed ${newLeaveType} for ${currentUserName}`, 'success')
   }
 
   const handleDeleteLeave = (id: string) => {
@@ -826,11 +830,17 @@ export function DTRGeneratorPage() {
 
   const monthYearLabel = `${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}`
 
-  // Filtered History
+  // Filtered History for Logged-In User Only
+  const userSavedRecords = useMemo(() => {
+    if (!admin?.full_name) return savedRecords
+    const currentName = admin.full_name.trim().toLowerCase()
+    return savedRecords.filter(r => r.employeeName.trim().toLowerCase() === currentName)
+  }, [savedRecords, admin])
+
   const filteredHistory = useMemo(() => {
-    if (!historySearch.trim()) return savedRecords
+    if (!historySearch.trim()) return userSavedRecords
     const q = historySearch.toLowerCase()
-    return savedRecords.filter(r => {
+    return userSavedRecords.filter(r => {
       const monthName = MONTH_NAMES[r.month - 1]?.toLowerCase() || ''
       return (
         r.employeeName.toLowerCase().includes(q) ||
@@ -839,7 +849,21 @@ export function DTRGeneratorPage() {
         r.role.toLowerCase().includes(q)
       )
     })
-  }, [savedRecords, historySearch])
+  }, [userSavedRecords, historySearch])
+
+  // Filtered Absences for Logged-In User Only
+  const userAbsencesList = useMemo(() => {
+    if (!admin?.full_name) return absencesList
+    const name = admin.full_name.trim().toLowerCase()
+    return absencesList.filter(a => a.employeeName.trim().toLowerCase() === name)
+  }, [absencesList, admin])
+
+  // Filtered Leave Records for Logged-In User Only
+  const userLeaveRecords = useMemo(() => {
+    if (!admin?.full_name) return leaveRecords
+    const name = admin.full_name.trim().toLowerCase()
+    return leaveRecords.filter(l => l.employeeName.trim().toLowerCase() === name)
+  }, [leaveRecords, admin])
 
   return (
     <>
@@ -988,7 +1012,7 @@ export function DTRGeneratorPage() {
                   <span className="text-xs font-bold text-[#7A7289] uppercase tracking-wider">Saved DTRs</span>
                   <FolderOpen size={20} className="text-[#8B72F4]" />
                 </div>
-                <p className="text-2xl font-black text-[#2D2638] font-display">{savedRecords.length}</p>
+                <p className="text-2xl font-black text-[#2D2638] font-display">{userSavedRecords.length}</p>
                 <p className="text-[11px] text-[#7A7289]">Synced in Supabase DB</p>
               </div>
 
@@ -1813,7 +1837,7 @@ export function DTRGeneratorPage() {
                 <p className="text-xs text-[#7A7289]">Log and record absence days for personnel</p>
               </div>
               <span className="px-3 py-1 rounded-full bg-rose-50 text-rose-700 text-xs font-bold border border-rose-200">
-                {absencesList.length} Logged Absences
+                {userAbsencesList.length} Logged Absences
               </span>
             </div>
 
@@ -1876,7 +1900,7 @@ export function DTRGeneratorPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
-                  {absencesList.map(item => (
+                  {userAbsencesList.map(item => (
                     <tr key={item.id} className="hover:bg-slate-50">
                       <td className="py-3.5 px-4 font-bold text-slate-800">{item.employeeName}</td>
                       <td className="py-3.5 px-4 font-extrabold text-[#8B72F4]">{item.date}</td>
@@ -1899,7 +1923,7 @@ export function DTRGeneratorPage() {
                       </td>
                     </tr>
                   ))}
-                  {absencesList.length === 0 && (
+                  {userAbsencesList.length === 0 && (
                     <tr>
                       <td colSpan={5} className="py-6 text-center text-slate-400 italic">No absence logs recorded.</td>
                     </tr>
@@ -1922,7 +1946,7 @@ export function DTRGeneratorPage() {
                 <p className="text-xs text-[#7A7289]">Track official Form 6 Application for Leave entries</p>
               </div>
               <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-800 text-xs font-bold border border-blue-200">
-                {leaveRecords.length} Approved Leaves
+                {userLeaveRecords.length} Approved Leaves
               </span>
             </div>
 
@@ -1990,7 +2014,7 @@ export function DTRGeneratorPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
-                  {leaveRecords.map(item => (
+                  {userLeaveRecords.map(item => (
                     <tr key={item.id} className="hover:bg-slate-50">
                       <td className="py-3.5 px-4 font-bold text-slate-800">{item.employeeName}</td>
                       <td className="py-3.5 px-4 font-extrabold text-[#8B72F4]">{item.leaveType}</td>
@@ -2013,7 +2037,7 @@ export function DTRGeneratorPage() {
                       </td>
                     </tr>
                   ))}
-                  {leaveRecords.length === 0 && (
+                  {userLeaveRecords.length === 0 && (
                     <tr>
                       <td colSpan={5} className="py-6 text-center text-slate-400 italic">No leave records filed.</td>
                     </tr>
