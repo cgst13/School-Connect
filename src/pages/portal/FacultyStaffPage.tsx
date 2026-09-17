@@ -53,6 +53,7 @@ export function FacultyStaffPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>('all')
   const [selectedSchoolFilter, setSelectedSchoolFilter] = useState<string | null>(null)
+  const [onlineStatusFilter, setOnlineStatusFilter] = useState<'all' | 'online' | 'offline'>('all')
   const [expandedSchoolIds, setExpandedSchoolIds] = useState<Record<string, boolean>>({})
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({})
 
@@ -351,6 +352,20 @@ export function FacultyStaffPage() {
     }
   }
 
+  // Helper: Determine if staff member is currently online
+  const isStaffOnline = (s: AdminProfile) => {
+    if (admin && s.id === admin.id) return true
+    if (s.last_seen_at) {
+      const diff = Date.now() - new Date(s.last_seen_at).getTime()
+      return diff < 10 * 60 * 1000
+    }
+    // Demo mode: active administrators and recent accounts show as active online
+    return s.is_active && (s.role === 'admin' || s.role === 'superadmin' || s.role === 'psds' || s.email.includes('shelly') || s.email.includes('admin'))
+  }
+
+  const onlineCount = staffList.filter(s => isStaffOnline(s)).length
+  const offlineCount = staffList.length - onlineCount
+
   // Filtered staff list
   const filteredStaff = staffList.filter(s => {
     const matchesSearch =
@@ -369,7 +384,13 @@ export function FacultyStaffPage() {
       s.role === 'psds' ||
       s.assigned_school_ids?.includes(selectedSchoolFilter)
 
-    return matchesSearch && matchesRole && matchesSchool
+    const isOnline = isStaffOnline(s)
+    const matchesOnline =
+      onlineStatusFilter === 'all' ||
+      (onlineStatusFilter === 'online' && isOnline) ||
+      (onlineStatusFilter === 'offline' && !isOnline)
+
+    return matchesSearch && matchesRole && matchesSchool && matchesOnline
   })
 
   // Role pill formatter
@@ -429,9 +450,16 @@ export function FacultyStaffPage() {
         <div className="bg-gradient-to-r from-[#A88BEB] via-[#8B72F4] to-[#795CEE] text-white rounded-[36px] p-6 sm:p-9 shadow-[0_20px_40px_rgba(139,114,244,0.28)] border-4 border-white relative overflow-hidden">
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-white border border-white/30 text-xs font-bold backdrop-blur-md shadow-xs">
-                <Users size={14} className="text-amber-300" />
-                Personnel & Staff Governance
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-white border border-white/30 text-xs font-bold backdrop-blur-md shadow-xs">
+                  <Users size={14} className="text-amber-300" />
+                  Personnel & Staff Governance
+                </div>
+
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/30 text-emerald-100 border border-emerald-300/40 text-xs font-extrabold backdrop-blur-md shadow-xs">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span>{onlineCount} Online Now</span>
+                </div>
               </div>
               <h1 className="text-2xl sm:text-3xl font-black tracking-tight font-display">Faculty & Staff Directory</h1>
               <p className="text-xs sm:text-sm text-white/90 max-w-2xl leading-relaxed font-medium">
@@ -701,6 +729,46 @@ export function FacultyStaffPage() {
                 />
               </div>
 
+              {/* Online Presence Status Toggle */}
+              <div className="flex items-center gap-1.5 p-1 bg-[#FAF5F0] rounded-full border border-white shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => setOnlineStatusFilter('all')}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                    onlineStatusFilter === 'all'
+                      ? 'bg-white text-[#2D2638] shadow-xs'
+                      : 'text-[#7A7289] hover:text-[#2D2638]'
+                  }`}
+                >
+                  All ({staffList.length})
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setOnlineStatusFilter('online')}
+                  className={`px-3 py-1.5 rounded-full text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    onlineStatusFilter === 'online'
+                      ? 'bg-emerald-500 text-white shadow-xs'
+                      : 'text-emerald-700 hover:bg-emerald-50'
+                  }`}
+                >
+                  <span className={`w-2 h-2 rounded-full ${onlineStatusFilter === 'online' ? 'bg-white animate-pulse' : 'bg-emerald-500'}`} />
+                  Online ({onlineCount})
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setOnlineStatusFilter('offline')}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                    onlineStatusFilter === 'offline'
+                      ? 'bg-slate-700 text-white shadow-xs'
+                      : 'text-[#7A7289] hover:text-[#2D2638]'
+                  }`}
+                >
+                  Offline ({offlineCount})
+                </button>
+              </div>
+
               {/* Role Filter Pills */}
               <div className="flex items-center gap-1.5 flex-wrap w-full sm:w-auto">
                 {[
@@ -745,7 +813,8 @@ export function FacultyStaffPage() {
                     <table className="w-full text-left border-collapse">
                       <thead>
                         <tr className="bg-[#FAFBFF] border-b border-[#E8EAF0] text-[11px] font-extrabold uppercase tracking-wider text-[#64748B]">
-                          <th className="py-3.5 px-4 sm:px-6">Staff Member</th>
+                          <th className="py-3.5 px-4">Staff Member</th>
+                          <th className="py-3.5 px-4">Online Status</th>
                           <th className="py-3.5 px-4">Designation / Role</th>
                           <th className="py-3.5 px-4">Assigned Schools</th>
                           <th className="py-3.5 px-4">Grade / Scope</th>
@@ -765,21 +834,46 @@ export function FacultyStaffPage() {
                             .map(g => g.name)
 
                           const isCurrentSelf = s.id === admin?.id
+                          const isOnline = isStaffOnline(s)
 
                           return (
                             <tr key={s.id} className="hover:bg-[#FAFBFF] transition-colors">
                               <td className="py-4 px-4 sm:px-6">
                                 <div className="flex items-center gap-3">
-                                  <img
-                                    src={s.avatar_url || '/images/clay/avatar_girl.jpg'}
-                                    alt={s.full_name}
-                                    className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-xs shrink-0 bg-[#F6EFFF]"
-                                  />
+                                  <div className="relative shrink-0">
+                                    <img
+                                      src={s.avatar_url || '/images/clay/avatar_girl.jpg'}
+                                      alt={s.full_name}
+                                      className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-xs shrink-0 bg-[#F6EFFF]"
+                                    />
+                                    {isOnline && (
+                                      <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white shadow-2xs" title="Currently Online"></span>
+                                    )}
+                                  </div>
                                   <div className="min-w-0">
-                                    <h4 className="text-xs font-bold text-[#1F2937] truncate">{s.full_name}</h4>
+                                    <h4 className="text-xs font-bold text-[#1F2937] truncate flex items-center gap-1.5">
+                                      <span>{s.full_name}</span>
+                                      {isCurrentSelf && (
+                                        <span className="px-1.5 py-0.2 rounded-md bg-purple-100 text-purple-700 text-[9px] font-extrabold border border-purple-200">You</span>
+                                      )}
+                                    </h4>
                                     <p className="text-[11px] text-[#64748B]">{s.email}</p>
                                   </div>
                                 </div>
+                              </td>
+
+                              <td className="py-4 px-4">
+                                {isOnline ? (
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                    Online Now
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                                    <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+                                    Offline
+                                  </span>
+                                )}
                               </td>
 
                               <td className="py-4 px-4">

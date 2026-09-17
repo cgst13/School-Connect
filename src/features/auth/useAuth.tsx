@@ -39,6 +39,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [admin])
 
+  useEffect(() => {
+    if (!admin) return
+    const now = new Date().toISOString()
+    if (!admin.last_seen_at || Date.now() - new Date(admin.last_seen_at).getTime() > 60000) {
+      setAdmin(prev => (prev ? { ...prev, last_seen_at: now } : null))
+    }
+
+    const interval = setInterval(() => {
+      setAdmin(prev => (prev ? { ...prev, last_seen_at: new Date().toISOString() } : null))
+    }, 45000)
+
+    return () => clearInterval(interval)
+  }, [admin?.id])
+
   const signIn = async (email: string, password: string) => {
     const profile = await authenticateWithUserTable(email, password)
     if (!profile) {
