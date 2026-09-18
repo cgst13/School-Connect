@@ -194,9 +194,9 @@ export function DTRGeneratorPage() {
   const [selectedMonth, setSelectedMonth] = useState<number>(6) // Default June (1-indexed: 6)
 
   const [officialHoursText, setOfficialHoursText] = useState<string>(
-    'Regular days 7:00–11:30AM / 1:00–5:00PM'
+    'Regular days 7:00-11:30AM'
   )
-  const [saturdaysText, setSaturdaysText] = useState<string>('')
+  const [saturdaysText, setSaturdaysText] = useState<string>('Saturdays: 1:00-5:00PM')
 
   // DTR Target Personnel Role Selector
   const [dtrTargetRole, setDtrTargetRole] = useState<'teacher' | 'ao_2' | 'school_head' | 'psds'>(() => {
@@ -2447,15 +2447,15 @@ function CSForm48SingleCard({
 
         <div className="flex items-start justify-between">
           <div className="font-semibold">
-            <div>Office hours for arrival</div>
+            <div>Office hours of arrival</div>
             <div>and departure</div>
           </div>
           <div className="text-right">
-            <div className="font-bold">{officialHoursText || 'Regular days 7:00–11:30AM / 1:00–5:00PM'}</div>
-            <div className="font-semibold">
+            <div className="font-bold">{officialHoursText || 'Regular days 7:00-11:30AM'}</div>
+            <div className="font-bold">
               {saturdaysText
                 ? (saturdaysText.toLowerCase().startsWith('saturdays') ? saturdaysText : `Saturdays: ${saturdaysText}`)
-                : 'Saturdays: —'}
+                : 'Saturdays: 1:00-5:00PM'}
             </div>
           </div>
         </div>
