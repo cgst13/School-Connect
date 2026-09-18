@@ -614,11 +614,26 @@ export async function deleteConsolidatedReport(id: string) {
 
 // Schools
 export async function upsertSchool(school: Partial<School>): Promise<School> {
-  const { data, error } = school.id
-    ? await supabase.from('sc_schools').update(school).eq('id', school.id).select().single()
-    : await supabase.from('sc_schools').insert(school).select().single()
-  if (error) throw error
-  return data as School
+  try {
+    const { data, error } = school.id
+      ? await supabase.from('sc_schools').update(school).eq('id', school.id).select().single()
+      : await supabase.from('sc_schools').insert(school).select().single()
+    if (error) {
+      if (error.code === 'PGRST204' || error.message?.includes('offered_grade_numbers')) {
+        const fallback = { ...school }
+        delete fallback.offered_grade_numbers
+        const { data: retryData, error: retryErr } = school.id
+          ? await supabase.from('sc_schools').update(fallback).eq('id', school.id).select().single()
+          : await supabase.from('sc_schools').insert(fallback).select().single()
+        if (retryErr) throw retryErr
+        return retryData as School
+      }
+      throw error
+    }
+    return data as School
+  } catch (err) {
+    throw err
+  }
 }
 
 // Learning Areas

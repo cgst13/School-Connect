@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { SchoolConnectLayout } from '@/components/layouts/SchoolConnectLayout'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { DepEdSpinner } from '@/components/ui/DepEdSpinner'
@@ -24,19 +24,63 @@ function SchoolModal({ isOpen, school, onSave, onClose, isLoading }: SchoolModal
   const [type, setType] = useState<'elementary' | 'secondary'>(school?.school_type || 'elementary')
   const [active, setActive] = useState(school?.is_active ?? true)
   const [error, setError] = useState('')
+
+  const gradeOptions: Array<{ num: number; label: string }> = useMemo(() => {
+    return type === 'elementary'
+      ? [
+          { num: 0, label: 'Kindergarten' },
+          { num: 1, label: 'Grade 1' },
+          { num: 2, label: 'Grade 2' },
+          { num: 3, label: 'Grade 3' },
+          { num: 4, label: 'Grade 4' },
+          { num: 5, label: 'Grade 5' },
+          { num: 6, label: 'Grade 6' }
+        ]
+      : [
+          { num: 7, label: 'Grade 7' },
+          { num: 8, label: 'Grade 8' },
+          { num: 9, label: 'Grade 9' },
+          { num: 10, label: 'Grade 10' },
+          { num: 11, label: 'Grade 11' },
+          { num: 12, label: 'Grade 12' }
+        ]
+  }, [type])
+
+  const [offeredGrades, setOfferedGrades] = useState<number[]>(() => {
+    if (school?.offered_grade_numbers && school.offered_grade_numbers.length > 0) {
+      return school.offered_grade_numbers
+    }
+    return (type === 'elementary' ? [0, 1, 2, 3, 4, 5, 6] : [7, 8, 9, 10, 11, 12])
+  })
+
+  useEffect(() => {
+    if (school?.offered_grade_numbers && school.offered_grade_numbers.length > 0) {
+      setOfferedGrades(school.offered_grade_numbers)
+    } else {
+      setOfferedGrades(type === 'elementary' ? [0, 1, 2, 3, 4, 5, 6] : [7, 8, 9, 10, 11, 12])
+    }
+  }, [type, school])
+
   const { shouldRender, triggerClose, containerClass, backdropClass } = useGenieModal(isOpen, onClose)
 
   if (!shouldRender) return null
 
   const handleSave = async () => {
     if (name.trim().length < 2) { setError('School name is required (min 2 characters).'); return }
-    await onSave({ id: school?.id, name: name.trim(), school_type: type, is_active: active })
+    const isAllOffered = offeredGrades.length === gradeOptions.length && gradeOptions.every(g => offeredGrades.includes(g.num))
+    await onSave({
+      id: school?.id,
+      name: name.trim(),
+      school_type: type,
+      is_active: active,
+      offered_grade_numbers: isAllOffered ? null : offeredGrades
+    })
   }
 
   return (
     <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2D2638]/40 backdrop-blur-md ${backdropClass}`}>
       <div className="absolute inset-0" onClick={triggerClose} />
-      <div className={`relative w-full max-w-md bg-[#FAF5F0] rounded-[36px] overflow-hidden border-4 border-white shadow-[0_25px_60px_rgba(139,114,244,0.22)] z-10 ${containerClass}`}>
+      <div className={`relative w-full max-w-lg bg-[#FAF5F0] rounded-[36px] overflow-hidden border-4 border-white shadow-[0_25px_60px_rgba(139,114,244,0.22)] z-10 ${containerClass}`}>
         {/* Modal Header */}
         <div className="px-6 py-4.5 bg-gradient-to-r from-[#A88BEB] via-[#8B72F4] to-[#795CEE] text-white flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -46,7 +90,7 @@ function SchoolModal({ isOpen, school, onSave, onClose, isLoading }: SchoolModal
           <button onClick={triggerClose} className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white backdrop-blur-md transition-all cursor-pointer border border-white/30 active:scale-95 text-xs font-bold w-7 h-7 flex items-center justify-center">✕</button>
         </div>
 
-        <div className="p-6 space-y-4">
+        <div className="p-6 space-y-4 max-h-[85vh] overflow-y-auto">
           <div>
             <label className="block text-xs font-black text-[#2D2638] mb-1.5 font-display">Official School Name *</label>
             <input
@@ -68,6 +112,70 @@ function SchoolModal({ isOpen, school, onSave, onClose, isLoading }: SchoolModal
               <option value="elementary">Elementary School</option>
               <option value="secondary">Secondary School (High School / Senior High)</option>
             </select>
+          </div>
+
+          {/* Grade Level Offering & Enrollee Configuration */}
+          <div className="p-4 rounded-2xl bg-white border border-[#E8EAF0] space-y-2.5">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-black text-[#2D2638] font-display">
+                Active Grade Levels & Enrollees
+              </label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setOfferedGrades(gradeOptions.map(g => g.num))}
+                  className="text-[10px] font-bold text-[#8B72F4] hover:underline cursor-pointer"
+                >
+                  Select All
+                </button>
+                <span className="text-slate-300">•</span>
+                <button
+                  type="button"
+                  onClick={() => setOfferedGrades([])}
+                  className="text-[10px] font-bold text-slate-500 hover:underline cursor-pointer"
+                >
+                  Clear All
+                </button>
+              </div>
+            </div>
+            <p className="text-[11px] text-[#7A7289] font-medium leading-relaxed">
+              Uncheck grade levels that have <b>no enrollees</b> for this school. Unchecked grades will be <b>exempted from TermCat submission requirements</b>.
+            </p>
+
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              {gradeOptions.map(g => {
+                const isChecked = offeredGrades.includes(g.num)
+                return (
+                  <label
+                    key={g.num}
+                    className={`flex items-center gap-2 p-2 rounded-xl border transition-all cursor-pointer select-none ${
+                      isChecked
+                        ? 'bg-purple-50/60 border-purple-200 text-purple-950 font-bold'
+                        : 'bg-slate-50 border-slate-200 text-slate-400 font-semibold'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={e => {
+                        if (e.target.checked) {
+                          setOfferedGrades(prev => [...prev, g.num])
+                        } else {
+                          setOfferedGrades(prev => prev.filter(num => num !== g.num))
+                        }
+                      }}
+                      className="rounded text-[#8B72F4] focus:ring-[#8B72F4]/20 w-4 h-4 cursor-pointer"
+                    />
+                    <span className="text-xs">{g.label}</span>
+                    <span className={`ml-auto text-[9px] px-1.5 py-0.5 rounded font-extrabold uppercase ${
+                      isChecked ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                    }`}>
+                      {isChecked ? 'Active' : 'No Enrollees'}
+                    </span>
+                  </label>
+                )
+              })}
+            </div>
           </div>
 
           <div className="flex items-center gap-2.5 pt-1">
@@ -158,7 +266,7 @@ export function SchoolsPage() {
         <PageHeader
           badge="Academic Master Data"
           title="School Directory & Governance"
-          description="Manage elementary & secondary schools across Concepcion District, configure active statuses, and maintain district governance master data."
+          description="Manage elementary & secondary schools across Concepcion District, configure offered grade levels & enrollees, and maintain district governance master data."
           actions={
             <button
               onClick={(e) => { captureGenieOrigin(e); setModal({ open: true }) }}
@@ -279,70 +387,86 @@ export function SchoolsPage() {
                     <tr className="bg-[#F8FAFC] border-b border-[#E8EAF0] text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider">
                       <th className="py-3.5 px-6">School Name</th>
                       <th className="py-3.5 px-6">Classification</th>
-                      <th className="py-3.5 px-6">District Scope</th>
+                      <th className="py-3.5 px-6">Enrollee Grade Offering</th>
                       <th className="py-3.5 px-6">Status</th>
                       <th className="py-3.5 px-6 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#E8EAF0]">
-                    {filteredSchools.map(school => (
-                      <tr key={school.id} className="hover:bg-[#F8FAFC]/70 transition-colors text-xs">
-                        <td className="py-4 px-6">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-xl bg-[#EEF0FF] text-[#3B49B8] font-bold text-xs flex items-center justify-center shrink-0 border border-[#BFD7FF]">
-                              <Building2 size={16} />
+                    {filteredSchools.map(school => {
+                      const defaultNums = school.school_type === 'elementary' ? [0, 1, 2, 3, 4, 5, 6] : [7, 8, 9, 10, 11, 12]
+                      const activeNums = school.offered_grade_numbers && school.offered_grade_numbers.length > 0
+                        ? school.offered_grade_numbers
+                        : defaultNums
+                      const missingNums = defaultNums.filter(n => !activeNums.includes(n))
+
+                      return (
+                        <tr key={school.id} className="hover:bg-[#F8FAFC]/70 transition-colors text-xs">
+                          <td className="py-4 px-6">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-xl bg-[#EEF0FF] text-[#3B49B8] font-bold text-xs flex items-center justify-center shrink-0 border border-[#BFD7FF]">
+                                <Building2 size={16} />
+                              </div>
+                              <span className="font-bold text-[#1F2937]">{school.name}</span>
                             </div>
-                            <span className="font-bold text-[#1F2937]">{school.name}</span>
-                          </div>
-                        </td>
-                        <td className="py-4 px-6">
-                          {school.school_type === 'elementary' ? (
-                            <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-sky-100 text-sky-800 border border-sky-200">
-                              Elementary
-                            </span>
-                          ) : (
-                            <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
-                              Secondary
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-4 px-6 text-[#64748B] font-medium">
-                          Concepcion District
-                        </td>
-                        <td className="py-4 px-6">
-                          {school.is_active ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#F0FAF5] text-[#1E6B48] border border-[#BFE8D5]">
-                              <span className="w-1.5 h-1.5 rounded-full bg-[#1E6B48]" /> Active
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
-                              <span className="w-1.5 h-1.5 rounded-full bg-slate-400" /> Inactive
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-4 px-6 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={(e) => { captureGenieOrigin(e); setModal({ open: true, school }) }}
-                              className="p-1.5 rounded-lg text-[#64748B] hover:text-[#3B49B8] hover:bg-[#EEF0FF] transition-colors cursor-pointer active:animate-button-sparkle"
-                              title="Edit School"
-                            >
-                              <Edit2 size={16} />
-                            </button>
-                            <button
-                              onClick={() => handleToggleActive(school)}
-                              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                                school.is_active
-                                  ? 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200'
-                                  : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
-                              }`}
-                            >
-                              {school.is_active ? 'Deactivate' : 'Activate'}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td className="py-4 px-6">
+                            {school.school_type === 'elementary' ? (
+                              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-sky-100 text-sky-800 border border-sky-200">
+                                Elementary
+                              </span>
+                            ) : (
+                              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
+                                Secondary
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-4 px-6">
+                            {missingNums.length === 0 ? (
+                              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                All Grades Active ({school.school_type === 'elementary' ? 'K–6' : 'G7–12'})
+                              </span>
+                            ) : (
+                              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-900 border border-amber-200" title={`Exempt grades without enrollees: ${missingNums.map(n => n === 0 ? 'Kinder' : `Grade ${n}`).join(', ')}`}>
+                                No Enrollees: {missingNums.map(n => n === 0 ? 'K' : `G${n}`).join(', ')}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-4 px-6">
+                            {school.is_active ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#F0FAF5] text-[#1E6B48] border border-[#BFE8D5]">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#1E6B48]" /> Active
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                                <span className="w-1.5 h-1.5 rounded-full bg-slate-400" /> Inactive
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-4 px-6 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={(e) => { captureGenieOrigin(e); setModal({ open: true, school }) }}
+                                className="p-1.5 rounded-lg text-[#64748B] hover:text-[#3B49B8] hover:bg-[#EEF0FF] transition-colors cursor-pointer active:animate-button-sparkle"
+                                title="Edit School & Grade Level Offerings"
+                              >
+                                <Edit2 size={16} />
+                              </button>
+                              <button
+                                onClick={() => handleToggleActive(school)}
+                                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                  school.is_active
+                                    ? 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200'
+                                    : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
+                                }`}
+                              >
+                                {school.is_active ? 'Deactivate' : 'Activate'}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>

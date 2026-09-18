@@ -233,9 +233,12 @@ export function SubmissionsPage() {
       let schoolTotal = 0
       let schoolSubmitted = 0
 
-      // Applicable grade levels for school type
+      // Applicable grade levels for school type & school offered grades
       const applicableGrades = grades.filter(g => {
         if (!g.is_active) return false
+        if (Array.isArray(school.offered_grade_numbers) && school.offered_grade_numbers.length > 0) {
+          if (!school.offered_grade_numbers.includes(g.grade_number)) return false
+        }
         if (school.school_type === 'elementary') return g.grade_number <= 6
         if (school.school_type === 'secondary') return g.grade_number >= 7
         return true

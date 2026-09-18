@@ -136,19 +136,24 @@ export function ConsolidationPage() {
     })
   }, [])
 
-  // Filter grade levels dynamically by School Level Selection
+  // Filter grade levels dynamically by School Level Selection and selected School
   const availableGrades = useMemo(() => {
+    let result = grades
     if (filters.school_level === 'elementary') {
-      return grades.filter(g => g.grade_number >= 1 && g.grade_number <= 6)
+      result = result.filter(g => g.grade_number >= 0 && g.grade_number <= 6)
+    } else if (filters.school_level === 'junior_hs') {
+      result = result.filter(g => g.grade_number >= 7 && g.grade_number <= 10)
+    } else if (filters.school_level === 'senior_hs') {
+      result = result.filter(g => g.grade_number >= 11 && g.grade_number <= 12)
     }
-    if (filters.school_level === 'junior_hs') {
-      return grades.filter(g => g.grade_number >= 7 && g.grade_number <= 10)
+    if (filters.school_id && filters.school_id !== 'all') {
+      const selectedSchool = schools.find(s => s.id === filters.school_id)
+      if (selectedSchool && Array.isArray(selectedSchool.offered_grade_numbers) && selectedSchool.offered_grade_numbers.length > 0) {
+        result = result.filter(g => selectedSchool.offered_grade_numbers!.includes(g.grade_number))
+      }
     }
-    if (filters.school_level === 'senior_hs') {
-      return grades.filter(g => g.grade_number >= 11 && g.grade_number <= 12)
-    }
-    return grades
-  }, [filters.school_level, grades])
+    return result
+  }, [filters.school_level, filters.school_id, grades, schools])
 
   // Filter Learning Areas dynamically for specific selected Grade Level
   const availableLearningAreas = useMemo(() => {

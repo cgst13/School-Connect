@@ -18,6 +18,7 @@ export interface School {
   name: string;
   school_type: SchoolType;
   is_active: boolean;
+  offered_grade_numbers?: number[] | null;
   created_at: string;
   updated_at: string;
 }

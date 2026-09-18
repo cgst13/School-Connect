@@ -118,9 +118,17 @@ export function Step1TeacherInfo({ data, autoFocusLA = false, onNext }: Props) {
     setSelectedSchoolType(school.school_type)
 
     fetchGradeLevels(school.school_type).then(fetchedGrades => {
-      setGrades(fetchedGrades)
-      if (data.grade_level_id && fetchedGrades.some(g => g.id === data.grade_level_id)) {
+      const activeOfferedGrades = fetchedGrades.filter(g => {
+        if (Array.isArray(school.offered_grade_numbers) && school.offered_grade_numbers.length > 0) {
+          return school.offered_grade_numbers.includes(g.grade_number)
+        }
+        return true
+      })
+      setGrades(activeOfferedGrades)
+      if (data.grade_level_id && activeOfferedGrades.some(g => g.id === data.grade_level_id)) {
         setValue('grade_level_id', data.grade_level_id)
+      } else if (!activeOfferedGrades.some(g => g.id === data.grade_level_id)) {
+        setValue('grade_level_id', '')
       }
     })
   }, [watchSchoolId, schools, data.grade_level_id])
