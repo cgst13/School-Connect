@@ -600,6 +600,8 @@
 /* Civil Service Form No. 48 Arial Font Enforcement */
 .dtr-dual-container,
 .dtr-dual-container *,
+.dtr-card-cut-wrapper,
+.dtr-card-cut-wrapper *,
 .dtr-card-single,
 .dtr-card-single * {
   font-family: Arial, "Helvetica Neue", Helvetica, sans-serif !important;
@@ -666,6 +668,8 @@
 
   .dtr-dual-container,
   .dtr-dual-container *,
+  .dtr-card-cut-wrapper,
+  .dtr-card-cut-wrapper *,
   .dtr-card-single,
   .dtr-card-single * {
     font-family: Arial, "Helvetica Neue", Helvetica, sans-serif !important;
@@ -676,7 +680,7 @@
     flex-direction: row !important;
     justify-content: space-between !important;
     align-items: flex-start !important;
-    gap: 12px !important;
+    gap: 8px !important;
     width: 100% !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
@@ -684,9 +688,30 @@
     color: black !important;
   }
 
-  .dtr-card-single {
+  .dtr-card-cut-wrapper {
     flex: 1 1 0% !important;
     width: 48.5% !important;
+    border: 1.2px dashed #000000 !important;
+    padding: 0.2in !important;
+    box-sizing: border-box !important;
+    background: #ffffff !important;
+    position: relative !important;
+  }
+
+  .dtr-scissor-tag {
+    display: inline-block !important;
+    visibility: visible !important;
+    background: white !important;
+    color: black !important;
+    font-size: 8pt !important;
+    position: absolute !important;
+    top: -7px !important;
+    left: 12px !important;
+    padding: 0 3px !important;
+  }
+
+  .dtr-card-single {
+    width: 100% !important;
     border: 1.5px solid black !important;
     padding: 4px 6px !important;
     box-sizing: border-box !important;
@@ -694,12 +719,6 @@
     line-height: 1.1 !important;
     background: white !important;
     color: black !important;
-  }
-
-  .dtr-cut-divider {
-    display: block !important;
-    border-right: 1.5px dashed #64748b !important;
-    align-self: stretch !important;
   }
 
   .dtr-table {

@@ -2419,10 +2419,15 @@ function CSForm48SingleCard({
   supervisorTitle
 }: CSForm48Props) {
   return (
-    <div
-      className="dtr-card-single flex-1 border-2 border-black p-3 bg-white text-black text-[8.5pt] leading-tight select-none"
-      style={{ fontFamily: 'Arial, "Helvetica Neue", Helvetica, sans-serif' }}
-    >
+    <div className="dtr-card-cut-wrapper flex-1 relative border border-dashed border-black p-[0.2in] bg-white box-sizing-border font-sans">
+      {/* Scissor icon indicator */}
+      <span className="dtr-scissor-tag absolute -top-2.5 left-3 bg-white px-1 text-[8pt] text-black font-mono flex items-center gap-1 z-10 select-none">
+        ✂
+      </span>
+      <div
+        className="dtr-card-single border-2 border-black p-3 bg-white text-black text-[8.5pt] leading-tight select-none w-full"
+        style={{ fontFamily: 'Arial, "Helvetica Neue", Helvetica, sans-serif' }}
+      >
       {/* Form Title */}
       <div className="text-center font-bold">
         <p className="text-[7.5pt] tracking-tight">CIVIL SERVICE FORM No. 48</p>
