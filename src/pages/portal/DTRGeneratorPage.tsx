@@ -95,6 +95,8 @@ export interface SavedDTRRecord {
   officialHoursText: string
   schoolHeadName: string
   entries: DTRDayEntry[]
+  createdByName?: string
+  createdByUserId?: string
   createdAt: string
   updatedAt: string
 }
@@ -296,10 +298,33 @@ export function DTRGeneratorPage() {
           officialHoursText: r.official_hours_text || 'Regular days 7:00–11:30AM / 1:00–5:00PM',
           schoolHeadName: r.school_head_name || '',
           entries: r.entries || [],
+          createdByName: r.created_by_name || '',
+          createdByUserId: r.created_by_user_id || '',
           createdAt: r.created_at,
           updatedAt: r.updated_at
         }))
         setSavedRecords(mapped)
+
+        // Derive default following month based on previous most recent DTR generated
+        let maxYear = 0
+        let maxMonth = 0
+        for (const rec of mapped) {
+          if (rec.year > maxYear || (rec.year === maxYear && rec.month > maxMonth)) {
+            maxYear = rec.year
+            maxMonth = rec.month
+          }
+        }
+
+        if (maxYear > 0 && maxMonth > 0) {
+          let nextM = maxMonth + 1
+          let nextY = maxYear
+          if (nextM > 12) {
+            nextM = 1
+            nextY = maxYear + 1
+          }
+          setSelectedMonth(nextM)
+          setSelectedYear(nextY)
+        }
       }
 
       // 2. Map Supabase Custom Holidays
@@ -744,9 +769,7 @@ export function DTRGeneratorPage() {
     setEntries(reset)
     setActiveRecordId(null)
     toast('DTR table reset to blank template.', 'info')
-  }
-
-  // Save Current DTR directly to Supabase Database
+  }  // Save Current DTR directly to Supabase Database
   const handleSaveToHistory = async () => {
     if (!employeeName.trim()) {
       toast('Please provide employee name before saving.', 'error')
@@ -755,12 +778,24 @@ export function DTRGeneratorPage() {
 
     setIsSavingDb(true)
     const nowIso = new Date().toISOString()
+    const targetEmployeeName = employeeName.trim().toUpperCase()
+    const currentGeneratorName = (admin?.full_name || 'Admin').toUpperCase()
+
+    // Enforce 1 DTR per staff per month: check if DTR already exists for (targetEmployeeName, selectedMonth, selectedYear)
+    const existing = savedRecords.find(
+      r => r.employeeName.trim().toUpperCase() === targetEmployeeName &&
+           r.month === selectedMonth &&
+           r.year === selectedYear
+    )
+
+    const targetId = activeRecordId || existing?.id
 
     try {
-      if (activeRecordId && !activeRecordId.startsWith('dtr_local_')) {
-        // Update existing record in Supabase
-        await updateDTRRecordSupabase(activeRecordId, {
-          employee_name: employeeName.toUpperCase(),
+      if (targetId && !targetId.startsWith('dtr_local_')) {
+        // Update existing record in Supabase (1 DTR per staff per month enforced)
+        await updateDTRRecordSupabase(targetId, {
+          created_by_name: currentGeneratorName,
+          employee_name: targetEmployeeName,
           role: dtrTargetRole,
           month: selectedMonth,
           year: selectedYear,
@@ -771,10 +806,11 @@ export function DTRGeneratorPage() {
 
         setSavedRecords(prev =>
           prev.map(r => {
-            if (r.id === activeRecordId) {
+            if (r.id === targetId) {
               return {
                 ...r,
-                employeeName: employeeName.toUpperCase(),
+                employeeName: targetEmployeeName,
+                createdByName: currentGeneratorName,
                 role: dtrTargetRole,
                 month: selectedMonth,
                 year: selectedYear,
@@ -787,12 +823,14 @@ export function DTRGeneratorPage() {
             return r
           })
         )
-        toast(`Updated DTR record for ${employeeName.toUpperCase()} in Supabase database.`, 'success')
+        setActiveRecordId(targetId)
+        toast(`Updated official DTR for ${targetEmployeeName} (${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}).`, 'success')
       } else {
-        // Create new record in Supabase
+        // Create single record in Supabase
         const savedDb = await saveDTRRecordSupabase({
           created_by_user_id: admin?.id,
-          employee_name: employeeName.toUpperCase(),
+          created_by_name: currentGeneratorName,
+          employee_name: targetEmployeeName,
           role: dtrTargetRole,
           month: selectedMonth,
           year: selectedYear,
@@ -803,7 +841,9 @@ export function DTRGeneratorPage() {
 
         const newRecord: SavedDTRRecord = {
           id: savedDb?.id || `dtr_${Date.now()}`,
-          employeeName: employeeName.toUpperCase(),
+          employeeName: targetEmployeeName,
+          createdByName: currentGeneratorName,
+          createdByUserId: admin?.id,
           role: dtrTargetRole,
           month: selectedMonth,
           year: selectedYear,
@@ -816,7 +856,7 @@ export function DTRGeneratorPage() {
 
         setSavedRecords(prev => [newRecord, ...prev])
         setActiveRecordId(newRecord.id)
-        toast(`Saved DTR for ${employeeName.toUpperCase()} directly to Supabase database!`, 'success')
+        toast(`Saved official DTR for ${targetEmployeeName} (${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}) to database!`, 'success')
       }
     } catch (err: any) {
       toast(formatDetailedError(err, { action: 'Failed to save DTR record to Supabase', table: 'sc_dtr_records' }), 'error')
@@ -894,50 +934,62 @@ export function DTRGeneratorPage() {
     const staff = allStaffProfiles.find(s => s.id === staffId)
     if (!staff) return
 
-    setEmployeeName(staff.name.toUpperCase())
+    const staffName = staff.name.toUpperCase()
+    setEmployeeName(staffName)
     setDtrTargetRole(staff.role)
-    setActiveRecordId(null) // Reset active record ID so saving creates a new entry
 
-    // Auto-update signatory according to DepEd governance:
-    // - Teacher / AO II -> School Head of assigned school
-    // - School Head / PSDS -> ROGER F. CAPA, CESO VI (handled via isDivisionSignatory)
-    if (staff.role === 'teacher' || staff.role === 'ao_2') {
-      const matchedHead = schoolHeadOptions.find(h =>
-        h.assignedSchoolIds.some(sId => staff.assignedSchoolIds.includes(sId))
-      )
-      if (matchedHead) {
-        setSchoolHeadName(matchedHead.name)
-      } else if (schoolHeadOptions.length > 0) {
-        setSchoolHeadName(schoolHeadOptions[0].name)
+    // Check if staff already has an official DTR for the active month/year
+    const existing = savedRecords.find(
+      r => r.employeeName.trim().toUpperCase() === staffName &&
+           r.month === selectedMonth &&
+           r.year === selectedYear
+    )
+
+    if (existing) {
+      setActiveRecordId(existing.id)
+      setEntries(existing.entries)
+      if (existing.officialHoursText) setOfficialHoursText(existing.officialHoursText)
+      if (existing.schoolHeadName) setSchoolHeadName(existing.schoolHeadName)
+      toast(`Loaded existing DTR record for ${staffName} (${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}).`, 'info')
+    } else {
+      setActiveRecordId(null)
+      // Auto-update signatory according to DepEd governance:
+      if (staff.role === 'teacher' || staff.role === 'ao_2') {
+        const matchedHead = schoolHeadOptions.find(h =>
+          h.assignedSchoolIds.some(sId => staff.assignedSchoolIds.includes(sId))
+        )
+        if (matchedHead) {
+          setSchoolHeadName(matchedHead.name)
+        } else if (schoolHeadOptions.length > 0) {
+          setSchoolHeadName(schoolHeadOptions[0].name)
+        }
       }
+
+      // Generate fresh times for the active month
+      const updated: DTRDayEntry[] = buildInitialDays(selectedYear, selectedMonth).map(entry => {
+        if (entry.status === 'blank' || entry.isSaturday || entry.isSunday || entry.isHoliday) {
+          return entry
+        }
+
+        const amArrMin = getRandomInt(amArrivalRange.start, amArrivalRange.end)
+        const amDepMin = getRandomInt(amDepartureRange.start, amDepartureRange.end)
+        const pmArrMin = getRandomInt(pmArrivalRange.start, pmArrivalRange.end)
+        const pmDepMin = getRandomInt(pmDepartureRange.start, pmDepartureRange.end)
+
+        return {
+          ...entry,
+          status: 'work' as const,
+          amArrival: `6:${String(amArrMin).padStart(2, '0')}`,
+          amDeparture: `11:${String(amDepMin).padStart(2, '0')}`,
+          pmArrival: `12:${String(pmArrMin).padStart(2, '0')}`,
+          pmDeparture: `5:${String(pmDepMin).padStart(2, '0')}`,
+          undertimeHours: '',
+          undertimeMinutes: ''
+        }
+      })
+      setEntries(updated)
+      toast(`Generated DTR template for ${staffName} (${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}).`, 'success')
     }
-
-    // Generate times for the active month
-    const updated: DTRDayEntry[] = buildInitialDays(selectedYear, selectedMonth).map(entry => {
-      if (entry.status === 'blank' || entry.isSaturday || entry.isSunday || entry.isHoliday) {
-        return entry
-      }
-
-      const amArrMin = getRandomInt(amArrivalRange.start, amArrivalRange.end)
-      const amDepMin = getRandomInt(amDepartureRange.start, amDepartureRange.end)
-      const pmArrMin = getRandomInt(pmArrivalRange.start, pmArrivalRange.end)
-      const pmDepMin = getRandomInt(pmDepartureRange.start, pmDepartureRange.end)
-
-      return {
-        ...entry,
-        status: 'work' as const,
-        amArrival: `6:${String(amArrMin).padStart(2, '0')}`,
-        amDeparture: `11:${String(amDepMin).padStart(2, '0')}`,
-        pmArrival: `12:${String(pmArrMin).padStart(2, '0')}`,
-        pmDeparture: `5:${String(pmDepMin).padStart(2, '0')}`,
-        undertimeHours: '',
-        undertimeMinutes: ''
-      }
-    })
-
-    setEntries(updated)
-    setTab('generate')
-    toast(`Generated non-late DTR for ${staff.name} (${staff.roleTitle}).`, 'success')
   }
 
   // Print DTR Handler (2-in-1 Side-by-Side Dual Copy)
@@ -1122,64 +1174,81 @@ export function DTRGeneratorPage() {
             </div>
 
             {/* Recent DTR Records Preview Table */}
-            <div className="clay-card p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-black text-[#2D2638] font-display">Recent DTR Activity</h3>
-                  <p className="text-xs text-[#7A7289]">Recent Civil Service Form 48 records saved to Supabase</p>
-                </div>
+            {/* Quick Actions & Recent DTRs */}
+            <div className="clay-card p-6 space-y-5">
+              <div className="flex items-center justify-between pb-3 border-b border-[#F0E6DD]">
+                <h3 className="text-base font-black text-[#2D2638] font-display flex items-center gap-2">
+                  <History className="text-[#8B72F4]" size={18} />
+                  Recently Generated DTR Records
+                </h3>
                 <button
                   type="button"
                   onClick={() => setTab('my_dtrs')}
-                  className="text-xs font-extrabold text-[#8B72F4] hover:underline"
+                  className="text-xs font-bold text-[#8B72F4] hover:underline cursor-pointer"
                 >
-                  View All ({savedRecords.length})
+                  View All History ({userSavedRecords.length}) &rarr;
                 </button>
               </div>
 
-              <div className="overflow-x-auto rounded-2xl border border-slate-200">
+              <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-slate-100 text-slate-700 font-extrabold uppercase border-b border-slate-200">
                       <th className="py-3 px-4">Employee Name</th>
                       <th className="py-3 px-4">Category</th>
                       <th className="py-3 px-4">Month & Year</th>
+                      <th className="py-3 px-4">Generated By</th>
                       <th className="py-3 px-4">Work Days</th>
                       <th className="py-3 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
-                    {savedRecords.slice(0, 5).map(record => (
-                      <tr key={record.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="py-3 px-4 font-bold text-slate-800">{record.employeeName}</td>
-                        <td className="py-3 px-4 font-semibold uppercase text-[#8B72F4]">{record.role}</td>
-                        <td className="py-3 px-4 font-semibold">
-                          {MONTH_NAMES[record.month - 1]} {record.year}
-                        </td>
-                        <td className="py-3 px-4 font-bold text-emerald-700">
-                          {record.entries.filter(e => e.status === 'work').length} Days
-                        </td>
-                        <td className="py-3 px-4 text-right space-x-2">
-                          <button
-                            type="button"
-                            onClick={() => handleLoadRecord(record)}
-                            className="px-2.5 py-1 rounded-lg bg-[#8B72F4] text-white font-bold text-[11px]"
-                          >
-                            Load
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteRecord(record.id, record.employeeName)}
-                            className="p-1 rounded-lg text-slate-400 hover:text-red-600"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                    {savedRecords.length === 0 && (
+                    {userSavedRecords.slice(0, 5).map(record => {
+                      const isProxy = record.createdByName && record.createdByName.trim().toUpperCase() !== record.employeeName.trim().toUpperCase()
+                      return (
+                        <tr key={record.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="py-3 px-4 font-bold text-slate-800">{record.employeeName}</td>
+                          <td className="py-3 px-4 font-semibold uppercase text-[#8B72F4]">{record.role}</td>
+                          <td className="py-3 px-4 font-semibold">
+                            {MONTH_NAMES[record.month - 1]} {record.year}
+                          </td>
+                          <td className="py-3 px-4 font-semibold">
+                            {isProxy ? (
+                              <span className="px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 text-[10px] font-black border border-purple-200 inline-flex items-center gap-1">
+                                <UserCheck size={12} className="text-[#8B72F4]" />
+                                {record.createdByName}
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold">
+                                Self-Generated
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3 px-4 font-bold text-emerald-700">
+                            {record.entries.filter(e => e.status === 'work').length} Days
+                          </td>
+                          <td className="py-3 px-4 text-right space-x-2">
+                            <button
+                              type="button"
+                              onClick={() => handleLoadRecord(record)}
+                              className="px-2.5 py-1 rounded-lg bg-[#8B72F4] text-white font-bold text-[11px]"
+                            >
+                              Load
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteRecord(record.id, record.employeeName)}
+                              className="p-1 rounded-lg text-slate-400 hover:text-red-600"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                    {userSavedRecords.length === 0 && (
                       <tr>
-                        <td colSpan={5} className="py-6 text-center text-slate-400 italic">
+                        <td colSpan={6} className="py-6 text-center text-slate-400 italic">
                           No DTR records saved yet. Click "Generate DTR" to create your first record!
                         </td>
                       </tr>
@@ -1198,12 +1267,12 @@ export function DTRGeneratorPage() {
               <div>
                 <h3 className="text-base font-black text-[#2D2638] font-display flex items-center gap-2">
                   <FolderOpen className="text-[#8B72F4]" size={20} />
-                  My Saved DTRs & History
+                  Saved District DTRs & History
                   <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">
-                    Supabase Synced
+                    1 DTR per Staff / Month Enforced
                   </span>
                 </h3>
-                <p className="text-xs text-[#7A7289]">View, edit, update, delete, or print your archived DTRs</p>
+                <p className="text-xs text-[#7A7289]">View, edit, update, delete, or print archived DTRs for district personnel</p>
               </div>
 
               <div className="flex items-center gap-2">
@@ -1237,6 +1306,7 @@ export function DTRGeneratorPage() {
                     <th className="py-3 px-4">Employee Name</th>
                     <th className="py-3 px-4">Role Category</th>
                     <th className="py-3 px-4">Month & Year</th>
+                    <th className="py-3 px-4">Generated By</th>
                     <th className="py-3 px-4">Work Days</th>
                     <th className="py-3 px-4">Last Updated</th>
                     <th className="py-3 px-4 text-right">Actions</th>
@@ -1246,6 +1316,7 @@ export function DTRGeneratorPage() {
                   {filteredHistory.map(record => {
                     const isActive = record.id === activeRecordId
                     const workDays = record.entries.filter(e => e.status === 'work').length
+                    const isProxy = record.createdByName && record.createdByName.trim().toUpperCase() !== record.employeeName.trim().toUpperCase()
 
                     return (
                       <tr
@@ -1258,6 +1329,18 @@ export function DTRGeneratorPage() {
                         <td className="py-3.5 px-4 font-bold uppercase text-[#8B72F4]">{record.role}</td>
                         <td className="py-3.5 px-4 font-bold">
                           {MONTH_NAMES[record.month - 1]} {record.year}
+                        </td>
+                        <td className="py-3.5 px-4 font-semibold">
+                          {isProxy ? (
+                            <span className="px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 text-[10px] font-black border border-purple-200 inline-flex items-center gap-1">
+                              <UserCheck size={12} className="text-[#8B72F4]" />
+                              {record.createdByName}
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold">
+                              Self-Generated
+                            </span>
+                          )}
                         </td>
                         <td className="py-3.5 px-4 font-bold text-emerald-700">{workDays} Days</td>
                         <td className="py-3.5 px-4 text-slate-400 font-medium">

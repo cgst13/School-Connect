@@ -1929,6 +1929,7 @@ export async function fetchDTRRecordsSupabase(): Promise<any[]> {
 
 export async function saveDTRRecordSupabase(record: {
   created_by_user_id?: string
+  created_by_name?: string
   employee_name: string
   role: string
   month: number
@@ -1937,25 +1938,46 @@ export async function saveDTRRecordSupabase(record: {
   school_head_name?: string
   entries: any[]
 }): Promise<any> {
-  const { data, error } = await supabase
-    .from('sc_dtr_records')
-    .insert({
-      created_by_user_id: record.created_by_user_id || null,
-      employee_name: record.employee_name,
-      role: record.role,
-      month: record.month,
-      year: record.year,
-      official_hours_text: record.official_hours_text,
-      school_head_name: record.school_head_name,
-      entries: record.entries
-    })
-    .select()
-    .single()
-  if (error) throw error
-  return data
+  const insertPayload: any = {
+    created_by_user_id: record.created_by_user_id || null,
+    created_by_name: record.created_by_name || null,
+    employee_name: record.employee_name,
+    role: record.role,
+    month: record.month,
+    year: record.year,
+    official_hours_text: record.official_hours_text,
+    school_head_name: record.school_head_name,
+    entries: record.entries
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('sc_dtr_records')
+      .insert(insertPayload)
+      .select()
+      .single()
+
+    if (error) {
+      if (error.code === 'PGRST204' || error.message?.includes('created_by_name')) {
+        delete insertPayload.created_by_name
+        const { data: retryData, error: retryErr } = await supabase
+          .from('sc_dtr_records')
+          .insert(insertPayload)
+          .select()
+          .single()
+        if (retryErr) throw retryErr
+        return retryData
+      }
+      throw error
+    }
+    return data
+  } catch (err) {
+    throw err
+  }
 }
 
 export async function updateDTRRecordSupabase(id: string, updates: Partial<{
+  created_by_name: string
   employee_name: string
   role: string
   month: number
@@ -1964,14 +1986,34 @@ export async function updateDTRRecordSupabase(id: string, updates: Partial<{
   school_head_name: string
   entries: any[]
 }>): Promise<void> {
-  const { error } = await supabase
-    .from('sc_dtr_records')
-    .update({
-      ...updates,
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', id)
-  if (error) throw error
+  try {
+    const { error } = await supabase
+      .from('sc_dtr_records')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+
+    if (error) {
+      if (error.code === 'PGRST204' || error.message?.includes('created_by_name')) {
+        const fallbackUpdates = { ...updates }
+        delete fallbackUpdates.created_by_name
+        const { error: retryErr } = await supabase
+          .from('sc_dtr_records')
+          .update({
+            ...fallbackUpdates,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', id)
+        if (retryErr) throw retryErr
+        return
+      }
+      throw error
+    }
+  } catch (err) {
+    throw err
+  }
 }
 
 export async function deleteDTRRecordSupabase(id: string): Promise<void> {
