@@ -2378,7 +2378,7 @@ function CSForm48DualRender({
 }: CSForm48Props) {
   return (
     <div
-      className="dtr-dual-container flex flex-row justify-between items-start gap-4 max-w-[960px] mx-auto bg-white text-black p-2"
+      className="dtr-dual-container flex flex-row justify-between items-start gap-4 w-full mx-auto bg-white text-black p-2"
       style={{ fontFamily: 'Arial, "Helvetica Neue", Helvetica, sans-serif' }}
     >
       {/* COPY 1 */}
@@ -2465,7 +2465,7 @@ function CSForm48SingleCard({
       <table className="dtr-table w-full border-collapse border border-black text-center mt-2 text-[7.5pt]">
         <thead>
           <tr className="border-b border-black font-bold">
-            <th className="border-r border-black w-6 py-1" rowSpan={2}>
+            <th className="border-r border-black py-1 w-[8%]" rowSpan={2}>
               DAY
             </th>
             <th className="border-r border-black py-0.5" colSpan={2}>
@@ -2477,12 +2477,12 @@ function CSForm48SingleCard({
             <th colSpan={2}>UNDERTIME</th>
           </tr>
           <tr className="border-b border-black font-bold text-[6.5pt] tracking-tight">
-            <th className="border-r border-black w-8">Arrival</th>
-            <th className="border-r border-black w-8">Departure</th>
-            <th className="border-r border-black w-8">Arrival</th>
-            <th className="border-r border-black w-8">Departure</th>
-            <th className="border-r border-black w-6">Hours</th>
-            <th className="w-6">Minutes</th>
+            <th className="border-r border-black w-[17%]">Arrival</th>
+            <th className="border-r border-black w-[17%]">Departure</th>
+            <th className="border-r border-black w-[17%]">Arrival</th>
+            <th className="border-r border-black w-[17%]">Departure</th>
+            <th className="border-r border-black w-[12%]">Hours</th>
+            <th className="w-[12%]">Minutes</th>
           </tr>
         </thead>
         <tbody>

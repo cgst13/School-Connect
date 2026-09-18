@@ -678,13 +678,16 @@
     flex-direction: row !important;
     justify-content: space-between !important;
     align-items: flex-start !important;
-    gap: 8px !important;
+    gap: 12px !important;
     width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
     background: white !important;
     color: black !important;
   }
 
   .dtr-card-single {
+    flex: 1 1 0% !important;
     width: 48.5% !important;
     border: 1.5px solid black !important;
     padding: 6px 8px !important;
