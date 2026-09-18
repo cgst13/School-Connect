@@ -2476,13 +2476,13 @@ function CSForm48SingleCard({
             </th>
             <th colSpan={2}>UNDERTIME</th>
           </tr>
-          <tr className="border-b border-black font-bold text-[7pt]">
-            <th className="border-r border-black w-10">Arrival</th>
-            <th className="border-r border-black w-10">Departure</th>
-            <th className="border-r border-black w-10">Arrival</th>
-            <th className="border-r border-black w-10">Departure</th>
-            <th className="border-r border-black w-7">Hours</th>
-            <th className="w-7">Minutes</th>
+          <tr className="border-b border-black font-bold text-[6.5pt] tracking-tight">
+            <th className="border-r border-black w-8">Arrival</th>
+            <th className="border-r border-black w-8">Departure</th>
+            <th className="border-r border-black w-8">Arrival</th>
+            <th className="border-r border-black w-8">Departure</th>
+            <th className="border-r border-black w-6">Hours</th>
+            <th className="w-6">Minutes</th>
           </tr>
         </thead>
         <tbody>
