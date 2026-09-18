@@ -8,6 +8,8 @@ import { Download, BarChart3 } from 'lucide-react'
 
 import { useAuth } from '@/features/auth/useAuth'
 
+import { PageHeader } from '@/components/ui/PageHeader'
+
 interface ReportType {
   id: string
   title: string
@@ -177,16 +179,11 @@ export function ReportsPage() {
   return (
     <AdminLayout>
       <div className="space-y-6 animate-fade-in">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-black text-[#2D2638] tracking-tight font-display">
-              System Reports & Analytics 📊
-            </h1>
-            <p className="text-xs text-[#7A7289] font-medium mt-1">
-              Generate and export comprehensive evaluation monitoring summaries.
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          badge="Analytics & Intelligence"
+          title="Reports & Analytics"
+          description="Generate, visualize, and export comprehensive evaluation monitoring summaries across the district."
+        />
 
         <div className="grid sm:grid-cols-3 gap-5">
           {/* Report Types Sidebar */}

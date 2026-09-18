@@ -22,6 +22,7 @@ import { SubmissionsPage } from '@/pages/admin/SubmissionsPage'
 import { SubmissionDetailPage } from '@/pages/admin/SubmissionDetailPage'
 import { SubmissionEditPage } from '@/pages/admin/SubmissionEditPage'
 import { ConsolidationPage } from '@/pages/admin/ConsolidationPage'
+import { CompetenciesPage } from '@/pages/admin/CompetenciesPage'
 import { ReportsPage } from '@/pages/admin/ReportsPage'
 import { SchoolsPage } from '@/pages/admin/SchoolsPage'
 import { LearningAreasPage } from '@/pages/admin/LearningAreasPage'
@@ -149,6 +150,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <ConsolidationPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/competencies"
+              element={
+                <ProtectedRoute>
+                  <CompetenciesPage />
                 </ProtectedRoute>
               }
             />

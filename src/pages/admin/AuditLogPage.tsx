@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { SchoolConnectLayout } from '@/components/layouts/SchoolConnectLayout'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { fetchAuditLogs } from '@/lib/supabase/queries'
 import { Pagination } from '@/components/ui/Pagination'
 import { TableSkeleton } from '@/components/ui/EmptyState'
@@ -139,28 +140,17 @@ export function AuditLogPage() {
     <SchoolConnectLayout systemTitle="Platform Audit Logs">
       <div className="space-y-6 w-full pb-12 animate-fade-in">
         {/* Header Banner */}
-        <div className="bg-gradient-to-r from-[#A88BEB] via-[#8B72F4] to-[#795CEE] text-white rounded-[36px] p-6 sm:p-9 shadow-[0_20px_40px_rgba(139,114,244,0.28)] border-4 border-white relative overflow-hidden">
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-white border border-white/30 text-xs font-bold backdrop-blur-md shadow-xs">
-                <ScrollText size={14} className="text-amber-300" />
-                System Security & Governance Audit
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-black tracking-tight font-display">Platform Audit Logs</h1>
-              <p className="text-xs sm:text-sm text-purple-100 max-w-2xl leading-relaxed font-medium">
-                Comprehensive audit trail of administrator activities, personnel configuration updates, authentication logs, and governance policy changes.
-              </p>
+        <PageHeader
+          badge="Security & Governance Audit"
+          title="Platform Audit Logs"
+          description="Comprehensive audit trail of administrator activities, personnel updates, authentication logs, and governance actions."
+          actions={
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-white shadow-2xs font-sans">
+              <Activity className="text-[#8B72F4]" size={16} />
+              <span className="text-xs font-black text-[#2D2638]">{total.toLocaleString()} Logged Actions</span>
             </div>
-
-            <div className="bg-white/20 backdrop-blur-md border border-white/30 px-5 py-3 rounded-full flex items-center gap-3 shrink-0 shadow-xs">
-              <Activity className="text-amber-300" size={24} />
-              <div>
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-purple-100 block">Total Logged Entries</span>
-                <span className="text-xl font-black text-white">{total.toLocaleString()} Actions</span>
-              </div>
-            </div>
-          </div>
-        </div>
+          }
+        />
 
         {/* Filter Controls Bar */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-[#E8EAF0] shadow-xs">

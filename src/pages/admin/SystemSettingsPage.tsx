@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { SchoolConnectLayout } from '@/components/layouts/SchoolConnectLayout'
 import { useToast } from '@/hooks/useToast'
 import { useAuth } from '@/features/auth/useAuth'
@@ -118,34 +119,22 @@ export function SystemSettingsPage() {
   return (
     <SchoolConnectLayout systemTitle="Platform System Settings">
       <div className="space-y-6 w-full pb-16 animate-fade-in">
-        {/* Pastel Header Banner */}
-        <div className="bg-gradient-to-r from-[#DDD6FE] via-[#A78BFA] to-[#8B72F4] text-white rounded-[36px] p-6 sm:p-9 shadow-[0_20px_40px_rgba(139,114,244,0.28)] border-4 border-white relative overflow-hidden">
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-white border border-white/30 text-xs font-bold backdrop-blur-md shadow-xs">
-                <Settings size={14} className="text-yellow-300" />
-                DepEd Concepcion Platform Administration
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-black tracking-tight font-display">
-                Platform System Settings
-              </h1>
-              <p className="text-xs sm:text-sm text-purple-100 max-w-2xl leading-relaxed font-medium">
-                Global district configuration, integrated module controls, system security policies, and automated database backups for School Connect.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3 shrink-0">
-              <button
-                type="button"
-                onClick={handleExportBackup}
-                className="px-4 py-2.5 rounded-2xl bg-white/20 hover:bg-white/30 text-white border border-white/40 text-xs font-bold flex items-center gap-2 backdrop-blur-md shadow-xs transition-all cursor-pointer"
-              >
-                <Download size={15} />
-                <span>Export Config</span>
-              </button>
-            </div>
-          </div>
-        </div>
+        {/* Header Banner */}
+        <PageHeader
+          badge="Platform System Administration"
+          title="System Settings & Configuration"
+          description="Global district configuration, integrated module controls, system security policies, and automated database backups."
+          actions={
+            <button
+              type="button"
+              onClick={handleExportBackup}
+              className="px-5 py-2.5 rounded-full bg-white border border-white text-[#8B72F4] hover:bg-[#F6EFFF] font-black text-xs shadow-2xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Download size={15} />
+              <span>Export Config</span>
+            </button>
+          }
+        />
 
         {/* Main Settings Form */}
         <form onSubmit={handleSaveSettings} className="space-y-6">

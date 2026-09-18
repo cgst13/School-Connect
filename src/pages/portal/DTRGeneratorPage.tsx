@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { SchoolConnectLayout, type NavGroup } from '@/components/layouts/SchoolConnectLayout'
 import { useAuth } from '@/features/auth/useAuth'
 import { useToast } from '@/hooks/useToast'
+import { formatDetailedError } from '@/utils/formatError'
 import {
   Clock,
   Printer,
@@ -73,6 +75,8 @@ export interface DTRDayEntry {
   isSunday: boolean
   isHoliday: boolean
   holidayTitle?: string
+  isHalfDay?: boolean
+  halfDaySession?: 'am' | 'pm' | 'half_day'
   status: 'work' | 'saturday' | 'sunday' | 'holiday' | 'leave' | 'travel' | 'blank'
   amArrival: string
   amDeparture: string
@@ -100,6 +104,8 @@ export interface CustomHolidayItem {
   dateStr: string // "MM-DD" for recurring or "YYYY-MM-DD" for specific date
   title: string
   isRecurring: boolean
+  isHalfDay?: boolean
+  halfDaySession?: 'am' | 'pm' | 'half_day'
 }
 
 export interface LeaveRecordItem {
@@ -202,12 +208,14 @@ export function DTRGeneratorPage() {
 
   // School Head Signatory State (For Teacher & AO II DTRs)
   const [schoolHeadName, setSchoolHeadName] = useState<string>('')
-  const [schoolHeadTitle, setSchoolHeadTitle] = useState<string>('School Head / Principal')
-  const [schoolHeadOptions, setSchoolHeadOptions] = useState<{ id: string; name: string; schoolNames: string }[]>([])
+  const [schoolHeadTitle, setSchoolHeadTitle] = useState<string>('In-charge')
+  const [schoolHeadOptions, setSchoolHeadOptions] = useState<
+    { id: string; name: string; schoolNames: string; assignedSchoolIds: string[] }[]
+  >([])
 
   // All District Staff for Proxy Generation ("Generate DTR for Someone")
   const [allStaffProfiles, setAllStaffProfiles] = useState<
-    { id: string; name: string; role: 'teacher' | 'ao_2' | 'school_head' | 'psds'; roleTitle: string; schoolNames: string }[]
+    { id: string; name: string; role: 'teacher' | 'ao_2' | 'school_head' | 'psds'; roleTitle: string; schoolNames: string; assignedSchoolIds: string[] }[]
   >([])
   const [selectedProxyStaffId, setSelectedProxyStaffId] = useState<string>('')
 
@@ -248,6 +256,8 @@ export function DTRGeneratorPage() {
   const [newHolidayYear, setNewHolidayYear] = useState<string>('') // Optional specific year
   const [newHolidayTitle, setNewHolidayTitle] = useState<string>('')
   const [newHolidayIsRecurring, setNewHolidayIsRecurring] = useState<boolean>(true)
+  const [newHolidayIsHalfDay, setNewHolidayIsHalfDay] = useState<boolean>(false)
+  const [newHolidayHalfDaySession, setNewHolidayHalfDaySession] = useState<'am' | 'pm'>('am')
 
   // Generator Time Range Configurations (Default: Non-late working ranges)
   const [amArrivalRange, setAmArrivalRange] = useState({ start: 15, end: 58 }) // 6:15 AM - 6:58 AM (Start at 7:00 AM)
@@ -297,7 +307,9 @@ export function DTRGeneratorPage() {
           id: h.id,
           dateStr: h.date_str,
           title: h.title,
-          isRecurring: h.is_recurring
+          isRecurring: h.is_recurring,
+          isHalfDay: !!h.is_half_day,
+          halfDaySession: h.half_day_session || 'am'
         }))
         setCustomHolidays(mappedHolidays)
       }
@@ -313,11 +325,18 @@ export function DTRGeneratorPage() {
           return {
             id: h.id,
             name: h.full_name,
-            schoolNames: sNames ? `(${sNames})` : ''
+            schoolNames: sNames ? `(${sNames})` : '',
+            assignedSchoolIds: h.assigned_school_ids || []
           }
         })
       setSchoolHeadOptions(heads)
-      if (heads.length > 0) {
+
+      // Auto-detect assigned school head for current user if teacher or AO II
+      const userSchools = admin?.assigned_school_ids || []
+      const matchedHead = heads.find(h => h.assignedSchoolIds.some(sId => userSchools.includes(sId)))
+      if (matchedHead) {
+        setSchoolHeadName(matchedHead.name)
+      } else if (heads.length > 0) {
         setSchoolHeadName(prev => prev || heads[0].name)
       }
 
@@ -346,7 +365,8 @@ export function DTRGeneratorPage() {
           name: a.full_name,
           role: parsedRole,
           roleTitle: rTitle,
-          schoolNames: sNames ? `(${sNames})` : ''
+          schoolNames: sNames ? `(${sNames})` : '',
+          assignedSchoolIds: a.assigned_school_ids || []
         }
       })
       setAllStaffProfiles(staffList)
@@ -361,12 +381,12 @@ export function DTRGeneratorPage() {
 
   // Computed Combined Holiday Lookup Map (National + Custom Local)
   const combinedHolidaysMap = useMemo(() => {
-    const map: Record<string, string> = {}
+    const map: Record<string, { title: string; isHalfDay?: boolean; halfDaySession?: 'am' | 'pm' | 'half_day' }> = {}
 
     // Add active national holidays
     for (const nh of nationalHolidays) {
       if (nh.isActive) {
-        map[nh.key] = `HOLIDAY (${nh.name})`
+        map[nh.key] = { title: `HOLIDAY (${nh.name})` }
       }
     }
 
@@ -376,24 +396,33 @@ export function DTRGeneratorPage() {
         ? h.title
         : `HOLIDAY (${h.title})`
 
-      map[h.dateStr] = formattedTitle
+      map[h.dateStr] = {
+        title: formattedTitle,
+        isHalfDay: h.isHalfDay,
+        halfDaySession: h.halfDaySession
+      }
     }
 
     return map
   }, [nationalHolidays, customHolidays])
 
   // Auto-derive Signatory Name & Title based on official DepEd governance rules:
-  // - Teacher & AO II -> Signatory is the School Head / Principal
-  // - School Head & PSDS -> Signatory is Schools Division Superintendent ROGER F. CAPA, CESO VI
+  // - Teacher & AO II -> Assigned School Head, Title: 'In-charge'
+  // - School Head -> ROGER F. CAPA, CESO VI, Title: 'Schools Division Superintendent'
+  // - PSDS -> MELCHOR M. FAMORCAN, PHD, Title: 'CID Chief'
   const isDivisionSignatory = dtrTargetRole === 'school_head' || dtrTargetRole === 'psds'
 
-  const finalSupervisorName = isDivisionSignatory
+  const finalSupervisorName = dtrTargetRole === 'psds'
+    ? 'MELCHOR M. FAMORCAN, PHD'
+    : dtrTargetRole === 'school_head'
     ? 'ROGER F. CAPA, CESO VI'
     : (schoolHeadName.trim() || 'SCHOOL HEAD / PRINCIPAL')
 
-  const finalSupervisorTitle = isDivisionSignatory
+  const finalSupervisorTitle = dtrTargetRole === 'psds'
+    ? 'CID Chief'
+    : dtrTargetRole === 'school_head'
     ? 'Schools Division Superintendent'
-    : (schoolHeadTitle.trim() || 'School Head')
+    : (schoolHeadTitle.trim() || 'In-charge')
 
   // Table Entries for active month
   const [entries, setEntries] = useState<DTRDayEntry[]>([])
@@ -436,11 +465,14 @@ export function DTRGeneratorPage() {
       const fullDateKey = `${year}-${mm}-${dd}`
 
       // Check full date key (specific year) first, then recurring month-day key
-      const holidayTitle = combinedHolidaysMap[fullDateKey] || combinedHolidaysMap[monthDayKey]
-      const isHoliday = !!holidayTitle
+      const holidayInfo = combinedHolidaysMap[fullDateKey] || combinedHolidaysMap[monthDayKey]
+      const isHoliday = !!holidayInfo
+      const holidayTitle = holidayInfo?.title
+      const isHalfDay = holidayInfo?.isHalfDay
+      const halfDaySession = holidayInfo?.halfDaySession
 
       let status: DTRDayEntry['status'] = 'work'
-      if (isHoliday) status = 'holiday'
+      if (isHoliday && !isHalfDay) status = 'holiday'
       else if (isSat) status = 'saturday'
       else if (isSun) status = 'sunday'
 
@@ -453,6 +485,8 @@ export function DTRGeneratorPage() {
         isSunday: isSun,
         isHoliday,
         holidayTitle,
+        isHalfDay,
+        halfDaySession,
         status,
         amArrival: '',
         amDeparture: '',
@@ -491,7 +525,40 @@ export function DTRGeneratorPage() {
         return { ...entry, status: 'sunday' as const, amArrival: '', amDeparture: '', pmArrival: '', pmDeparture: '' }
       }
       if (entry.isHoliday) {
-        return { ...entry, status: 'holiday' as const, amArrival: '', amDeparture: '', pmArrival: '', pmDeparture: '' }
+        if (entry.isHalfDay) {
+          // Half day holiday generation:
+          if (entry.halfDaySession === 'am') {
+            // AM session is HOLIDAY, PM session gets normal punch times
+            const pmArrMin = getRandomInt(pmArrivalRange.start, pmArrivalRange.end)
+            const pmDepMin = getRandomInt(pmDepartureRange.start, pmDepartureRange.end)
+            return {
+              ...entry,
+              status: 'work' as const,
+              amArrival: 'HOLIDAY',
+              amDeparture: 'HOLIDAY',
+              pmArrival: `12:${String(pmArrMin).padStart(2, '0')}`,
+              pmDeparture: `5:${String(pmDepMin).padStart(2, '0')}`,
+              undertimeHours: '',
+              undertimeMinutes: ''
+            }
+          } else {
+            // PM session is HOLIDAY, AM session gets normal punch times
+            const amArrMin = getRandomInt(amArrivalRange.start, amArrivalRange.end)
+            const amDepMin = getRandomInt(amDepartureRange.start, amDepartureRange.end)
+            return {
+              ...entry,
+              status: 'work' as const,
+              amArrival: `6:${String(amArrMin).padStart(2, '0')}`,
+              amDeparture: `11:${String(amDepMin).padStart(2, '0')}`,
+              pmArrival: 'HOLIDAY',
+              pmDeparture: 'HOLIDAY',
+              undertimeHours: '',
+              undertimeMinutes: ''
+            }
+          }
+        } else {
+          return { ...entry, status: 'holiday' as const, amArrival: '', amDeparture: '', pmArrival: '', pmDeparture: '' }
+        }
       }
 
       // Generate realistic non-late morning arrival (e.g. 6:15 - 6:58 AM)
@@ -564,21 +631,26 @@ export function DTRGeneratorPage() {
         created_by_user_id: admin?.id,
         date_str: dateStr,
         title: newHolidayTitle.trim(),
-        is_recurring: newHolidayIsRecurring
+        is_recurring: newHolidayIsRecurring,
+        is_half_day: newHolidayIsHalfDay,
+        half_day_session: newHolidayIsHalfDay ? newHolidayHalfDaySession : 'am'
       })
 
       const item: CustomHolidayItem = {
         id: saved?.id || `hol_${Date.now()}`,
         dateStr,
         title: newHolidayTitle.trim(),
-        isRecurring: newHolidayIsRecurring
+        isRecurring: newHolidayIsRecurring,
+        isHalfDay: newHolidayIsHalfDay,
+        halfDaySession: newHolidayIsHalfDay ? newHolidayHalfDaySession : undefined
       }
 
       setCustomHolidays(prev => [...prev, item])
       setNewHolidayTitle('')
-      toast(`Added local holiday "${item.title}" to Supabase (${dateStr})`, 'success')
+      setNewHolidayIsHalfDay(false)
+      toast(`Added local holiday "${item.title}" to Supabase (${dateStr})${newHolidayIsHalfDay ? ` [Half Day ${newHolidayHalfDaySession.toUpperCase()}]` : ''}`, 'success')
     } catch (err: any) {
-      toast('Failed to save custom holiday: ' + (err.message || 'Supabase Error'), 'error')
+      toast(formatDetailedError(err, { action: 'Failed to save custom holiday to Supabase', table: 'sc_dtr_custom_holidays' }), 'error')
     }
   }
 
@@ -589,7 +661,7 @@ export function DTRGeneratorPage() {
       setCustomHolidays(prev => prev.filter(h => h.id !== id))
       toast(`Removed local holiday "${title}" from Supabase database.`, 'info')
     } catch (err: any) {
-      toast('Failed to delete holiday from Supabase: ' + (err.message || 'Error'), 'error')
+      toast(formatDetailedError(err, { action: 'Failed to delete holiday from Supabase', table: 'sc_dtr_custom_holidays' }), 'error')
     }
   }
 
@@ -735,8 +807,7 @@ export function DTRGeneratorPage() {
         toast(`Saved DTR for ${employeeName.toUpperCase()} directly to Supabase database!`, 'success')
       }
     } catch (err: any) {
-      console.error('Supabase save error:', err)
-      toast('Failed to save to Supabase: ' + (err.message || 'Network error'), 'error')
+      toast(formatDetailedError(err, { action: 'Failed to save DTR record to Supabase', table: 'sc_dtr_records' }), 'error')
     } finally {
       setIsSavingDb(false)
     }
@@ -765,7 +836,7 @@ export function DTRGeneratorPage() {
         if (activeRecordId === id) setActiveRecordId(null)
         toast(`Deleted DTR record for ${name} from Supabase.`, 'info')
       } catch (err: any) {
-        toast('Failed to delete from Supabase: ' + (err.message || 'Database error'), 'error')
+        toast(formatDetailedError(err, { action: 'Failed to delete DTR record from Supabase', table: 'sc_dtr_records' }), 'error')
       }
     }
   }
@@ -786,6 +857,26 @@ export function DTRGeneratorPage() {
     toast('Started a new DTR session.', 'info')
   }
 
+  // Handler for manual personnel role category change
+  const handleRoleChange = (newRole: 'teacher' | 'ao_2' | 'school_head' | 'psds') => {
+    setDtrTargetRole(newRole)
+    if (newRole === 'teacher' || newRole === 'ao_2') {
+      let targetSchools: string[] = admin?.assigned_school_ids || []
+      if (selectedProxyStaffId) {
+        const staff = allStaffProfiles.find(s => s.id === selectedProxyStaffId)
+        if (staff && staff.assignedSchoolIds.length > 0) targetSchools = staff.assignedSchoolIds
+      }
+      const matchedHead = schoolHeadOptions.find(h =>
+        h.assignedSchoolIds.some(sId => targetSchools.includes(sId))
+      )
+      if (matchedHead) {
+        setSchoolHeadName(matchedHead.name)
+      } else if (schoolHeadOptions.length > 0 && !schoolHeadName) {
+        setSchoolHeadName(schoolHeadOptions[0].name)
+      }
+    }
+  }
+
   // Proxy Generation: "Generate DTR for Someone"
   const handleGenerateForProxyStaff = (staffId: string) => {
     const staff = allStaffProfiles.find(s => s.id === staffId)
@@ -794,6 +885,20 @@ export function DTRGeneratorPage() {
     setEmployeeName(staff.name.toUpperCase())
     setDtrTargetRole(staff.role)
     setActiveRecordId(null) // Reset active record ID so saving creates a new entry
+
+    // Auto-update signatory according to DepEd governance:
+    // - Teacher / AO II -> School Head of assigned school
+    // - School Head / PSDS -> ROGER F. CAPA, CESO VI (handled via isDivisionSignatory)
+    if (staff.role === 'teacher' || staff.role === 'ao_2') {
+      const matchedHead = schoolHeadOptions.find(h =>
+        h.assignedSchoolIds.some(sId => staff.assignedSchoolIds.includes(sId))
+      )
+      if (matchedHead) {
+        setSchoolHeadName(matchedHead.name)
+      } else if (schoolHeadOptions.length > 0) {
+        setSchoolHeadName(schoolHeadOptions[0].name)
+      }
+    }
 
     // Generate times for the active month
     const updated: DTRDayEntry[] = buildInitialDays(selectedYear, selectedMonth).map(entry => {
@@ -874,133 +979,42 @@ export function DTRGeneratorPage() {
           systemSubtitle="Concepcion District Non-Late DTR & Official Signatory System"
           navGroups={dtrNavGroups}
         >
-          {/* PRINT-ONLY TWO-IN-ONE CS FORM 48 STYLES */}
-          <style>{`
-            @media screen {
-              .dtr-print-only-root {
-                display: none !important;
-              }
-            }
-            @media print {
-              @page {
-                size: letter portrait;
-                margin: 5mm;
-              }
-              html, body, #root {
-                background: white !important;
-                color: black !important;
-                height: auto !important;
-                min-height: 0 !important;
-                max-height: none !important;
-                overflow: visible !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                font-family: "Times New Roman", Times, serif !important;
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-              }
-              /* Hide Web UI chrome & layout wrappers completely */
-              .no-print, nav, header, footer, aside, picture, .clay-card, button, input, select {
-                display: none !important;
-              }
-              /* Force display of .dtr-print-only-root */
-              .dtr-print-only-root {
-                display: block !important;
-                visibility: visible !important;
-                position: relative !important;
-                width: 100% !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                background: white !important;
-                color: black !important;
-              }
-              .dtr-dual-container {
-                display: flex !important;
-                flex-direction: row !important;
-                justify-content: space-between !important;
-                align-items: flex-start !important;
-                gap: 10px !important;
-                width: 100% !important;
-                background: white !important;
-                color: black !important;
-              }
-              .dtr-card-single {
-                width: 48.5% !important;
-                border: 1.5px solid black !important;
-                padding: 6px 8px !important;
-                box-sizing: border-box !important;
-                font-size: 8.5pt !important;
-                line-height: 1.15 !important;
-                background: white !important;
-                color: black !important;
-              }
-              .dtr-table {
-                width: 100% !important;
-                border-collapse: collapse !important;
-              }
-              .dtr-table th, .dtr-table td {
-                border: 1px solid black !important;
-                text-align: center !important;
-                padding: 1px 2px !important;
-                font-size: 7.8pt !important;
-                color: black !important;
-                background: white !important;
-              }
-              .dtr-table th {
-                font-weight: bold !important;
-                text-transform: uppercase !important;
-              }
-              .bg-black-fill {
-                background-color: black !important;
-                color: black !important;
-              }
-            }
-          `}</style>
-
           <div className="space-y-6 w-full pb-16 animate-fade-in no-print">
-        {/* Top Pastel Header Banner */}
-        <div className="bg-gradient-to-r from-[#A88BEB] via-[#8B72F4] to-[#795CEE] text-white rounded-[36px] p-6 sm:p-9 shadow-[0_20px_40px_rgba(139,114,244,0.28)] border-4 border-white relative overflow-hidden">
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-white border border-white/30 text-xs font-bold backdrop-blur-md shadow-xs">
-                <Clock size={14} className="text-amber-300" />
-                Civil Service Form No. 48 DTR Management System
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-black tracking-tight font-display">
-                {currentTab === 'dashboard' && 'DTR System Dashboard'}
-                {currentTab === 'my_dtrs' && 'My Saved DTRs & History'}
-                {currentTab === 'generate' && 'Daily Time Record Generator'}
-                {currentTab === 'holidays' && 'National & Local Holidays Manager'}
-                {currentTab === 'absences' && 'Personnel Absences Tracking'}
-                {currentTab === 'leave' && 'Form 6 Official Leave Records'}
-                {currentTab === 'settings' && 'Working Hours & Range Settings'}
-              </h1>
-              <p className="text-xs sm:text-sm text-white/90 max-w-2xl leading-relaxed font-medium">
-                Official Concepcion District Daily Time Record management system synced with Supabase Cloud Database.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2.5 flex-wrap shrink-0">
+        {/* Top Header Card */}
+        <PageHeader
+          badge="Civil Service Form No. 48 DTR System"
+          title={
+            currentTab === 'dashboard' ? 'DTR System Dashboard' :
+            currentTab === 'my_dtrs' ? 'My Saved DTRs & History' :
+            currentTab === 'generate' ? 'Daily Time Record Generator' :
+            currentTab === 'holidays' ? 'National & Local Holidays Manager' :
+            currentTab === 'absences' ? 'Personnel Absences Tracking' :
+            currentTab === 'leave' ? 'Form 6 Official Leave Records' :
+            'Working Hours & Range Settings'
+          }
+          description="Official Concepcion District Daily Time Record management system synced with Supabase Database."
+          actions={
+            <>
               <button
                 type="button"
                 onClick={() => setTab('generate')}
-                className="px-4 py-3 rounded-full bg-white/20 hover:bg-white/30 text-white font-bold text-xs backdrop-blur-md transition-all flex items-center gap-2 border border-white/40 cursor-pointer"
+                className="px-4 py-2 rounded-full bg-white border border-white text-[#2D2638] font-bold text-xs shadow-2xs hover:bg-[#F6EFFF] transition-all flex items-center gap-1.5 cursor-pointer"
               >
-                <Sparkles size={16} />
+                <Sparkles size={14} className="text-[#8B72F4]" />
                 <span>Generate DTR</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setTab('my_dtrs')}
-                className="px-5 py-3 rounded-full bg-white text-[#795CEE] hover:bg-[#F6EFFF] font-black text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer border border-white active:animate-button-sparkle"
+                className="px-5 py-2 rounded-full bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] text-white font-black text-xs shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer active:animate-button-sparkle"
               >
-                <Printer size={16} />
+                <Printer size={14} />
                 <span>Print (My DTRs)</span>
               </button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        />
 
         {/* VIEW 1: DASHBOARD OVERVIEW */}
         {currentTab === 'dashboard' && (
@@ -1379,6 +1393,58 @@ export function DTRGeneratorPage() {
                   </div>
                 </div>
 
+                {/* Personnel Role Category */}
+                <div className="lg:col-span-2">
+                  <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">Personnel Category / Role</label>
+                  <select
+                    value={dtrTargetRole}
+                    onChange={e => handleRoleChange(e.target.value as any)}
+                    className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
+                  >
+                    <option value="teacher">Teacher (Signatory: Assigned School Head - In-charge)</option>
+                    <option value="ao_2">Administrative Officer II (AO II) (Signatory: Assigned School Head - In-charge)</option>
+                    <option value="school_head">School Head / Principal (Signatory: SDS Roger Capa)</option>
+                    <option value="psds">PSDS / District Supervisor (Signatory: CID Chief Melchor Famorcan)</option>
+                  </select>
+                </div>
+
+                {/* Official Signatory Display & Selector */}
+                <div className="lg:col-span-2">
+                  <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block flex items-center justify-between">
+                    <span>Official DTR Signatory</span>
+                    <span className="text-[10px] text-[#8B72F4] font-extrabold">
+                      {isDivisionSignatory ? 'Division Official' : 'School Head'}
+                    </span>
+                  </label>
+
+                  {isDivisionSignatory ? (
+                    <div className="px-3 py-1.5 rounded-xl bg-purple-50 border border-purple-200 text-purple-900 flex items-center gap-2">
+                      <ShieldCheck size={16} className="text-[#8B72F4] shrink-0" />
+                      <div className="overflow-hidden">
+                        <p className="text-xs font-extrabold truncate">{finalSupervisorName}</p>
+                        <p className="text-[10px] text-purple-700 font-semibold truncate">{finalSupervisorTitle}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <select
+                        value={schoolHeadName}
+                        onChange={e => setSchoolHeadName(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
+                      >
+                        {schoolHeadOptions.map(h => (
+                          <option key={h.id} value={h.name}>
+                            {h.name} {h.schoolNames}
+                          </option>
+                        ))}
+                        {!schoolHeadOptions.some(h => h.name === schoolHeadName) && schoolHeadName && (
+                          <option value={schoolHeadName}>{schoolHeadName}</option>
+                        )}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
                 {/* Target Month */}
                 <div>
                   <label className="form-label text-xs font-bold text-[#2D2638] mb-1 block">Target Month</label>
@@ -1407,7 +1473,7 @@ export function DTRGeneratorPage() {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="lg:col-span-2 flex items-center gap-2">
+                <div className="lg:col-span-4 flex items-center gap-2">
                   <button
                     type="button"
                     onClick={handleGenerateRandomTimes}
@@ -1644,13 +1710,33 @@ export function DTRGeneratorPage() {
                                 </td>
                               </>
                             ) : (
-                              <td colSpan={6} className="py-2 px-3 text-center font-black tracking-wide uppercase text-slate-700">
-                                {entry.status === 'saturday' && 'SATURDAY'}
-                                {entry.status === 'sunday' && 'SUNDAY'}
-                                {entry.status === 'holiday' && (entry.holidayTitle || 'HOLIDAY')}
-                                {entry.status === 'leave' && 'ON OFFICIAL LEAVE'}
-                                {entry.status === 'travel' && 'OFFICIAL BUSINESS (O.B.)'}
-                              </td>
+                              <>
+                                <td colSpan={4} className="py-2 px-3 text-center font-black tracking-wide uppercase text-slate-700 bg-slate-50/60 border-r border-slate-200">
+                                  {entry.status === 'saturday' && 'SATURDAY'}
+                                  {entry.status === 'sunday' && 'SUNDAY'}
+                                  {entry.status === 'holiday' && (entry.holidayTitle || 'HOLIDAY')}
+                                  {entry.status === 'leave' && 'ON OFFICIAL LEAVE'}
+                                  {entry.status === 'travel' && 'OFFICIAL BUSINESS (O.B.)'}
+                                </td>
+                                <td className="py-1.5 px-2">
+                                  <input
+                                    type="text"
+                                    value={entry.undertimeHours}
+                                    onChange={e => handleCellChange(idx, 'undertimeHours', e.target.value)}
+                                    placeholder=""
+                                    className="w-full text-center px-1.5 py-1 rounded font-semibold text-slate-700 bg-[#FAF5F0] border border-white"
+                                  />
+                                </td>
+                                <td className="py-1.5 px-2">
+                                  <input
+                                    type="text"
+                                    value={entry.undertimeMinutes}
+                                    onChange={e => handleCellChange(idx, 'undertimeMinutes', e.target.value)}
+                                    placeholder=""
+                                    className="w-full text-center px-1.5 py-1 rounded font-semibold text-slate-700 bg-[#FAF5F0] border border-white"
+                                  />
+                                </td>
+                              </>
                             )}
                           </tr>
                         )
@@ -1736,20 +1822,60 @@ export function DTRGeneratorPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-1">
-                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700">
-                    <input
-                      type="checkbox"
-                      checked={newHolidayIsRecurring}
-                      onChange={e => setNewHolidayIsRecurring(e.target.checked)}
-                      className="rounded text-[#8B72F4] focus:ring-[#8B72F4]"
-                    />
-                    <span>Repeats every year on this date (Annual)</span>
-                  </label>
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-slate-200/60 mt-2">
+                  <div className="flex flex-wrap items-center gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={newHolidayIsRecurring}
+                        onChange={e => setNewHolidayIsRecurring(e.target.checked)}
+                        className="rounded text-[#8B72F4] focus:ring-[#8B72F4]"
+                      />
+                      <span>Repeats every year (Annual)</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200/80">
+                      <input
+                        type="checkbox"
+                        checked={newHolidayIsHalfDay}
+                        onChange={e => setNewHolidayIsHalfDay(e.target.checked)}
+                        className="rounded text-amber-600 focus:ring-amber-500"
+                      />
+                      <span>Half Day Only</span>
+                    </label>
+
+                    {newHolidayIsHalfDay && (
+                      <div className="flex items-center gap-3 text-xs font-bold text-slate-700 bg-white px-3 py-1 rounded-lg border border-slate-200 shadow-2xs animate-fade-in">
+                        <span className="text-[11px] text-slate-500 font-extrabold uppercase">Session:</span>
+                        <label className="flex items-center gap-1.5 cursor-pointer text-xs">
+                          <input
+                            type="radio"
+                            name="halfDaySession"
+                            value="am"
+                            checked={newHolidayHalfDaySession === 'am'}
+                            onChange={() => setNewHolidayHalfDaySession('am')}
+                            className="text-[#8B72F4]"
+                          />
+                          <span>Morning (A.M. Off)</span>
+                        </label>
+                        <label className="flex items-center gap-1.5 cursor-pointer text-xs">
+                          <input
+                            type="radio"
+                            name="halfDaySession"
+                            value="pm"
+                            checked={newHolidayHalfDaySession === 'pm'}
+                            onChange={() => setNewHolidayHalfDaySession('pm')}
+                            className="text-[#8B72F4]"
+                          />
+                          <span>Afternoon (P.M. Off)</span>
+                        </label>
+                      </div>
+                    )}
+                  </div>
 
                   <button
                     type="submit"
-                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#8B72F4] to-[#795CEE] text-white font-extrabold text-xs shadow-md hover:opacity-95 transition-all flex items-center gap-1.5 cursor-pointer"
+                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#8B72F4] to-[#795CEE] text-white font-extrabold text-xs shadow-md hover:opacity-95 transition-all flex items-center gap-1.5 cursor-pointer ml-auto"
                   >
                     <Plus size={16} />
                     Save Local Holiday
@@ -1768,9 +1894,16 @@ export function DTRGeneratorPage() {
                       <Tag size={16} className="text-amber-500 shrink-0" />
                       <div>
                         <p className="text-xs font-extrabold text-[#2D2638]">{item.title}</p>
-                        <p className="text-[10px] text-slate-500 font-bold">
-                          <span className="text-[#8B72F4] font-black">{item.dateStr}</span> • {item.isRecurring ? 'Annual' : 'Specific Year'}
-                        </p>
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                          <span className="text-[10px] text-[#8B72F4] font-black">{item.dateStr}</span>
+                          <span className="text-[10px] text-slate-400">•</span>
+                          <span className="text-[10px] text-slate-500 font-bold">{item.isRecurring ? 'Annual' : 'Specific Year'}</span>
+                          {item.isHalfDay && (
+                            <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300/60 text-[9px] font-black uppercase">
+                              Half Day ({item.halfDaySession === 'pm' ? 'P.M.' : 'A.M.'})
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -2206,7 +2339,7 @@ export function DTRGeneratorPage() {
       </div>
 
       {/* STANDALONE PRINT AREA OUTSIDE SchoolConnectLayout */}
-      <div className="dtr-print-only-root">
+      <div className="dtr-print-only-root official-termcat-print-area">
         <CSForm48DualRender
           employeeName={employeeName}
           monthYearLabel={monthYearLabel}
@@ -2244,7 +2377,10 @@ function CSForm48DualRender({
   supervisorTitle
 }: CSForm48Props) {
   return (
-    <div className="dtr-dual-container flex flex-row justify-between items-start gap-4 max-w-[960px] mx-auto bg-white text-black font-serif p-2">
+    <div
+      className="dtr-dual-container flex flex-row justify-between items-start gap-4 max-w-[960px] mx-auto bg-white text-black p-2"
+      style={{ fontFamily: 'Arial, "Helvetica Neue", Helvetica, sans-serif' }}
+    >
       {/* COPY 1 */}
       <CSForm48SingleCard
         employeeName={employeeName}
@@ -2283,10 +2419,13 @@ function CSForm48SingleCard({
   supervisorTitle
 }: CSForm48Props) {
   return (
-    <div className="dtr-card-single flex-1 border-2 border-black p-3 bg-white text-black font-serif text-[8.5pt] leading-tight select-none">
+    <div
+      className="dtr-card-single flex-1 border-2 border-black p-3 bg-white text-black text-[8.5pt] leading-tight select-none"
+      style={{ fontFamily: 'Arial, "Helvetica Neue", Helvetica, sans-serif' }}
+    >
       {/* Form Title */}
       <div className="text-center font-bold">
-        <p className="text-[7.5pt] font-sans tracking-tight">CIVIL SERVICE FORM No. 48</p>
+        <p className="text-[7.5pt] tracking-tight">CIVIL SERVICE FORM No. 48</p>
         <p className="text-[10pt] font-extrabold uppercase mt-0.5">DAILY TIME RECORD</p>
         <div className="w-3/4 border-b border-black mx-auto my-1"></div>
 
@@ -2294,7 +2433,7 @@ function CSForm48SingleCard({
         <p className="text-[11pt] font-extrabold uppercase tracking-wide border-b border-black pb-0.5 mt-2">
           {employeeName || 'MICHELLE S. MOSQUERA'}
         </p>
-        <p className="text-[7pt] italic font-sans">(Name)</p>
+        <p className="text-[7pt] italic">(Name)</p>
       </div>
 
       {/* Month & Official Hours Header Info */}
@@ -2367,9 +2506,11 @@ function CSForm48SingleCard({
               return (
                 <tr key={e.dayNumber} className="border-b border-black">
                   <td className="border-r border-black font-bold py-0.5">{e.dayNumber}</td>
-                  <td colSpan={6} className="font-extrabold text-[7pt] tracking-wider py-0.5 uppercase">
+                  <td colSpan={4} className="border-r border-black font-extrabold text-[7pt] tracking-wider py-0.5 uppercase">
                     {label}
                   </td>
+                  <td className="border-r border-black"></td>
+                  <td></td>
                 </tr>
               )
             }
@@ -2406,7 +2547,7 @@ function CSForm48SingleCard({
 
         <div className="pt-3 text-center">
           <div className="w-4/5 border-b border-black mx-auto"></div>
-          <p className="text-[6.5pt] italic font-sans mt-0.5">(Signature of Employee)</p>
+          <p className="text-[6.5pt] italic mt-0.5">(Signature of Employee)</p>
         </div>
 
         <div className="pt-1 text-[7.5pt]">
@@ -2415,7 +2556,7 @@ function CSForm48SingleCard({
             <p className="font-extrabold uppercase border-b border-black inline-block px-4 text-[8.5pt]">
               {supervisorName || 'ROGER F. CAPA, CESO VI'}
             </p>
-            <p className="text-[7.5pt] font-semibold text-slate-800">{supervisorTitle || 'Schools Division Superintendent'}</p>
+            <p className="text-[7.5pt] font-semibold text-slate-800">{supervisorTitle || 'In-charge'}</p>
           </div>
         </div>
       </div>

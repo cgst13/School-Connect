@@ -185,7 +185,15 @@ export function SubmissionEditPage() {
       toast('Submission updated successfully!', 'success')
       navigate(`/admin/submissions/${id}`)
     } catch (err: any) {
-      toast(err?.message || 'Failed to update submission.', 'error')
+      console.error('Error updating submission:', err)
+      const is409 = err?.status === 409 || err?.code === '23505' || err?.message?.includes('unique') || err?.message?.includes('duplicate')
+      const is401 = err?.status === 401 || err?.code === '42501' || err?.message?.includes('row-level security')
+      const msg = is409
+        ? 'Cannot update: Another non-returned submission already exists with this exact Teacher, School, Grade Level, Subject, School Year, and Quarter combination.'
+        : is401
+        ? 'Database RLS Permission Error on submission child data. Please run migration 014 in Supabase SQL Editor.'
+        : (err?.message || 'Failed to update submission.')
+      toast(msg, 'error', 10000)
     } finally {
       setSaving(false)
     }

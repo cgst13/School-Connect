@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { SchoolConnectLayout } from '@/components/layouts/SchoolConnectLayout'
 import { DepEdSpinner } from '@/components/ui/DepEdSpinner'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -6,6 +7,7 @@ import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog'
 import { fetchAllAdmins, fetchSchools, upsertStaffProfile, insertAuditLog } from '@/lib/supabase/queries'
 import { useAuth } from '@/features/auth/useAuth'
 import { useToast } from '@/hooks/useToast'
+import { formatDetailedError } from '@/utils/formatError'
 import type { AdminProfile, School, UserRole } from '@/types'
 import { format } from 'date-fns'
 import { captureGenieOrigin, useGenieModal } from '@/utils/genieAnimation'
@@ -78,8 +80,7 @@ export function AdministratorsPage() {
       setAllProfiles(profiles)
       setSchools(schoolList)
     } catch (err) {
-      console.error('Failed to load administrators:', err)
-      toast('Failed to load system administrators.', 'error')
+      toast(formatDetailedError(err, { action: 'Failed to load system administrators from Supabase', table: 'sc_admin_profiles' }), 'error')
     } finally {
       setLoading(false)
     }
@@ -207,8 +208,7 @@ export function AdministratorsPage() {
       closeAdminModal()
       loadData()
     } catch (err) {
-      console.error('Failed to save system access:', err)
-      toast('Failed to update system access.', 'error')
+      toast(formatDetailedError(err, { action: 'Failed to save admin profile to Supabase', table: 'sc_admin_profiles' }), 'error')
     } finally {
       setSaving(false)
     }
@@ -238,8 +238,8 @@ export function AdministratorsPage() {
         'success'
       )
       loadData()
-    } catch {
-      toast('Failed to toggle admin status.', 'error')
+    } catch (err) {
+      toast(formatDetailedError(err, { action: 'Failed to update admin status in Supabase', table: 'sc_admin_profiles' }), 'error')
     }
   }
 
@@ -299,32 +299,20 @@ export function AdministratorsPage() {
     <SchoolConnectLayout systemTitle="Administrators & System Access Governance">
       <div className="space-y-6 w-full pb-12 animate-fade-in">
         {/* Header Banner */}
-        <div className="bg-gradient-to-r from-[#F472B6] via-[#EC4899] to-[#8B72F4] text-white rounded-[36px] p-6 sm:p-9 shadow-[0_20px_40px_rgba(236,72,153,0.28)] border-4 border-white relative overflow-hidden">
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-white border border-white/30 text-xs font-bold backdrop-blur-md shadow-xs">
-                <ShieldCheck size={14} className="text-amber-300" />
-                Platform Access Control
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-black tracking-tight font-display">System Administrators</h1>
-              <p className="text-xs sm:text-sm text-pink-50 max-w-2xl leading-relaxed font-medium">
-                Grant system evaluation & administrative privileges to any Faculty & Staff member, manage access levels, set credentials, and monitor system logins.
-              </p>
-            </div>
-
+        <PageHeader
+          badge="Platform Access Control"
+          title="System Administrators & Access Governance"
+          description="Grant system evaluation & administrative privileges to Faculty & Staff members, manage access roles, set credentials, and monitor accounts."
+          actions={
             <button
               onClick={(e) => handleOpenGrantAccess(e)}
-              className="px-6 py-3.5 rounded-full bg-white text-[#EC4899] hover:bg-pink-50 font-black text-xs shadow-md transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer active:animate-button-sparkle border border-white"
+              className="px-5 py-2.5 rounded-full bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] text-white font-black text-xs shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer active:animate-button-sparkle"
             >
               <UserPlus size={16} />
-              Grant System Access
+              <span>Grant System Access</span>
             </button>
-          </div>
-
-          <div className="absolute -right-8 -bottom-10 opacity-15 pointer-events-none">
-            <Shield size={240} className="text-white" />
-          </div>
-        </div>
+          }
+        />
 
         {/* Neumorphic 3D Stats Row */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

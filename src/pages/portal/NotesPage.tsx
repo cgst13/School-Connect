@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { SchoolConnectLayout, type NavGroup } from '@/components/layouts/SchoolConnectLayout'
 import { DepEdSpinner } from '@/components/ui/DepEdSpinner'
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog'
@@ -36,6 +37,7 @@ import {
 } from '@/lib/supabase/queries'
 import { useAuth } from '@/features/auth/useAuth'
 import { useToast } from '@/hooks/useToast'
+import { formatDetailedError } from '@/utils/formatError'
 import type { UserNote, NoteCategory, NoteColorTheme } from '@/types'
 import { format, isPast, parseISO } from 'date-fns'
 
@@ -175,8 +177,7 @@ export function NotesPage() {
       const data = await fetchUserNotes(admin.id)
       setNotes(data)
     } catch (err) {
-      console.error('Failed to load notes:', err)
-      toast('Failed to retrieve your notes from the database.', 'error')
+      toast(formatDetailedError(err, { action: 'Failed to retrieve your notes', table: 'sc_portal_user_notes' }), 'error')
     } finally {
       setLoading(false)
     }
@@ -264,8 +265,7 @@ export function NotesPage() {
       setIsModalOpen(false)
       loadNotes()
     } catch (err: any) {
-      console.error('Failed to save note:', err)
-      toast(err.message || 'An error occurred while saving.', 'error')
+      toast(formatDetailedError(err, { action: 'Failed to save note to Supabase', table: 'sc_portal_user_notes' }), 'error')
     } finally {
       setIsSaving(false)
     }
@@ -280,8 +280,7 @@ export function NotesPage() {
       )
       toast(`"${note.title}" ${updatedPinnedState ? 'pinned to top' : 'unpinned from top'}.`, 'success')
     } catch (err) {
-      console.error('Failed to toggle pin:', err)
-      toast('Failed to update pin state.', 'error')
+      toast(formatDetailedError(err, { action: 'Failed to update pin state in Supabase', table: 'sc_portal_user_notes' }), 'error')
     }
   }
 
@@ -303,8 +302,7 @@ export function NotesPage() {
         })
       }
     } catch (err: any) {
-      console.error('Failed to delete note:', err)
-      toast(err.message || 'Failed to delete note.', 'error')
+      toast(formatDetailedError(err, { action: 'Failed to delete note from Supabase', table: 'sc_portal_user_notes' }), 'error')
     } finally {
       setIsDeleting(false)
       setDeletingNoteId(null)
@@ -369,35 +367,21 @@ export function NotesPage() {
     >
       <div className="flex-1 h-full overflow-y-auto pr-1 space-y-6 pb-12 animate-fade-in">
         
-        {/* Top Executive Header Card matching TERMCAT Executive Dashboard */}
-        <div className="bg-white p-6 sm:p-8 rounded-[32px] border border-white shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden">
-          {/* Ambient Pastel Glow Orbs */}
-          <div className="absolute -right-12 -top-12 w-56 h-56 rounded-full bg-gradient-to-br from-[#E8DDFB]/60 to-[#C4B5FD]/30 blur-2xl pointer-events-none" />
-          <div className="absolute -left-12 -bottom-12 w-56 h-56 rounded-full bg-gradient-to-tr from-[#BAE6FD]/50 to-[#E0F2FE]/30 blur-2xl pointer-events-none" />
-
-          <div className="space-y-2 relative z-10">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#F3EFFF] text-[#6D28D9] text-xs font-black border border-[#E2D5FE]">
-              <Sparkles className="w-3.5 h-3.5 text-[#8B72F4]" />
-              <span>Personal Utilities & Secure Storage</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-[#2D2638] tracking-tight font-display">
-              Personal Notes & Credentials Vault
-            </h1>
-            <p className="text-xs sm:text-sm text-[#7A7289] font-medium max-w-2xl leading-relaxed">
-              Keep quick notes, track upcoming reminders, and securely store your credentials for social media apps, school systems, and external platforms.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3 relative z-10 shrink-0">
+        {/* Top Header Card */}
+        <PageHeader
+          badge="Personal Utilities & Vault"
+          title="Personal Notes & Credentials Vault"
+          description="Keep quick notes, track upcoming reminders, and securely store your credentials for social media apps and school systems."
+          actions={
             <button
               onClick={() => handleOpenModal()}
-              className="inline-flex items-center gap-2 py-3 px-6 rounded-full text-xs font-black text-white bg-gradient-to-r from-[#A88BEB] via-[#8B72F4] to-[#795CEE] shadow-[0_10px_25px_rgba(139,114,244,0.3)] hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
+              className="inline-flex items-center gap-2 py-2.5 px-5 rounded-full text-xs font-black text-white bg-gradient-to-r from-[#A88BEB] via-[#8B72F4] to-[#795CEE] shadow-md hover:shadow-lg transition-all cursor-pointer"
             >
-              <Plus className="w-4.5 h-4.5 stroke-[2.5]" />
+              <Plus className="w-4 h-4" />
               <span>Add Note / Credentials</span>
             </button>
-          </div>
-        </div>
+          }
+        />
 
         {/* Search & Color Filter Toolbar */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 sm:px-4 sm:py-3 rounded-[28px] border border-white shadow-xs">

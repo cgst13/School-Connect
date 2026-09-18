@@ -27,6 +27,7 @@ const navGroups: NavGroup[] = [
       { to: '/admin', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
       { to: '/admin/submissions', label: 'Submissions & Monitoring', icon: <FileText size={18} /> },
       { to: '/admin/consolidation', label: 'Data Consolidation', icon: <ClipboardList size={18} /> },
+      { to: '/admin/competencies', label: 'Budget of Work (Competencies)', icon: <BookOpen size={18} /> },
       { to: '/admin/reports', label: 'Reports & Analytics', icon: <BarChart3 size={18} /> },
       { to: '/admin/settings', label: 'System Settings', icon: <Settings size={18} /> },
     ],

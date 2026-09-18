@@ -40,6 +40,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/features/auth/useAuth'
 import { useToast } from '@/hooks/useToast'
+import { formatDetailedError } from '@/utils/formatError'
 import {
   insertAuditLog,
   upsertStaffProfile,
@@ -324,8 +325,7 @@ export function SchoolConnectHubPage() {
       toast('Account settings updated successfully!', 'success')
       setIsSettingsModalOpen(false)
     } catch (err) {
-      console.error('Failed to update account settings:', err)
-      toast('Failed to update account settings.', 'error')
+      toast(formatDetailedError(err, { action: 'Failed to update account settings in Supabase', table: 'sc_admin_profiles' }), 'error')
     } finally {
       setSavingAccount(false)
     }
@@ -373,8 +373,7 @@ export function SchoolConnectHubPage() {
         await toggleTaskCompletionInSupabase(taskId, admin.id, willComplete)
         toast(willComplete ? 'Task marked as completed!' : 'Task reopened as pending', 'info')
       } catch (err) {
-        console.error('Failed to sync completion to Supabase:', err)
-        toast('Failed to update task completion status', 'error')
+        toast(formatDetailedError(err, { action: 'Failed to update task completion status in Supabase', table: 'sc_portal_task_completions' }), 'error')
       }
     }
   }
@@ -482,8 +481,7 @@ export function SchoolConnectHubPage() {
       setIsTaskModalOpen(false)
       setEditingTask(null)
     } catch (err) {
-      console.error('Task save error:', err)
-      toast('Failed to save task to Supabase', 'error')
+      toast(formatDetailedError(err, { action: 'Failed to save task to Supabase', table: 'sc_portal_tasks' }), 'error')
     }
   }
 
@@ -557,8 +555,7 @@ export function SchoolConnectHubPage() {
       setIsAnnModalOpen(false)
       setEditingAnn(null)
     } catch (err) {
-      console.error('Announcement save error:', err)
-      toast('Failed to save announcement', 'error')
+      toast(formatDetailedError(err, { action: 'Failed to save announcement to Supabase', table: 'sc_portal_announcements' }), 'error')
     }
   }
 
@@ -581,7 +578,7 @@ export function SchoolConnectHubPage() {
       await updatePortalAnnouncement(id, { isPinned: newPinned })
       toast('Announcement pin status updated', 'info')
     } catch (err) {
-      console.error('Failed to pin announcement:', err)
+      toast(formatDetailedError(err, { action: 'Failed to update announcement pin state', table: 'sc_portal_announcements' }), 'error')
     }
   }
 
@@ -652,8 +649,7 @@ export function SchoolConnectHubPage() {
       setIsEventModalOpen(false)
       setEditingEvent(null)
     } catch (err) {
-      console.error('Event save error:', err)
-      toast('Failed to save event', 'error')
+      toast(formatDetailedError(err, { action: 'Failed to save event to Supabase', table: 'sc_portal_events' }), 'error')
     }
   }
 
@@ -693,8 +689,7 @@ export function SchoolConnectHubPage() {
         toast('Event archived successfully', 'info')
       }
     } catch (err) {
-      console.error('Archive error:', err)
-      toast('Failed to archive item', 'error')
+      toast(formatDetailedError(err, { action: 'Failed to archive item in Supabase' }), 'error')
     }
     setArchiveDialog({ isOpen: false, type: 'task', id: '', title: '' })
   }
@@ -730,8 +725,7 @@ export function SchoolConnectHubPage() {
         toast('Event restored from archive', 'success')
       }
     } catch (err) {
-      console.error('Unarchive error:', err)
-      toast('Failed to restore item', 'error')
+      toast(formatDetailedError(err, { action: 'Failed to restore item in Supabase' }), 'error')
     }
   }
 

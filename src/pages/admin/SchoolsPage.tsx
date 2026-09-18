@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { SchoolConnectLayout } from '@/components/layouts/SchoolConnectLayout'
-import { EmptyState } from '@/components/ui/EmptyState'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { DepEdSpinner } from '@/components/ui/DepEdSpinner'
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog'
 import { fetchSchools, upsertSchool, insertAuditLog } from '@/lib/supabase/queries'
 import { useAuth } from '@/features/auth/useAuth'
 import { useToast } from '@/hooks/useToast'
+import { formatDetailedError } from '@/utils/formatError'
 import type { School } from '@/types'
 import { Plus, Edit2, Building2, Search, GraduationCap, CheckCircle2, XCircle, MapPin } from 'lucide-react'
 import { captureGenieOrigin, useGenieModal } from '@/utils/genieAnimation'
@@ -115,7 +116,9 @@ export function SchoolsPage() {
 
   const load = () => {
     setLoading(true)
-    fetchSchools(false).then(setSchools).finally(() => setLoading(false))
+    fetchSchools(false).then(setSchools).catch(err => {
+      toast(formatDetailedError(err, { action: 'Failed to load schools from Supabase', table: 'sc_schools' }), 'error')
+    }).finally(() => setLoading(false))
   }
   useEffect(load, [])
 
@@ -127,8 +130,8 @@ export function SchoolsPage() {
       toast(data.id ? 'School updated successfully.' : 'New school added to directory.', 'success')
       setModal({ open: false })
       load()
-    } catch {
-      toast('Failed to save school.', 'error')
+    } catch (err) {
+      toast(formatDetailedError(err, { action: 'Failed to save school to Supabase', table: 'sc_schools' }), 'error')
     } finally {
       setSaving(false)
     }
@@ -152,28 +155,20 @@ export function SchoolsPage() {
     <SchoolConnectLayout systemTitle="Schools Directory & Governance">
       <div className="space-y-6 w-full pb-12 animate-fade-in">
         {/* Header Banner */}
-        <div className="bg-gradient-to-r from-[#A88BEB] via-[#8B72F4] to-[#795CEE] text-white rounded-[36px] p-6 sm:p-9 shadow-[0_20px_40px_rgba(139,114,244,0.28)] border-4 border-white relative overflow-hidden">
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-white border border-white/30 text-xs font-bold backdrop-blur-md shadow-xs">
-                <Building2 size={14} className="text-amber-300" />
-                Academic Master Data
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-black tracking-tight font-display">School Directory & Governance</h1>
-              <p className="text-xs sm:text-sm text-purple-100 max-w-2xl leading-relaxed font-medium">
-                Manage elementary & secondary schools across Concepcion District, configure active statuses, and maintain district governance master data.
-              </p>
-            </div>
-
+        <PageHeader
+          badge="Academic Master Data"
+          title="School Directory & Governance"
+          description="Manage elementary & secondary schools across Concepcion District, configure active statuses, and maintain district governance master data."
+          actions={
             <button
               onClick={(e) => { captureGenieOrigin(e); setModal({ open: true }) }}
-              className="px-6 py-3.5 rounded-full bg-white text-[#795CEE] hover:bg-[#F6EFFF] font-black text-xs shadow-md transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer active:animate-button-sparkle border border-white"
+              className="px-5 py-2.5 rounded-full bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] text-white font-black text-xs shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer active:animate-button-sparkle"
             >
               <Plus size={16} />
-              Add New School
+              <span>Add New School</span>
             </button>
-          </div>
-        </div>
+          }
+        />
 
         {/* Metric Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

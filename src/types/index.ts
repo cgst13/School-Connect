@@ -61,6 +61,27 @@ export interface Term {
   created_at: string;
 }
 
+export interface LearningCompetency {
+  id: string;
+  grade_level_id?: string;
+  learning_area_id?: string;
+  term_id?: string;
+  grade_number: number;
+  learning_area_name: string;
+  term_name: string;
+  code?: string;
+  domain_strand: string;
+  competency_description: string;
+  target_week?: string;
+  target_days?: number;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+  grade_level?: GradeLevel;
+  learning_area?: LearningArea;
+  term?: Term;
+}
+
 export interface AdminProfile {
   id: string;
   email: string;
@@ -212,6 +233,7 @@ export interface AuditLog {
 export interface ConsolidationFilters {
   school_year_id: string;
   term_id: string;
+  school_level: 'all' | 'elementary' | 'junior_hs' | 'senior_hs';
   school_id: string | 'all';
   grade_level_id: string | 'all';
   learning_area_id: string | 'all';
@@ -247,6 +269,28 @@ export interface ConsolidationResult {
   mostDifficult: CompetencyCount[];
   // Instructional difficulty texts
   instructionalDifficultyTexts: string[];
+}
+
+export interface TermcatConsolidatedReport {
+  id: string;
+  title: string;
+  school_year_id: string;
+  term_id: string;
+  level_type: string;
+  grade_level_id: string | null;
+  learning_area_id: string | null;
+  total_schools_included: number;
+  total_submissions_count: number;
+  total_learners_count: number;
+  average_mps: number | null;
+  consolidated_data: Record<string, unknown>;
+  created_by?: string | null;
+  created_by_name?: string | null;
+  created_at: string;
+  school_year?: SchoolYear;
+  term?: Term;
+  grade_level?: GradeLevel;
+  learning_area?: LearningArea;
 }
 
 // ---- DASHBOARD ----

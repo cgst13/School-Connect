@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import { SchoolConnectLayout } from '@/components/layouts/SchoolConnectLayout'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { DepEdSpinner } from '@/components/ui/DepEdSpinner'
 import {
@@ -13,6 +14,7 @@ import {
 } from '@/lib/supabase/queries'
 import { useAuth } from '@/features/auth/useAuth'
 import { useToast } from '@/hooks/useToast'
+import { formatDetailedError } from '@/utils/formatError'
 import type { LearningArea, GradeLevel } from '@/types'
 import {
   Plus,
@@ -256,8 +258,7 @@ export function LearningAreasPage() {
         setSelectedGradeId(gs[0].id)
       }
     } catch (err) {
-      console.error('Error loading learning areas:', err)
-      toast('Failed to load learning areas data.', 'error')
+      toast(formatDetailedError(err, { action: 'Failed to load learning areas data from Supabase', table: 'sc_learning_areas' }), 'error')
     } finally {
       setLoading(false)
     }
@@ -309,8 +310,8 @@ export function LearningAreasPage() {
       toast(data.id ? 'Learning area updated.' : 'Learning area added.', 'success')
       setModal({ open: false })
       load()
-    } catch {
-      toast('Failed to save learning area.', 'error')
+    } catch (err: any) {
+      toast(formatDetailedError(err, { action: 'Failed to save learning area to Supabase', table: 'sc_learning_areas' }), 'error')
     } finally {
       setSaving(false)
     }
@@ -339,9 +340,8 @@ export function LearningAreasPage() {
 
       toast(`Assigned subjects saved for ${gObj?.name || 'Grade Level'}.`, 'success')
       load()
-    } catch (err) {
-      console.error(err)
-      toast('Failed to save grade subject assignments.', 'error')
+    } catch (err: any) {
+      toast(formatDetailedError(err, { action: 'Failed to save grade subject assignments to Supabase', table: 'sc_learning_area_grades' }), 'error')
     } finally {
       setSavingGradeSubjects(false)
     }
@@ -389,334 +389,309 @@ export function LearningAreasPage() {
     <SchoolConnectLayout systemTitle="Learning Areas Master Data">
       <div className="space-y-6 w-full pb-12 animate-fade-in">
         {/* Header Banner */}
-        <div className="bg-gradient-to-r from-[#34D399] via-[#10B981] to-[#059669] text-white rounded-[36px] p-6 sm:p-9 shadow-[0_20px_40px_rgba(16,185,129,0.28)] border-4 border-white relative overflow-hidden">
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-white border border-white/30 text-xs font-bold backdrop-blur-md shadow-xs">
-                <BookOpen size={14} className="text-amber-300" />
-                Curriculum & Master Data
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-black tracking-tight font-display">Learning Areas & Subject Allocation</h1>
-              <p className="text-xs sm:text-sm text-emerald-50 max-w-2xl leading-relaxed font-medium">
-                Manage master learning areas, configure curriculum designations, and allocate standard subject offerings per grade level across Concepcion District.
-              </p>
-            </div>
-
+        <PageHeader
+          badge="Curriculum Master Data"
+          title="Learning Areas & Subject Allocation"
+          description="Manage master learning areas, configure curriculum designations, and allocate standard subject offerings per grade level."
+          actions={
             <button
               onClick={() => setModal({ open: true })}
-              className="px-6 py-3.5 rounded-full bg-white text-[#059669] hover:bg-emerald-50 font-black text-xs shadow-md transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer border border-white"
+              className="px-5 py-2.5 rounded-full bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] text-white font-black text-xs shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer active:animate-button-sparkle"
             >
               <Plus size={16} />
-              Add Learning Area
+              <span>Add Learning Area</span>
             </button>
-          </div>
-        </div>
+          }
+        />
 
-        {/* Tab Navigation */}
-        <div className="flex border-b border-slate-200 bg-white rounded-t-xl px-2">
-          <button
-            onClick={() => setActiveTab('master')}
-            className={`flex items-center gap-2 px-5 py-3 font-bold text-xs sm:text-sm border-b-2 transition-all ${
-              activeTab === 'master'
-                ? 'border-deped-blue text-deped-blue bg-deped-blue-light/30'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <BookOpen size={16} />
-            <span>1. Master Learning Areas</span>
-            <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold">
-              {learningAreas.length}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('per-grade')}
-            className={`flex items-center gap-2 px-5 py-3 font-bold text-xs sm:text-sm border-b-2 transition-all ${
-              activeTab === 'per-grade'
-                ? 'border-deped-blue text-deped-blue bg-deped-blue-light/30'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <GraduationCap size={16} />
-            <span>2. Assign Subjects per Grade</span>
-          </button>
-        </div>
-
-        {/* TAB 1: MASTER LEARNING AREAS */}
-        {activeTab === 'master' && (
-          <div className="space-y-4">
-            {/* Search & Status Filter Bar */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-xs">
-              <div className="relative w-full sm:w-80">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  placeholder="Search subject name..."
-                  className="input-sm pl-9 w-full text-xs"
-                />
-              </div>
-
-              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                <div className="flex items-center gap-1.5 text-xs text-slate-600">
-                  <Filter size={14} />
-                  <span>Status:</span>
-                </div>
-                <select
-                  value={statusFilter}
-                  onChange={e => setStatusFilter(e.target.value as any)}
-                  className="input-sm text-xs font-medium border-slate-300"
-                >
-                  <option value="all">All Statuses ({learningAreas.length})</option>
-                  <option value="active">🟢 Active Only ({learningAreas.filter(la => la.is_active).length})</option>
-                  <option value="inactive">🔴 Inactive Only ({learningAreas.filter(la => !la.is_active).length})</option>
-                </select>
+        {/* Split Grid: Left Grade Levels Sidebar + Right Main View */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          
+          {/* 3D Clay Sidebar on the Left */}
+          <div className="lg:col-span-4 bg-[#EFE6FA] rounded-[32px] border-2 border-white p-4 shadow-[0_14px_30px_rgba(185,170,210,0.18)] space-y-3 font-sans shrink-0">
+            <div className="px-3 py-2 flex items-center justify-between border-b border-purple-200/60">
+              <div className="flex items-center gap-2">
+                <GraduationCap size={18} className="text-[#8B72F4]" />
+                <h3 className="text-xs font-black text-[#2D2638] uppercase tracking-wider font-display">Curriculum Navigation</h3>
               </div>
             </div>
 
-            {/* List / Table */}
-            <div className="card overflow-hidden bg-white border border-slate-200 shadow-xs">
-              {loading ? (
-                <DepEdSpinner size="lg" label="Loading Learning Areas Master Data..." subtitle="Fetching subject mappings & grade level assignments from Supabase" />
-              ) : filteredLearningAreas.length === 0 ? (
-                <div className="p-8 text-center text-slate-500">
-                  <EmptyState
-                    title="No learning areas found"
-                    description={searchQuery ? `No subjects matching "${searchQuery}".` : 'Get started by creating a learning area.'}
-                    icon={<BookOpen size={28} />}
-                  />
+            <div className="space-y-1.5 max-h-[620px] overflow-y-auto pr-1 custom-scrollbar">
+              {/* All Master Subjects Option */}
+              <button
+                onClick={() => setSelectedGradeId('all')}
+                className={`w-full flex items-center justify-between p-3.5 rounded-2xl text-xs font-extrabold transition-all cursor-pointer text-left ${
+                  selectedGradeId === 'all'
+                    ? 'bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] text-white shadow-md shadow-indigo-500/20'
+                    : 'bg-white/80 text-[#2D2638] hover:bg-white hover:shadow-2xs'
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <BookOpen size={16} className={selectedGradeId === 'all' ? 'text-white' : 'text-[#8B72F4]'} />
+                  <div>
+                    <span className="block font-black text-xs font-display">All Master Subjects</span>
+                    <span className={`text-[10px] font-medium block ${selectedGradeId === 'all' ? 'text-white/80' : 'text-[#7A7289]'}`}>
+                      Full subject catalog ({learningAreas.length})
+                    </span>
+                  </div>
                 </div>
-              ) : (
-                <div className="divide-y divide-slate-100">
-                  {filteredLearningAreas.map(la => {
-                    const gids = gradeAssignments[la.id] || []
-                    const assignedGrades = grades
-                      .filter(g => gids.includes(g.id))
-                      .sort((a, b) => a.grade_number - b.grade_number)
+                <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                  selectedGradeId === 'all' ? 'bg-white/20 text-white' : 'bg-white text-[#8B72F4] border border-white'
+                }`}>
+                  ALL
+                </span>
+              </button>
 
-                    return (
-                      <div
-                        key={la.id}
-                        className="flex items-center justify-between p-4 gap-4 hover:bg-slate-50/80 transition-colors flex-wrap"
+              <div className="pt-2 px-3 pb-1 text-[10px] font-black uppercase tracking-wider text-[#A39BAF] font-display">
+                Assign Subjects per Grade
+              </div>
+
+              {/* Grade Levels List */}
+              {grades.map(g => {
+                const isSelected = selectedGradeId === g.id
+                const subCount = Object.entries(gradeAssignments).filter(([_, gIds]) => gIds.includes(g.id)).length
+
+                return (
+                  <button
+                    key={g.id}
+                    onClick={() => setSelectedGradeId(g.id)}
+                    className={`w-full flex items-center justify-between p-3.5 rounded-2xl text-xs font-extrabold transition-all cursor-pointer text-left ${
+                      isSelected
+                        ? 'bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] text-white shadow-md shadow-indigo-500/20 scale-[1.01]'
+                        : 'bg-white/80 text-[#2D2638] hover:bg-white hover:shadow-2xs'
+                    }`}
+                  >
+                    <div className="min-w-0 flex-1 pr-2">
+                      <span className="block font-black text-xs font-display truncate">{g.name}</span>
+                      <span className={`text-[10px] font-medium block truncate ${isSelected ? 'text-white/80' : 'text-[#7A7289]'}`}>
+                        {subCount} allocated subjects
+                      </span>
+                    </div>
+
+                    <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full shrink-0 ${
+                      isSelected ? 'bg-white/20 text-white' : 'bg-[#FAF5F0] text-[#8B72F4] border border-white'
+                    }`}>
+                      KS{g.key_stage.replace('ks', '')}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Right Main Content Area */}
+          <div className="lg:col-span-8 space-y-4">
+            {selectedGradeId === 'all' ? (
+              /* MASTER LEARNING AREAS CATALOG VIEW */
+              <div className="space-y-4">
+                {/* Search & Status Filter Bar */}
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-4 rounded-2xl border-2 border-white shadow-xs">
+                  <div className="relative w-full sm:w-80">
+                    <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#A39BAF]" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                      placeholder="Search subject name..."
+                      className="w-full pl-10 pr-4 py-2 text-xs rounded-xl border border-purple-100 bg-[#FAF5F0] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30 font-medium transition-all"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                    <div className="flex items-center gap-1.5 text-xs text-[#7A7289] font-bold">
+                      <Filter size={14} />
+                      <span>Status:</span>
+                    </div>
+                    <select
+                      value={statusFilter}
+                      onChange={e => setStatusFilter(e.target.value as any)}
+                      className="text-xs font-bold py-2 px-3 rounded-xl border border-purple-100 bg-[#FAF5F0] focus:outline-none text-[#2D2638]"
+                    >
+                      <option value="all">All Statuses ({learningAreas.length})</option>
+                      <option value="active">🟢 Active Only ({learningAreas.filter(la => la.is_active).length})</option>
+                      <option value="inactive">🔴 Inactive Only ({learningAreas.filter(la => !la.is_active).length})</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* List of Subjects */}
+                <div className="bg-white rounded-[28px] border-2 border-white shadow-xs overflow-hidden">
+                  {loading ? (
+                    <DepEdSpinner size="lg" label="Loading Learning Areas Master Data..." subtitle="Fetching subject mappings & grade level assignments from Supabase" />
+                  ) : filteredLearningAreas.length === 0 ? (
+                    <div className="p-8 text-center text-[#7A7289]">
+                      <EmptyState
+                        title="No learning areas found"
+                        description={searchQuery ? `No subjects matching "${searchQuery}".` : 'Get started by creating a learning area.'}
+                        icon={<BookOpen size={28} />}
+                      />
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-[#F0E8F5]">
+                      {filteredLearningAreas.map(la => {
+                        const gids = gradeAssignments[la.id] || []
+                        const assignedGrades = grades
+                          .filter(g => gids.includes(g.id))
+                          .sort((a, b) => a.grade_number - b.grade_number)
+
+                        return (
+                          <div
+                            key={la.id}
+                            className="flex items-center justify-between p-4 sm:p-5 gap-4 hover:bg-[#F6EFFF]/50 transition-colors flex-wrap font-sans"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2.5">
+                                <p className={`text-sm font-black font-display ${la.is_active ? 'text-[#2D2638]' : 'text-[#A39BAF] line-through'}`}>
+                                  {la.name}
+                                </p>
+                                <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full ${
+                                  la.is_active ? 'bg-[#EDFAF3] text-[#059669] border border-[#A7F3D0]' : 'bg-[#FFE0E6] text-[#E11D48] border border-[#FFCCD4]'
+                                }`}>
+                                  {la.is_active ? 'Active' : 'Inactive'}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                                <span className="text-xs text-[#7A7289] font-bold">Assigned Grades:</span>
+                                {assignedGrades.length === 0 ? (
+                                  <span className="text-xs text-[#E11D48] font-semibold italic">No grades assigned yet</span>
+                                ) : (
+                                  <div className="flex flex-wrap gap-1">
+                                    {assignedGrades.map(g => (
+                                      <span key={g.id} className="px-2.5 py-0.5 rounded-full bg-[#F2EEFD] text-[#6D4AE4] text-[11px] font-bold border border-[#E2D5FE]">
+                                        {g.name}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <button
+                                className="px-3.5 py-1.5 rounded-full bg-[#FAF5F0] hover:bg-[#F6EFFF] text-[#2D2638] text-xs font-bold transition-all border border-white shadow-2xs flex items-center gap-1 cursor-pointer"
+                                onClick={() => setModal({ open: true, la })}
+                              >
+                                <Pencil size={13} className="text-[#8B72F4]" />
+                                <span>Edit</span>
+                              </button>
+                              <button
+                                className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-all cursor-pointer ${
+                                  la.is_active ? 'bg-[#FFE0E6] text-[#E11D48] hover:bg-[#FFCCD4]' : 'bg-[#EDFAF3] text-[#059669] hover:bg-[#A7F3D0]'
+                                }`}
+                                onClick={() => handleToggleActive(la)}
+                              >
+                                {la.is_active ? 'Deactivate' : 'Activate'}
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              /* SPECIFIC GRADE SUBJECT ALLOCATION CHECKLIST VIEW */
+              selectedGradeObj && (
+                <div className="bg-white rounded-[28px] border-2 border-white p-5 sm:p-6 shadow-[0_12px_30px_rgba(185,170,210,0.14)] space-y-5 font-sans">
+                  {/* Selected Grade Header */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#F0E8F5] pb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-2xl bg-[#F2EEFD] text-[#6D4AE4] font-black text-sm flex items-center justify-center shrink-0 border border-[#E2D5FE] shadow-2xs font-display">
+                        G{selectedGradeObj.grade_number}
+                      </div>
+                      <div>
+                        <h3 className="text-base font-black text-[#2D2638] font-display">
+                          {selectedGradeObj.name} Subject Allocation
+                        </h3>
+                        <p className="text-xs text-[#7A7289] font-medium">
+                          School Type: <span className="capitalize font-bold text-[#2D2638]">{selectedGradeObj.school_type}</span> &bull; Key Stage: <span className="uppercase font-bold text-[#8B72F4]">KS{selectedGradeObj.key_stage.replace('ks', '')}</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                      <button
+                        onClick={selectAllActiveForGrade}
+                        className="px-3 py-1.5 rounded-full bg-[#FAF5F0] hover:bg-[#F6EFFF] text-[#2D2638] text-xs font-bold transition-all flex items-center gap-1 border border-white cursor-pointer shadow-2xs"
                       >
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2.5">
-                            <p
-                              className={`text-sm font-bold ${
-                                la.is_active ? 'text-slate-900' : 'text-slate-400 line-through'
-                              }`}
-                            >
-                              {la.name}
-                            </p>
+                        <CheckSquare size={13} className="text-[#8B72F4]" />
+                        <span>Select Active</span>
+                      </button>
+                      <button
+                        onClick={clearAllForGrade}
+                        className="px-3 py-1.5 rounded-full bg-[#FAF5F0] hover:bg-[#F6EFFF] text-[#2D2638] text-xs font-bold transition-all flex items-center gap-1 border border-white cursor-pointer shadow-2xs"
+                      >
+                        <Square size={13} className="text-[#7A7289]" />
+                        <span>Clear All</span>
+                      </button>
+                      <button
+                        onClick={() => setCopyModalOpen(true)}
+                        className="px-3 py-1.5 rounded-full bg-[#FAF5F0] hover:bg-[#F6EFFF] text-[#2D2638] text-xs font-bold transition-all flex items-center gap-1 border border-white cursor-pointer shadow-2xs"
+                      >
+                        <Copy size={13} className="text-[#0284C7]" />
+                        <span>Copy</span>
+                      </button>
+                      <button
+                        onClick={handleSaveGradeSubjects}
+                        disabled={savingGradeSubjects}
+                        className="px-4 py-1.5 rounded-full bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] text-white text-xs font-black shadow-md hover:shadow-lg transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                      >
+                        <Save size={14} />
+                        <span>{savingGradeSubjects ? 'Saving...' : 'Save Allocation'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Subjects Selection Checklist */}
+                  <div className="space-y-3">
+                    <p className="text-xs font-black text-[#2D2638] uppercase tracking-wider font-display">
+                      Check subjects taught in {selectedGradeObj.name}: ({selectedSubjectIdsForGrade.length} Selected)
+                    </p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                      {learningAreas.map(la => {
+                        const isChecked = selectedSubjectIdsForGrade.includes(la.id)
+
+                        return (
+                          <div
+                            key={la.id}
+                            onClick={() => toggleSubjectForGrade(la.id)}
+                            className={`p-3 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between ${
+                              isChecked
+                                ? 'bg-[#EDFAF3] border-[#A7F3D0] text-[#059669] font-bold shadow-2xs'
+                                : 'bg-[#FAF5F0]/60 border-white text-[#2D2638] hover:bg-white'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 overflow-hidden">
+                              <div
+                                className={`w-5 h-5 rounded-lg flex items-center justify-center flex-shrink-0 text-white font-black text-xs transition-colors ${
+                                  isChecked ? 'bg-[#059669]' : 'bg-[#A39BAF]/40'
+                                }`}
+                              >
+                                {isChecked && <Check size={12} />}
+                              </div>
+                              <span className="text-xs font-extrabold truncate">{la.name}</span>
+                            </div>
+
                             <span
-                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                                la.is_active
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                  : 'bg-rose-50 text-rose-700 border-rose-200'
+                              className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full ${
+                                la.is_active ? 'bg-white text-[#059669] shadow-2xs' : 'bg-[#FFE0E6] text-[#E11D48]'
                               }`}
                             >
                               {la.is_active ? 'Active' : 'Inactive'}
                             </span>
                           </div>
-
-                          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                            <span className="text-xs text-slate-500 font-semibold">Assigned Grades:</span>
-                            {assignedGrades.length === 0 ? (
-                              <span className="text-xs text-rose-600 font-medium italic">No grades assigned yet</span>
-                            ) : (
-                              <div className="flex flex-wrap gap-1">
-                                {assignedGrades.map(g => (
-                                  <span
-                                    key={g.id}
-                                    className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px] font-semibold border border-slate-200"
-                                  >
-                                    {g.name}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <button
-                            className="btn-sm btn-secondary flex items-center gap-1 text-xs font-semibold"
-                            onClick={() => setModal({ open: true, la })}
-                          >
-                            <Pencil size={13} />
-                            <span>Edit</span>
-                          </button>
-                          <button
-                            className={`btn-sm ${la.is_active ? 'btn-danger' : 'btn-success'} text-xs font-semibold`}
-                            onClick={() => handleToggleActive(la)}
-                          >
-                            {la.is_active ? 'Deactivate' : 'Activate'}
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* TAB 2: ASSIGN SUBJECTS PER GRADE */}
-        {activeTab === 'per-grade' && (
-          <div className="space-y-6">
-            <div className="card p-4 sm:p-5 bg-gradient-to-r from-slate-900 to-deped-blue-dark text-white space-y-2 shadow-md">
-              <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wider">
-                <Sparkles size={16} /> District Standard Curricular Allocation
-              </div>
-              <h2 className="text-lg sm:text-xl font-extrabold">Grade Level Subject Assignment</h2>
-              <p className="text-xs sm:text-sm text-blue-100/80 leading-relaxed max-w-2xl">
-                Configure standard learning areas for each Grade Level across all district schools. Changes made here apply automatically to teacher submission forms.
-              </p>
-            </div>
-
-            {/* Grade Level Selector */}
-            <div className="space-y-3">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
-                <GraduationCap size={16} className="text-deped-blue" />
-                Select Grade Level to Configure:
-              </label>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2">
-                {grades.map(g => {
-                  const isSelected = g.id === selectedGradeId
-                  // Count subjects assigned
-                  const subCount = Object.entries(gradeAssignments).filter(([_, gIds]) => gIds.includes(g.id)).length
-
-                  return (
-                    <button
-                      key={g.id}
-                      onClick={() => setSelectedGradeId(g.id)}
-                      className={`p-3 rounded-xl border text-left transition-all ${
-                        isSelected
-                          ? 'bg-deped-blue text-white border-deped-blue shadow-sm ring-2 ring-deped-blue/30'
-                          : 'bg-white text-slate-800 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className={`text-xs font-extrabold ${isSelected ? 'text-white' : 'text-slate-900'}`}>
-                          {g.name}
-                        </span>
-                        <span
-                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                            isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
-                          }`}
-                        >
-                          KS{g.key_stage.replace('ks', '')}
-                        </span>
-                      </div>
-                      <p className={`text-[11px] mt-1 font-medium ${isSelected ? 'text-blue-100' : 'text-slate-500'}`}>
-                        {subCount} Subjects
-                      </p>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Selected Grade Configuration Panel */}
-            {selectedGradeObj && (
-              <div className="card p-5 bg-white border border-slate-200 space-y-5 shadow-xs">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="w-8 h-8 rounded-lg bg-deped-blue-light text-deped-blue font-bold text-sm flex items-center justify-center">
-                        G{selectedGradeObj.grade_number}
-                      </span>
-                      <div>
-                        <h3 className="text-base font-bold text-slate-900">
-                          {selectedGradeObj.name} Subjects Allocation
-                        </h3>
-                        <p className="text-xs text-slate-500">
-                          School Type: <span className="capitalize font-semibold">{selectedGradeObj.school_type}</span> • Key Stage: <span className="uppercase font-semibold">{selectedGradeObj.key_stage}</span>
-                        </p>
-                      </div>
+                        )
+                      })}
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-                    <button
-                      onClick={selectAllActiveForGrade}
-                      className="btn-xs btn-secondary text-xs font-semibold flex items-center gap-1"
-                    >
-                      <CheckSquare size={13} /> Select All Active
-                    </button>
-                    <button
-                      onClick={clearAllForGrade}
-                      className="btn-xs btn-secondary text-xs font-semibold flex items-center gap-1"
-                    >
-                      <Square size={13} /> Clear All
-                    </button>
-                    <button
-                      onClick={() => setCopyModalOpen(true)}
-                      className="btn-xs btn-secondary text-xs font-semibold flex items-center gap-1"
-                    >
-                      <Copy size={13} /> Copy to Other Grades
-                    </button>
-                    <button
-                      onClick={handleSaveGradeSubjects}
-                      disabled={savingGradeSubjects}
-                      className="btn-sm btn-primary flex items-center gap-1.5 shadow-xs ml-1"
-                    >
-                      <Save size={14} />
-                      <span>{savingGradeSubjects ? 'Saving...' : 'Save Assignments'}</span>
-                    </button>
-                  </div>
                 </div>
-
-                {/* Subjects Selection Grid */}
-                <div className="space-y-3">
-                  <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">
-                    Check subjects taught in {selectedGradeObj.name}: ({selectedSubjectIdsForGrade.length} Selected)
-                  </p>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
-                    {learningAreas.map(la => {
-                      const isChecked = selectedSubjectIdsForGrade.includes(la.id)
-
-                      return (
-                        <div
-                          key={la.id}
-                          onClick={() => toggleSubjectForGrade(la.id)}
-                          className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
-                            isChecked
-                              ? 'bg-emerald-50/90 border-emerald-300 text-emerald-950 font-bold shadow-xs'
-                              : 'bg-slate-50/60 border-slate-200 text-slate-600 hover:border-slate-300'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5 overflow-hidden">
-                            <div
-                              className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 text-white font-bold text-xs ${
-                                isChecked ? 'bg-emerald-600' : 'bg-slate-300'
-                              }`}
-                            >
-                              {isChecked && <Check size={12} />}
-                            </div>
-                            <span className="text-xs truncate">{la.name}</span>
-                          </div>
-
-                          <span
-                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                              la.is_active ? 'bg-slate-200 text-slate-700' : 'bg-rose-100 text-rose-700'
-                            }`}
-                          >
-                            {la.is_active ? 'Active' : 'Inactive'}
-                          </span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              </div>
+              )
             )}
           </div>
-        )}
+        </div>
       </div>
 
       {/* MODAL 1: Add / Edit Single Learning Area */}

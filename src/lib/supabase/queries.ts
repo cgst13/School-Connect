@@ -6,6 +6,7 @@ import type {
   LearningAreaGrade,
   SchoolYear,
   Term,
+  LearningCompetency,
   TermcatSubmission,
   FullSubmissionFormData,
   SubmissionFilters,
@@ -516,6 +517,97 @@ export async function fetchConsolidationData(filters: ConsolidationFilters): Pro
   return (data || []) as TermcatSubmission[]
 }
 
+export async function saveConsolidatedReport(reportPayload: {
+  title: string
+  school_year_id: string
+  term_id: string
+  level_type: string
+  grade_level_id?: string | null
+  learning_area_id?: string | null
+  total_schools_included: number
+  total_submissions_count: number
+  total_learners_count: number
+  average_mps?: number | null
+  consolidated_data: Record<string, any>
+  created_by?: string | null
+  created_by_name?: string | null
+}) {
+  try {
+    const { data, error } = await supabase
+      .from('termcat_consolidated_reports')
+      .insert({
+        title: reportPayload.title,
+        school_year_id: reportPayload.school_year_id,
+        term_id: reportPayload.term_id,
+        level_type: reportPayload.level_type,
+        grade_level_id: reportPayload.grade_level_id === 'all' ? null : reportPayload.grade_level_id,
+        learning_area_id: reportPayload.learning_area_id === 'all' ? null : reportPayload.learning_area_id,
+        total_schools_included: reportPayload.total_schools_included,
+        total_submissions_count: reportPayload.total_submissions_count,
+        total_learners_count: reportPayload.total_learners_count,
+        average_mps: reportPayload.average_mps,
+        consolidated_data: reportPayload.consolidated_data,
+        created_by: reportPayload.created_by,
+        created_by_name: reportPayload.created_by_name,
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.warn('Consolidated report table insert fallback:', error.message)
+    }
+
+    // Always record audit log as well
+    await insertAuditLog({
+      admin_id: reportPayload.created_by || null,
+      admin_name: reportPayload.created_by_name || 'System Admin',
+      action: 'save_consolidated_report',
+      entity_type: 'consolidated_report',
+      entity_id: data?.id || null,
+      entity_label: reportPayload.title,
+      details: {
+        total_schools: reportPayload.total_schools_included,
+        total_submissions: reportPayload.total_submissions_count,
+        total_learners: reportPayload.total_learners_count,
+        average_mps: reportPayload.average_mps,
+      }
+    })
+
+    return data
+  } catch (err) {
+    console.error('Error saving consolidated report:', err)
+    throw err
+  }
+}
+
+export async function fetchConsolidatedReports() {
+  const { data, error } = await supabase
+    .from('termcat_consolidated_reports')
+    .select(`
+      *,
+      school_year:sc_school_years(*),
+      term:sc_terms(*),
+      grade_level:sc_grade_levels(*),
+      learning_area:sc_learning_areas(*)
+    `)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.warn('Could not fetch saved consolidated reports:', error.message)
+    return []
+  }
+  return data || []
+}
+
+export async function deleteConsolidatedReport(id: string) {
+  const { error } = await supabase
+    .from('termcat_consolidated_reports')
+    .delete()
+    .eq('id', id)
+
+  if (error) throw error
+}
+
 // ============================================================
 // ADMIN — MASTER DATA CRUD (sc_*)
 // ============================================================
@@ -539,20 +631,38 @@ export async function upsertLearningArea(la: Partial<LearningArea>): Promise<Lea
 }
 
 export async function setLearningAreaGrades(learningAreaId: string, gradeIds: string[]): Promise<void> {
-  await supabase.from('sc_learning_area_grades').delete().eq('learning_area_id', learningAreaId)
+  let targetTable = 'sc_learning_area_grades'
+  let { error: delError } = await supabase.from(targetTable).delete().eq('learning_area_id', learningAreaId)
+  
+  if (isTableMissingError(delError, targetTable)) {
+    targetTable = 'termcat_learning_area_grades'
+    const res = await supabase.from(targetTable).delete().eq('learning_area_id', learningAreaId)
+    delError = res.error
+  }
+  if (delError) throw delError
+
   if (gradeIds.length > 0) {
     const inserts = gradeIds.map(gid => ({ learning_area_id: learningAreaId, grade_level_id: gid }))
-    const { error } = await supabase.from('sc_learning_area_grades').insert(inserts)
-    if (error) throw error
+    const { error: insError } = await supabase.from(targetTable).insert(inserts)
+    if (insError) throw insError
   }
 }
 
 export async function setGradeLearningAreas(gradeLevelId: string, learningAreaIds: string[]): Promise<void> {
-  await supabase.from('sc_learning_area_grades').delete().eq('grade_level_id', gradeLevelId)
+  let targetTable = 'sc_learning_area_grades'
+  let { error: delError } = await supabase.from(targetTable).delete().eq('grade_level_id', gradeLevelId)
+
+  if (isTableMissingError(delError, targetTable)) {
+    targetTable = 'termcat_learning_area_grades'
+    const res = await supabase.from(targetTable).delete().eq('grade_level_id', gradeLevelId)
+    delError = res.error
+  }
+  if (delError) throw delError
+
   if (learningAreaIds.length > 0) {
     const inserts = learningAreaIds.map(laId => ({ learning_area_id: laId, grade_level_id: gradeLevelId }))
-    const { error } = await supabase.from('sc_learning_area_grades').insert(inserts)
-    if (error) throw error
+    const { error: insError } = await supabase.from(targetTable).insert(inserts)
+    if (insError) throw insError
   }
 }
 
@@ -598,66 +708,98 @@ const isTableMissingError = (err: any, tableName: string) => {
   return false
 }
 
-export async function fetchSchools(activeOnly = true): Promise<School[]> {
-  let query = supabase.from('sc_schools').select('*').order('school_type').order('name')
-  if (activeOnly) query = query.eq('is_active', true)
-  let { data, error } = await query
-
-  if (isTableMissingError(error, 'sc_schools')) {
-    let fallback = supabase.from('termcat_schools').select('*').order('school_type').order('name')
-    if (activeOnly) fallback = fallback.eq('is_active', true)
-    const res = await fallback
-    data = res.data
-    error = res.error
+// Helper to automatically retry queries on transient network drops (e.g. ERR_CONNECTION_CLOSED)
+export async function execWithRetry<T>(fn: () => Promise<T>, retries = 2, delayMs = 300): Promise<T> {
+  let attempt = 0
+  while (true) {
+    try {
+      return await fn()
+    } catch (err: any) {
+      const msg = (err?.message || '').toLowerCase()
+      const isNetError =
+        msg.includes('failed to fetch') ||
+        msg.includes('err_connection_closed') ||
+        msg.includes('networkerror') ||
+        msg.includes('network error') ||
+        err?.status === 0
+      if (isNetError && attempt < retries) {
+        attempt++
+        await new Promise(r => setTimeout(r, delayMs * attempt))
+        continue
+      }
+      throw err
+    }
   }
+}
 
-  if (error) throw error
-  return data || []
+export async function fetchSchools(activeOnly = true): Promise<School[]> {
+  return execWithRetry(async () => {
+    let query = supabase.from('sc_schools').select('*').order('school_type').order('name')
+    if (activeOnly) query = query.eq('is_active', true)
+    let { data, error } = await query
+
+    if (isTableMissingError(error, 'sc_schools')) {
+      let fallback = supabase.from('termcat_schools').select('*').order('school_type').order('name')
+      if (activeOnly) fallback = fallback.eq('is_active', true)
+      const res = await fallback
+      data = res.data
+      error = res.error
+    }
+
+    if (error) throw error
+    return data || []
+  })
 }
 
 export async function fetchGradeLevels(schoolType?: string): Promise<GradeLevel[]> {
-  let query = supabase.from('sc_grade_levels').select('*').eq('is_active', true).order('grade_number')
-  if (schoolType) query = query.eq('school_type', schoolType)
-  let { data, error } = await query
+  return execWithRetry(async () => {
+    let query = supabase.from('sc_grade_levels').select('*').eq('is_active', true).order('grade_number')
+    if (schoolType) query = query.eq('school_type', schoolType)
+    let { data, error } = await query
 
-  if (isTableMissingError(error, 'sc_grade_levels')) {
-    let fallback = supabase.from('termcat_grade_levels').select('*').eq('is_active', true).order('grade_number')
-    if (schoolType) fallback = fallback.eq('school_type', schoolType)
-    const res = await fallback
-    data = res.data
-    error = res.error
-  }
+    if (isTableMissingError(error, 'sc_grade_levels')) {
+      let fallback = supabase.from('termcat_grade_levels').select('*').eq('is_active', true).order('grade_number')
+      if (schoolType) fallback = fallback.eq('school_type', schoolType)
+      const res = await fallback
+      data = res.data
+      error = res.error
+    }
 
-  if (error) throw error
-  return data || []
+    if (error) throw error
+    return data || []
+  })
 }
 
 export async function fetchLearningAreas(activeOnly = true): Promise<LearningArea[]> {
-  let query = supabase.from('sc_learning_areas').select('*').order('name')
-  if (activeOnly) query = query.eq('is_active', true)
-  let { data, error } = await query
+  return execWithRetry(async () => {
+    let query = supabase.from('sc_learning_areas').select('*').order('name')
+    if (activeOnly) query = query.eq('is_active', true)
+    let { data, error } = await query
 
-  if (isTableMissingError(error, 'sc_learning_areas')) {
-    let fallback = supabase.from('termcat_learning_areas').select('*').order('name')
-    if (activeOnly) fallback = fallback.eq('is_active', true)
-    const res = await fallback
-    data = res.data
-    error = res.error
-  }
+    if (isTableMissingError(error, 'sc_learning_areas')) {
+      let fallback = supabase.from('termcat_learning_areas').select('*').order('name')
+      if (activeOnly) fallback = fallback.eq('is_active', true)
+      const res = await fallback
+      data = res.data
+      error = res.error
+    }
 
-  if (error) throw error
-  return data || []
+    if (error) throw error
+    return data || []
+  })
 }
 
 export async function fetchLearningAreaGrades(): Promise<LearningAreaGrade[]> {
-  let { data, error } = await supabase.from('sc_learning_area_grades').select('*')
-  if (isTableMissingError(error, 'sc_learning_area_grades')) {
-    const res = await supabase.from('termcat_learning_area_grades').select('*')
-    data = res.data
-    error = res.error
-  }
-  if (error) throw error
-  return data || []
+  return execWithRetry(async () => {
+    let { data, error } = await supabase.from('sc_learning_area_grades').select('*')
+    if (isTableMissingError(error, 'sc_learning_area_grades')) {
+      const res = await supabase.from('termcat_learning_area_grades').select('*')
+      data = res.data
+      error = res.error
+    }
+    if (error) throw error
+    return data || []
+  })
 }
 
 export async function fetchLearningAreasForGrade(gradeId: string): Promise<LearningArea[]> {
@@ -1859,6 +2001,8 @@ export async function saveDTRCustomHolidaySupabase(holiday: {
   date_str: string
   title: string
   is_recurring: boolean
+  is_half_day?: boolean
+  half_day_session?: 'am' | 'pm' | 'half_day'
 }): Promise<any> {
   const { data, error } = await supabase
     .from('sc_dtr_custom_holidays')
@@ -1866,7 +2010,9 @@ export async function saveDTRCustomHolidaySupabase(holiday: {
       created_by_user_id: holiday.created_by_user_id || null,
       date_str: holiday.date_str,
       title: holiday.title,
-      is_recurring: holiday.is_recurring
+      is_recurring: holiday.is_recurring,
+      is_half_day: holiday.is_half_day ?? false,
+      half_day_session: holiday.half_day_session || 'am'
     })
     .select()
     .single()
@@ -1881,3 +2027,199 @@ export async function deleteDTRCustomHolidaySupabase(id: string): Promise<void> 
     .eq('id', id)
   if (error) throw error
 }
+
+import extractedCompetencies from '@/data/extractedCompetencies.json'
+
+// ============================================================
+// LEARNING COMPETENCIES / BUDGET OF WORK QUERIES (sc_budget_of_work)
+// ============================================================
+
+export async function fetchLearningCompetencies(filters?: {
+  grade_number?: number
+  learning_area_name?: string
+  term_name?: string
+  search?: string
+}): Promise<{ data: LearningCompetency[]; isLiveFromSupabase: boolean }> {
+  try {
+    let allData: LearningCompetency[] = []
+    let page = 0
+    const PAGE_SIZE = 1000
+    let hasMore = true
+    let isLiveFromSupabase = false
+
+    while (hasMore) {
+      let query = supabase
+        .from('sc_budget_of_work')
+        .select('*')
+        .order('grade_number', { ascending: true })
+        .order('learning_area_name', { ascending: true })
+        .order('code', { ascending: true })
+        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
+
+      if (filters?.grade_number) {
+        query = query.eq('grade_number', filters.grade_number)
+      }
+      if (filters?.learning_area_name && filters.learning_area_name !== 'all') {
+        query = query.ilike('learning_area_name', `%${filters.learning_area_name}%`)
+      }
+      if (filters?.term_name && filters.term_name !== 'all') {
+        query = query.ilike('term_name', `%${filters.term_name}%`)
+      }
+
+      const { data, error } = await query
+
+      if (error || !data) {
+        hasMore = false
+      } else {
+        if (data.length > 0) {
+          isLiveFromSupabase = true
+          allData = allData.concat(data as LearningCompetency[])
+        }
+        if (data.length < PAGE_SIZE) {
+          hasMore = false
+        } else {
+          page++
+        }
+      }
+    }
+
+    let results: LearningCompetency[] = []
+
+    if (isLiveFromSupabase && allData.length > 0) {
+      results = allData
+    } else {
+      isLiveFromSupabase = false
+      results = extractedCompetencies as LearningCompetency[]
+
+      if (filters?.grade_number) {
+        results = results.filter(c => c.grade_number === filters.grade_number)
+      }
+      if (filters?.learning_area_name && filters.learning_area_name !== 'all') {
+        const la = filters.learning_area_name.toLowerCase()
+        results = results.filter(c => c.learning_area_name.toLowerCase().includes(la))
+      }
+      if (filters?.term_name && filters.term_name !== 'all') {
+        const tm = filters.term_name.toLowerCase()
+        results = results.filter(c => c.term_name.toLowerCase().includes(tm))
+      }
+    }
+
+    if (filters?.search && filters.search.trim() !== '') {
+      const s = filters.search.toLowerCase().trim()
+      results = results.filter(
+        c =>
+          (c.code && c.code.toLowerCase().includes(s)) ||
+          (c.domain_strand && c.domain_strand.toLowerCase().includes(s)) ||
+          (c.competency_description && c.competency_description.toLowerCase().includes(s)) ||
+          (c.learning_area_name && c.learning_area_name.toLowerCase().includes(s))
+      )
+    }
+
+    return { data: results, isLiveFromSupabase }
+  } catch (err) {
+    console.warn('Supabase fetch budget of work warning:', err)
+    return { data: extractedCompetencies as LearningCompetency[], isLiveFromSupabase: false }
+  }
+}
+
+export async function createLearningCompetency(
+  competency: Partial<LearningCompetency>
+): Promise<LearningCompetency> {
+  const { data, error } = await supabase
+    .from('sc_budget_of_work')
+    .insert({
+      grade_number: competency.grade_number || 1,
+      learning_area_name: competency.learning_area_name || 'General',
+      term_name: competency.term_name || '1st Term / Quarter 1',
+      code: competency.code || '',
+      domain_strand: competency.domain_strand || 'General',
+      competency_description: competency.competency_description || '',
+      target_week: competency.target_week || 'Week 1-2',
+      target_days: competency.target_days || 5,
+      is_active: competency.is_active ?? true,
+    })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function updateLearningCompetency(
+  id: string,
+  competency: Partial<LearningCompetency>
+): Promise<LearningCompetency> {
+  const { data, error } = await supabase
+    .from('sc_budget_of_work')
+    .update({
+      grade_number: competency.grade_number,
+      learning_area_name: competency.learning_area_name,
+      term_name: competency.term_name,
+      code: competency.code,
+      domain_strand: competency.domain_strand,
+      competency_description: competency.competency_description,
+      target_week: competency.target_week,
+      target_days: competency.target_days,
+      is_active: competency.is_active,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function deleteLearningCompetency(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('sc_budget_of_work')
+    .delete()
+    .eq('id', id)
+  if (error) throw error
+}
+
+export async function importBudgetOfWorkToSupabase(
+  items: Partial<LearningCompetency>[],
+  onProgress?: (processed: number, total: number) => void
+): Promise<{ success: boolean; insertedCount: number }> {
+  const BATCH_SIZE = 250
+  let insertedCount = 0
+
+  for (let i = 0; i < items.length; i += BATCH_SIZE) {
+    const chunk = items.slice(i, i + BATCH_SIZE).map(item => ({
+      grade_number: item.grade_number || 1,
+      learning_area_name: item.learning_area_name || 'General',
+      term_name: item.term_name || '1st Term / Quarter 1',
+      code: item.code || '',
+      domain_strand: item.domain_strand || 'General',
+      competency_description: item.competency_description || '',
+      target_week: item.target_week || 'Week 1-2',
+      target_days: item.target_days || 5,
+      is_active: item.is_active ?? true,
+    }))
+
+    const { data, error } = await supabase.from('sc_budget_of_work').insert(chunk).select('id')
+    if (error) {
+      console.error('Batch import error details:', error)
+      if (error.code === '42P01' || error.message?.includes('relation "sc_budget_of_work" does not exist')) {
+        throw new Error('Table "sc_budget_of_work" does not exist in Supabase yet. Please run migration 018_create_budget_of_work_table.sql in your Supabase SQL Editor.')
+      }
+      if (error.code === '42501' || error.message?.includes('permission denied') || error.message?.includes('row-level security')) {
+        throw new Error('Supabase RLS Permission Error: Please run migration 018_create_budget_of_work_table.sql in Supabase SQL Editor to grant insert policy to anon/authenticated users.')
+      }
+      throw new Error(`Supabase Import Error (${error.code || '401'}): ${error.message || 'Permission denied or unauthorized request'}`)
+    }
+
+    insertedCount += data ? data.length : chunk.length
+    if (onProgress) {
+      onProgress(Math.min(i + BATCH_SIZE, items.length), items.length)
+    }
+  }
+
+  return { success: true, insertedCount }
+}
+
+export async function clearBudgetOfWorkSupabase(): Promise<void> {
+  const { error } = await supabase.from('sc_budget_of_work').delete().gte('grade_number', 1)
+  if (error) throw error
+}
+

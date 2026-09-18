@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
-import type { School, GradeLevel, LearningArea, SchoolYear, Term, TermcatSubmission, FormType } from '@/types'
+import type { School, GradeLevel, LearningArea, LearningAreaGrade, SchoolYear, Term, TermcatSubmission, FormType } from '@/types'
 import {
   parseSubjectImportExcel,
   getExcelSheetNames,
   downloadImportTemplate,
   type ParsedSubjectRow
 } from '@/lib/excel/excelImport'
-import { createSubmission, generateReferenceNumber, insertAuditLog, checkDuplicateSubmission } from '@/lib/supabase/queries'
+import { createSubmission, generateReferenceNumber, insertAuditLog, checkDuplicateSubmission, fetchLearningAreaGrades } from '@/lib/supabase/queries'
 import { useAuth } from '@/features/auth/useAuth'
 import { useToast } from '@/hooks/useToast'
 import { OfficialTermcatTemplate } from '@/components/templates/OfficialTermcatTemplate'
@@ -19,7 +19,7 @@ import {
 } from '@/lib/supabase/suggestions'
 import {
   X, Upload, Download, FileSpreadsheet, CheckCircle2, AlertTriangle, RefreshCw,
-  User, Building2, GraduationCap, Calendar, Clock, AlertCircle, Layers, Eye, Printer, Sparkles
+  User, Building2, GraduationCap, Calendar, Clock, AlertCircle, Layers, Eye, Printer, Sparkles, Lock
 } from 'lucide-react'
 import { useGenieModal } from '@/utils/genieAnimation'
 
@@ -74,6 +74,7 @@ export function ImportSubmissionsModal({
 
   // Official Template Preview Modal State
   const [showOfficialPreview, setShowOfficialPreview] = useState(false)
+  const [learningAreaGrades, setLearningAreaGrades] = useState<LearningAreaGrade[]>([])
 
   // Set default values & load teacher suggestions when modal opens
   useEffect(() => {
@@ -85,8 +86,25 @@ export function ImportSubmissionsModal({
       if (defaultTerm && !termId) setTermId(defaultTerm.id)
 
       fetchTeacherNameSuggestions().then(setTeacherSuggestions)
+      fetchLearningAreaGrades().then(setLearningAreaGrades)
     }
   }, [isOpen, schoolYears, terms, schoolYearId, termId])
+
+  // Filter learning areas assigned to the selected grade level only
+  const availableLearningAreas = useMemo(() => {
+    if (!gradeLevelId || learningAreaGrades.length === 0) return learningAreas
+    const mappedLAIds = new Set(
+      learningAreaGrades
+        .filter(lag => lag.grade_level_id === gradeLevelId)
+        .map(lag => lag.learning_area_id)
+    )
+    if (mappedLAIds.size > 0) {
+      return learningAreas.filter(la => mappedLAIds.has(la.id))
+    }
+    return learningAreas
+  }, [gradeLevelId, learningAreaGrades, learningAreas])
+
+  const isTaggingComplete = Boolean(schoolId && gradeLevelId)
 
   // Auto-select school when teacher name is typed or selected from suggestions
   const handleTeacherNameSelect = async (name: string) => {
@@ -214,6 +232,10 @@ export function ImportSubmissionsModal({
   if (!isOpen) return null
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isTaggingComplete) {
+      toast('Please select both a School and Grade Level in Step 1 first.', 'warning')
+      return
+    }
     const file = e.target.files?.[0]
     if (!file) return
     await processFile(file)
@@ -221,6 +243,10 @@ export function ImportSubmissionsModal({
 
   const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
+    if (!isTaggingComplete) {
+      toast('Please select both a School and Grade Level in Step 1 first.', 'warning')
+      return
+    }
     const file = e.dataTransfer.files?.[0]
     if (!file) return
     await processFile(file)
@@ -260,6 +286,10 @@ export function ImportSubmissionsModal({
   }
 
   const processFile = async (file: File) => {
+    if (!isTaggingComplete) {
+      toast('Please select both a School and Grade Level in Step 1 first.', 'warning')
+      return
+    }
     setFileName(file.name)
     setIsParsing(true)
     setParseError(null)
@@ -299,14 +329,24 @@ export function ImportSubmissionsModal({
         : 'ks2to4'
       : null
 
+    const newMappedLAIds = new Set(
+      learningAreaGrades
+        .filter(lag => lag.grade_level_id === gId)
+        .map(lag => lag.learning_area_id)
+    )
+    const newAvailableLAs = newMappedLAIds.size > 0
+      ? learningAreas.filter(la => newMappedLAIds.has(la.id))
+      : learningAreas
+
     if (fileBuffer && sheetNames.length > 0) {
       const bestSheet = findBestSheetForGrade(sheetNames, newExpectedType)
+      const targetSheet = (bestSheet || selectedSheet)
       if (bestSheet && bestSheet !== selectedSheet) {
         setSelectedSheet(bestSheet)
-        setIsParsing(true)
-        await parseSheet(fileBuffer, bestSheet)
-        setIsParsing(false)
       }
+      setIsParsing(true)
+      await parseSheet(fileBuffer, targetSheet, newAvailableLAs)
+      setIsParsing(false)
     }
   }
 
@@ -319,9 +359,10 @@ export function ImportSubmissionsModal({
     setIsParsing(false)
   }
 
-  const parseSheet = async (buffer: ArrayBuffer, sheetName: string) => {
+  const parseSheet = async (buffer: ArrayBuffer, sheetName: string, customLAs?: LearningArea[]) => {
     try {
-      const rows = await parseSubjectImportExcel(buffer, learningAreas, sheetName)
+      const targetLAs = customLAs || availableLearningAreas
+      const rows = await parseSubjectImportExcel(buffer, targetLAs, sheetName)
       setParsedRows(rows)
 
       if (rows.length === 0) {
@@ -364,7 +405,7 @@ export function ImportSubmissionsModal({
     setParsedRows(prev =>
       prev.map(row => {
         if (row.rowIndex !== rowIndex) return row
-        const newLA = learningAreas.find(la => la.id === newLAId)
+        const newLA = availableLearningAreas.find(la => la.id === newLAId) || learningAreas.find(la => la.id === newLAId)
         const updatedErrors = row.errors.filter(e => !e.includes('not recognized'))
         return {
           ...row,
@@ -688,11 +729,19 @@ export function ImportSubmissionsModal({
               <div
                 onDragOver={e => e.preventDefault()}
                 onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-                className={`border-2 border-dashed rounded-[28px] p-6 text-center cursor-pointer transition-all ${
-                  fileName
-                    ? 'border-[#8B72F4] bg-[#F6EFFF]'
-                    : 'border-purple-200 bg-[#FAF5F0]/60 hover:bg-[#F6EFFF]/60'
+                onClick={() => {
+                  if (!isTaggingComplete) {
+                    toast('Please select both a School and Grade Level in Step 1 first before attaching an Excel file.', 'warning')
+                    return
+                  }
+                  fileInputRef.current?.click()
+                }}
+                className={`border-2 border-dashed rounded-[28px] p-6 text-center transition-all ${
+                  !isTaggingComplete
+                    ? 'border-amber-200 bg-amber-50/40 cursor-not-allowed'
+                    : fileName
+                    ? 'border-[#8B72F4] bg-[#F6EFFF] cursor-pointer'
+                    : 'border-purple-200 bg-[#FAF5F0]/60 hover:bg-[#F6EFFF]/60 cursor-pointer'
                 }`}
               >
                 <input
@@ -700,24 +749,43 @@ export function ImportSubmissionsModal({
                   type="file"
                   accept=".xlsx, .xls"
                   className="hidden"
+                  disabled={!isTaggingComplete}
                   onChange={handleFileChange}
                 />
                 <div className="flex flex-col items-center justify-center space-y-2">
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border border-white shadow-xs ${fileName ? 'bg-[#8B72F4] text-white' : 'bg-white text-[#8B72F4]'}`}>
-                    {isParsing ? <RefreshCw size={24} className="animate-spin" /> : fileName ? <FileSpreadsheet size={24} /> : <Upload size={24} />}
-                  </div>
-                  {fileName ? (
-                    <div>
-                      <p className="text-sm font-black text-[#2D2638]">{fileName}</p>
-                      <p className="text-xs text-[#7A7289] font-medium mt-0.5">Click or drag a new file to replace</p>
-                    </div>
+                  {!isTaggingComplete ? (
+                    <>
+                      <div className="w-12 h-12 rounded-2xl bg-amber-100 border border-amber-200 text-amber-600 flex items-center justify-center shadow-xs">
+                        <Lock size={24} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-extrabold text-[#2D2638]">
+                          File Upload Blocked
+                        </p>
+                        <p className="text-xs text-amber-800 font-bold mt-0.5">
+                          🔒 Please select both a <span className="text-[#8B72F4] font-black underline">School</span> and <span className="text-[#8B72F4] font-black underline">Grade Level</span> in Step 1 above to enable Excel file attachment.
+                        </p>
+                      </div>
+                    </>
                   ) : (
-                    <div>
-                      <p className="text-sm font-bold text-[#2D2638]">
-                        Click to upload or drag & drop your Excel file here
-                      </p>
-                      <p className="text-xs text-[#7A7289] font-medium mt-0.5">File contains Key Stage 1 (KS1) and Key Stages 2–4 (KS2–4) template sheets</p>
-                    </div>
+                    <>
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border border-white shadow-xs ${fileName ? 'bg-[#8B72F4] text-white' : 'bg-white text-[#8B72F4]'}`}>
+                        {isParsing ? <RefreshCw size={24} className="animate-spin" /> : fileName ? <FileSpreadsheet size={24} /> : <Upload size={24} />}
+                      </div>
+                      {fileName ? (
+                        <div>
+                          <p className="text-sm font-black text-[#2D2638]">{fileName}</p>
+                          <p className="text-xs text-[#7A7289] font-medium mt-0.5">Click or drag a new file to replace</p>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-sm font-bold text-[#2D2638]">
+                            Click to upload or drag & drop your Excel file here
+                          </p>
+                          <p className="text-xs text-[#7A7289] font-medium mt-0.5">File contains Key Stage 1 (KS1) and Key Stages 2–4 (KS2–4) template sheets</p>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -805,12 +873,12 @@ export function ImportSubmissionsModal({
                                 <td className="py-3 px-4 font-bold text-[#2D2638]">{row.learningAreaRaw}</td>
                                 <td className="py-3 px-4">
                                   <select
-                                    className="px-2.5 py-1.5 rounded-xl border border-purple-100 text-xs font-semibold text-[#2D2638] bg-white focus:outline-none"
+                                    className="px-2.5 py-1.5 rounded-xl border border-purple-100 text-xs font-bold text-[#2D2638] bg-white focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40"
                                     value={row.learningAreaId || ''}
                                     onChange={e => handleLearningAreaChange(row.rowIndex, e.target.value)}
                                   >
-                                    <option value="">-- Select Subject --</option>
-                                    {learningAreas.map(la => (
+                                    <option value="">-- Select Subject ({availableLearningAreas.length} assigned) --</option>
+                                    {availableLearningAreas.map(la => (
                                       <option key={la.id} value={la.id}>
                                         {la.name}
                                       </option>

@@ -6,6 +6,7 @@ import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog'
 import { ImportSubmissionsModal } from '@/components/admin/ImportSubmissionsModal'
 import { EmptyState, TableSkeleton } from '@/components/ui/EmptyState'
 import { Pagination } from '@/components/ui/Pagination'
+import { PageHeader } from '@/components/ui/PageHeader'
 import {
   fetchSubmissions, fetchSchools, fetchGradeLevels, fetchLearningAreas,
   fetchSchoolYears, fetchTerms, fetchLearningAreaGrades, deleteSubmission, insertAuditLog
@@ -103,7 +104,7 @@ export function SubmissionsPage() {
   const [statusGradeId, setStatusGradeId] = useState<string>('')
   const [statusLAId, setStatusLAId] = useState<string>('')
   const [statusSearch, setStatusSearch] = useState<string>('')
-  const [complianceFilter, setComplianceFilter] = useState<'all' | 'missing' | 'submitted'>('all')
+  const [complianceFilter] = useState<'all' | 'missing' | 'submitted'>('all')
   const [statusSubmissions, setStatusSubmissions] = useState<TermcatSubmission[]>([])
   const [statusLoading, setStatusLoading] = useState<boolean>(false)
 
@@ -454,73 +455,69 @@ export function SubmissionsPage() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        {/* Header & Tabs */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
-          <div>
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold mb-1 border border-blue-200">
-              <Sparkles size={12} /> Data Collection Management
-            </div>
-            <h1 className="page-title">Submissions & Monitoring</h1>
-            <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-              Review teacher evaluations and track school submission compliance by grade level and learning area.
-            </p>
-          </div>
-
-          {/* Navigation Tabs & Import Action */}
-          <div className="flex items-center gap-3 self-start sm:self-auto flex-wrap">
-            <button
-              onClick={(e) => { captureGenieOrigin(e); setIsImportModalOpen(true) }}
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs hover:shadow-sm transition-all active:animate-button-sparkle"
-            >
-              <FileSpreadsheet size={16} />
-              <span>Import Submission (Excel)</span>
-            </button>
-
-            <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200/80">
+        {/* Top Header Card */}
+        <PageHeader
+          badge="Data Collection & Monitoring"
+          title="Submissions & Compliance Monitoring"
+          description="Review teacher evaluation submissions and track school compliance across grade levels and learning areas."
+          actions={
+            <>
               <button
-                onClick={() => setActiveTab('submissions')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                  activeTab === 'submissions'
-                    ? 'bg-white text-blue-700 shadow-sm border border-slate-200'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
+                onClick={(e) => { captureGenieOrigin(e); setIsImportModalOpen(true) }}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-xs font-black shadow-md hover:shadow-lg transition-all active:scale-[0.98] cursor-pointer"
               >
-                <FileText size={16} />
-                <span>Submissions List</span>
-                <span className="ml-1 px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold">
-                  {total}
-                </span>
+                <FileSpreadsheet size={15} />
+                <span>Import (Excel)</span>
               </button>
-              <button
-                onClick={() => setActiveTab('status')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                  activeTab === 'status'
-                    ? 'bg-white text-blue-700 shadow-sm border border-slate-200'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <CheckCircle2 size={16} />
-                <span>Status & Compliance</span>
-                {summaryStats.missing > 0 && (
-                  <span className="ml-1 px-1.5 py-0.2 rounded-full bg-red-100 text-red-700 text-[10px] font-bold border border-red-200">
-                    {summaryStats.missing} Missing
+
+              <div className="inline-flex p-1 bg-white/90 rounded-2xl border border-purple-100 shadow-2xs">
+                <button
+                  onClick={() => setActiveTab('submissions')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                    activeTab === 'submissions'
+                      ? 'bg-gradient-to-r from-[#A88BEB] via-[#8B72F4] to-[#795CEE] text-white shadow-md'
+                      : 'text-[#7A7289] hover:text-[#2D2638] hover:bg-[#F6EFFF]/50'
+                  }`}
+                >
+                  <FileText size={15} />
+                  <span>Submissions List</span>
+                  <span className={`ml-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                    activeTab === 'submissions' ? 'bg-white/20 text-white' : 'bg-[#F6EFFF] text-[#8B72F4] border border-[#8B72F4]/20'
+                  }`}>
+                    {total}
                   </span>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
+                </button>
+                <button
+                  onClick={() => setActiveTab('status')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                    activeTab === 'status'
+                      ? 'bg-gradient-to-r from-[#A88BEB] via-[#8B72F4] to-[#795CEE] text-white shadow-md'
+                      : 'text-[#7A7289] hover:text-[#2D2638] hover:bg-[#F6EFFF]/50'
+                  }`}
+                >
+                  <CheckCircle2 size={15} />
+                  <span>Status & Compliance</span>
+                  {summaryStats.missing > 0 && (
+                    <span className="ml-1 px-2 py-0.5 rounded-full bg-[#FFE0E6] text-[#E11D48] text-[10px] font-black border border-[#FFCCD4]">
+                      {summaryStats.missing} Missing
+                    </span>
+                  )}
+                </button>
+              </div>
+            </>
+          }
+        />
 
         {/* TAB 1: SUBMISSIONS LIST */}
         {activeTab === 'submissions' && (
           <div className="space-y-4 animate-fade-in">
             {/* Search & Filter Toggle */}
-            <div className="flex gap-2">
+            <div className="flex gap-2.5">
               <div className="relative flex-1">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-content-tertiary" aria-hidden="true" />
+                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#A39BAF]" aria-hidden="true" />
                 <input
                   type="search"
-                  className="form-input pl-9"
+                  className="w-full px-4 py-2.5 pl-9 rounded-2xl bg-white border border-purple-100 text-xs font-semibold text-[#2D2638] placeholder-[#A39BAF] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-xs"
                   placeholder="Search teacher name..."
                   value={filters.search || ''}
                   onChange={e => setFilter('search', e.target.value)}
@@ -528,21 +525,29 @@ export function SubmissionsPage() {
                 />
               </div>
               <button
-                className={`btn-md btn-secondary relative ${showFilters ? 'bg-deped-blue-light text-deped-blue border-deped-blue/30' : ''}`}
+                className={`px-4 py-2.5 rounded-2xl text-xs font-extrabold transition-all cursor-pointer inline-flex items-center gap-2 shadow-2xs border ${
+                  showFilters
+                    ? 'bg-[#8B72F4] text-white border-[#8B72F4]'
+                    : 'bg-white text-[#7A7289] border-purple-100 hover:text-[#2D2638] hover:bg-[#F6EFFF]/50'
+                }`}
                 onClick={() => setShowFilters(v => !v)}
                 aria-expanded={showFilters}
                 aria-controls="filter-panel"
               >
-                <Filter size={16} />
-                Filters
+                <Filter size={15} />
+                <span>Filters</span>
                 {activeFilterCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-deped-blue text-white text-[10px] flex items-center justify-center">
+                  <span className="w-4 h-4 rounded-full bg-[#8B72F4] text-white text-[10px] flex items-center justify-center font-bold">
                     {activeFilterCount}
                   </span>
                 )}
               </button>
               {activeFilterCount > 0 && (
-                <button className="btn-md btn-ghost text-deped-red" onClick={clearFilters} aria-label="Clear all filters">
+                <button
+                  className="p-2.5 rounded-2xl text-[#E11D48] hover:bg-[#FFE0E6] transition-all cursor-pointer border border-[#FFCCD4]/60"
+                  onClick={clearFilters}
+                  aria-label="Clear all filters"
+                >
                   <X size={16} />
                 </button>
               )}
@@ -550,53 +555,53 @@ export function SubmissionsPage() {
 
             {/* Filter Panel */}
             {showFilters && (
-              <div id="filter-panel" className="card p-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 animate-slide-up">
+              <div id="filter-panel" className="clay-card p-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5 bg-gradient-to-br from-white via-white to-[#F6EFFF]/40 border border-purple-100 animate-slide-up">
                 <div>
-                  <label className="form-label text-xs">School Year</label>
-                  <select className="form-select text-sm" value={filters.school_year_id || ''} onChange={e => setFilter('school_year_id', e.target.value)}>
+                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 block">School Year</label>
+                  <select className="w-full px-3 py-2 rounded-xl bg-white border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs" value={filters.school_year_id || ''} onChange={e => setFilter('school_year_id', e.target.value)}>
                     <option value="">All</option>
                     {schoolYears.map(sy => <option key={sy.id} value={sy.id}>{sy.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="form-label text-xs">Term</label>
-                  <select className="form-select text-sm" value={filters.term_id || ''} onChange={e => setFilter('term_id', e.target.value)}>
+                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 block">Term</label>
+                  <select className="w-full px-3 py-2 rounded-xl bg-white border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs" value={filters.term_id || ''} onChange={e => setFilter('term_id', e.target.value)}>
                     <option value="">All</option>
                     {terms.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="form-label text-xs">School</label>
-                  <select className="form-select text-sm" value={filters.school_id || ''} onChange={e => setFilter('school_id', e.target.value)}>
+                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 block">School</label>
+                  <select className="w-full px-3 py-2 rounded-xl bg-white border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs" value={filters.school_id || ''} onChange={e => setFilter('school_id', e.target.value)}>
                     <option value="">All Schools</option>
                     {permittedSchools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="form-label text-xs">School Type</label>
-                  <select className="form-select text-sm" value={filters.school_type || ''} onChange={e => setFilter('school_type', e.target.value)}>
+                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 block">School Type</label>
+                  <select className="w-full px-3 py-2 rounded-xl bg-white border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs" value={filters.school_type || ''} onChange={e => setFilter('school_type', e.target.value)}>
                     <option value="">All</option>
                     <option value="elementary">Elementary</option>
                     <option value="secondary">Secondary</option>
                   </select>
                 </div>
                 <div>
-                  <label className="form-label text-xs">Grade Level</label>
-                  <select className="form-select text-sm" value={filters.grade_level_id || ''} onChange={e => setFilter('grade_level_id', e.target.value)}>
+                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 block">Grade Level</label>
+                  <select className="w-full px-3 py-2 rounded-xl bg-white border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs" value={filters.grade_level_id || ''} onChange={e => setFilter('grade_level_id', e.target.value)}>
                     <option value="">All</option>
                     {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="form-label text-xs">Learning Area</label>
-                  <select className="form-select text-sm" value={filters.learning_area_id || ''} onChange={e => setFilter('learning_area_id', e.target.value)}>
+                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 block">Learning Area</label>
+                  <select className="w-full px-3 py-2 rounded-xl bg-white border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs" value={filters.learning_area_id || ''} onChange={e => setFilter('learning_area_id', e.target.value)}>
                     <option value="">All</option>
                     {learningAreas.map(la => <option key={la.id} value={la.id}>{la.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="form-label text-xs">Key Stage</label>
-                  <select className="form-select text-sm" value={filters.key_stage || ''} onChange={e => setFilter('key_stage', e.target.value)}>
+                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 block">Key Stage</label>
+                  <select className="w-full px-3 py-2 rounded-xl bg-white border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs" value={filters.key_stage || ''} onChange={e => setFilter('key_stage', e.target.value)}>
                     <option value="">All</option>
                     <option value="ks1">Key Stage 1</option>
                     <option value="ks2">Key Stage 2</option>
@@ -605,8 +610,8 @@ export function SubmissionsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="form-label text-xs">Status</label>
-                  <select className="form-select text-sm" value={filters.status || ''} onChange={e => setFilter('status', e.target.value)}>
+                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 block">Status</label>
+                  <select className="w-full px-3 py-2 rounded-xl bg-white border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs" value={filters.status || ''} onChange={e => setFilter('status', e.target.value)}>
                     <option value="">All</option>
                     <option value="submitted">Submitted</option>
                     <option value="reviewed">Reviewed</option>
@@ -618,7 +623,7 @@ export function SubmissionsPage() {
             )}
 
             {/* Submissions Table */}
-            <div className="card overflow-hidden">
+            <div className="clay-card overflow-hidden p-1.5 bg-white border border-purple-100 shadow-md rounded-3xl">
               <div className="hidden lg:block">
                 {loading ? (
                   <TableSkeleton rows={8} cols={8} />
@@ -629,54 +634,54 @@ export function SubmissionsPage() {
                     icon={<Search size={28} />}
                   />
                 ) : (
-                  <table className="data-table">
-                    <thead>
+                  <table className="w-full text-left border-collapse">
+                    <thead className="bg-gradient-to-r from-[#F6EFFF] via-[#EEF0FF] to-[#FAF5F0] border-b border-purple-100 text-[#7A7289] font-extrabold text-[11px] uppercase tracking-wider">
                       <tr>
-                        <th><button onClick={() => toggleSort('reference_number')} className="flex items-center gap-1 hover:text-content-primary">Ref No. <SortIcon field="reference_number" /></button></th>
-                        <th><button onClick={() => toggleSort('teacher_name')} className="flex items-center gap-1 hover:text-content-primary">Teacher <SortIcon field="teacher_name" /></button></th>
-                        <th>School</th>
-                        <th>Grade</th>
-                        <th>Learning Area</th>
-                        <th>Term</th>
-                        <th>Status</th>
-                        <th><button onClick={() => toggleSort('submitted_at')} className="flex items-center gap-1 hover:text-content-primary">Date <SortIcon field="submitted_at" /></button></th>
-                        <th className="text-right">Actions</th>
+                        <th className="py-3 px-4 rounded-l-2xl"><button onClick={() => toggleSort('reference_number')} className="flex items-center gap-1 hover:text-[#2D2638] transition-colors">Ref No. <SortIcon field="reference_number" /></button></th>
+                        <th className="py-3 px-4"><button onClick={() => toggleSort('teacher_name')} className="flex items-center gap-1 hover:text-[#2D2638] transition-colors">Teacher <SortIcon field="teacher_name" /></button></th>
+                        <th className="py-3 px-4">School</th>
+                        <th className="py-3 px-4">Grade</th>
+                        <th className="py-3 px-4">Learning Area</th>
+                        <th className="py-3 px-4">Term</th>
+                        <th className="py-3 px-4">Status</th>
+                        <th className="py-3 px-4"><button onClick={() => toggleSort('submitted_at')} className="flex items-center gap-1 hover:text-[#2D2638] transition-colors">Date <SortIcon field="submitted_at" /></button></th>
+                        <th className="py-3 px-4 text-right rounded-r-2xl">Actions</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-purple-50/70 text-xs">
                       {submissions.map(sub => (
-                        <tr key={sub.id}>
-                          <td><span className="font-mono text-xs font-semibold text-deped-blue">{sub.reference_number}</span></td>
-                          <td className="font-semibold">
+                        <tr key={sub.id} className="hover:bg-[#F6EFFF]/30 transition-colors">
+                          <td className="py-3 px-4"><span className="font-mono text-xs font-extrabold text-[#8B72F4] bg-[#F6EFFF] px-2.5 py-1 rounded-xl border border-[#8B72F4]/20 shadow-2xs inline-block">{sub.reference_number}</span></td>
+                          <td className="py-3 px-4 font-bold text-[#2D2638]">
                             <a
                               href={`/teacher-submissions?name=${encodeURIComponent(sub.teacher_name)}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-blue-700 hover:text-blue-900 hover:underline inline-flex items-center gap-1"
+                              className="text-[#2D2638] hover:text-[#8B72F4] transition-colors inline-flex items-center gap-1.5"
                               title={`Click to view all public submissions by ${sub.teacher_name} (opens in new tab)`}
                             >
                               {sub.teacher_name}
-                              <ExternalLink size={12} className="text-blue-500 opacity-60" />
+                              <ExternalLink size={12} className="text-[#8B72F4] opacity-60" />
                             </a>
                           </td>
-                          <td className="max-w-[160px]"><span className="truncate block">{sub.school?.name}</span></td>
-                          <td>{sub.grade_level?.name}</td>
-                          <td>{sub.learning_area?.name}</td>
-                          <td>{sub.term?.name}</td>
-                          <td><StatusBadge status={sub.status} size="sm" /></td>
-                          <td className="text-content-secondary text-xs">{format(new Date(sub.submitted_at), 'MMM d, yyyy')}</td>
-                          <td className="text-right">
+                          <td className="py-3 px-4 max-w-[160px] text-[#7A7289] font-medium"><span className="truncate block">{sub.school?.name}</span></td>
+                          <td className="py-3 px-4 font-semibold text-[#2D2638]">{sub.grade_level?.name}</td>
+                          <td className="py-3 px-4 font-semibold text-[#2D2638]">{sub.learning_area?.name}</td>
+                          <td className="py-3 px-4 font-semibold text-[#7A7289]">{sub.term?.name}</td>
+                          <td className="py-3 px-4"><StatusBadge status={sub.status} size="sm" /></td>
+                          <td className="py-3 px-4 text-[#7A7289] text-xs font-medium">{format(new Date(sub.submitted_at), 'MMM d, yyyy')}</td>
+                          <td className="py-3 px-4 text-right">
                             <div className="flex items-center justify-end gap-1.5">
                               <Link
                                 to={`/admin/submissions/${sub.id}`}
-                                className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 inline-flex items-center gap-1 transition-colors"
+                                className="px-3 py-1.5 text-xs font-bold rounded-xl bg-[#F6EFFF] text-[#8B72F4] border border-[#8B72F4]/20 hover:bg-[#8B72F4] hover:text-white transition-all shadow-2xs inline-flex items-center gap-1 cursor-pointer"
                                 title="View Details"
                               >
                                 <Eye size={12} /> View
                               </Link>
                               <Link
                                 to={`/admin/submissions/${sub.id}/edit`}
-                                className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/80 inline-flex items-center gap-1 transition-colors"
+                                className="px-3 py-1.5 text-xs font-bold rounded-xl bg-[#EEF0FF] text-[#6366F1] border border-[#6366F1]/20 hover:bg-[#6366F1] hover:text-white transition-all shadow-2xs inline-flex items-center gap-1 cursor-pointer"
                                 title="Edit Submission"
                               >
                                 <Pencil size={12} /> Edit
@@ -684,7 +689,7 @@ export function SubmissionsPage() {
                               <button
                                 type="button"
                                 onClick={(e) => { captureGenieOrigin(e); setSubToDelete(sub) }}
-                                className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200/80 inline-flex items-center gap-1 transition-colors active:animate-button-sparkle"
+                                className="px-3 py-1.5 text-xs font-bold rounded-xl bg-[#FFE0E6] text-[#E11D48] border border-[#FFCCD4] hover:bg-[#E11D48] hover:text-white transition-all shadow-2xs inline-flex items-center gap-1 cursor-pointer active:scale-95"
                                 title="Delete Submission"
                               >
                                 <Trash2 size={12} /> Delete
@@ -740,29 +745,29 @@ export function SubmissionsPage() {
         {activeTab === 'status' && (
           <div className="space-y-6 animate-fade-in">
             {/* Top Control & Selector Bar */}
-            <div className="card p-4 sm:p-5 space-y-4 bg-white border border-slate-200">
+            <div className="clay-card p-5 space-y-4 bg-gradient-to-br from-white via-white to-[#F6EFFF]/40 border border-purple-100">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-3 flex-wrap">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
-                    <Calendar size={14} className="text-blue-600" />
+                  <div className="flex items-center gap-2 text-xs font-bold text-[#2D2638] bg-[#F6EFFF] px-3.5 py-2 rounded-2xl border border-[#8B72F4]/20 shadow-2xs">
+                    <Calendar size={15} className="text-[#8B72F4]" />
                     <span>School Year:</span>
                     <select
                       value={statusSY}
                       onChange={e => setStatusSY(e.target.value)}
-                      className="bg-transparent font-bold text-slate-900 focus:outline-none"
+                      className="bg-transparent font-black text-[#8B72F4] focus:outline-none cursor-pointer"
                     >
                       <option value="">All SY</option>
                       {schoolYears.map(sy => <option key={sy.id} value={sy.id}>{sy.name}</option>)}
                     </select>
                   </div>
 
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
-                    <Clock size={14} className="text-amber-600" />
+                  <div className="flex items-center gap-2 text-xs font-bold text-[#2D2638] bg-[#F6EFFF] px-3.5 py-2 rounded-2xl border border-[#8B72F4]/20 shadow-2xs">
+                    <Clock size={15} className="text-[#795CEE]" />
                     <span>Quarter / Term:</span>
                     <select
                       value={statusTerm}
                       onChange={e => setStatusTerm(e.target.value)}
-                      className="bg-transparent font-bold text-slate-900 focus:outline-none"
+                      className="bg-transparent font-black text-[#795CEE] focus:outline-none cursor-pointer"
                     >
                       <option value="">All Terms</option>
                       {terms.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -774,23 +779,23 @@ export function SubmissionsPage() {
                 <button
                   onClick={loadStatusData}
                   disabled={statusLoading}
-                  className="btn-sm btn-secondary inline-flex items-center gap-1.5 text-xs font-semibold self-start md:self-auto"
+                  className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-[#8B72F4] via-[#795CEE] to-[#6366F1] text-white text-xs font-black shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 self-start md:self-auto"
                 >
-                  <RefreshCw size={14} className={statusLoading ? 'animate-spin text-blue-600' : ''} />
+                  <RefreshCw size={14} className={statusLoading ? 'animate-spin' : ''} />
                   <span>Refresh Status</span>
                 </button>
               </div>
 
               {/* Filters grid for Status Tab */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2 border-t border-slate-100">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 pt-3 border-t border-purple-100/60">
                 <div>
-                  <label className="form-label text-xs">Search Matrix</label>
+                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 block">Search Matrix</label>
                   <div className="relative">
-                    <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A39BAF]" />
                     <input
                       type="search"
                       placeholder="School, grade, or teacher..."
-                      className="form-input text-xs pl-8 py-1.5"
+                      className="w-full px-3.5 py-2 pl-8 rounded-xl bg-white border border-purple-100 text-xs font-semibold text-[#2D2638] placeholder-[#A39BAF] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs"
                       value={statusSearch}
                       onChange={e => setStatusSearch(e.target.value)}
                     />
@@ -798,9 +803,9 @@ export function SubmissionsPage() {
                 </div>
 
                 <div>
-                  <label className="form-label text-xs">Filter School</label>
+                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 block">Filter School</label>
                   <select
-                    className="form-select text-xs py-1.5"
+                    className="w-full px-3 py-2 rounded-xl bg-white border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs"
                     value={statusSchoolId}
                     onChange={e => setStatusSchoolId(e.target.value)}
                   >
@@ -810,9 +815,9 @@ export function SubmissionsPage() {
                 </div>
 
                 <div>
-                  <label className="form-label text-xs">Filter Grade Level</label>
+                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 block">Filter Grade Level</label>
                   <select
-                    className="form-select text-xs py-1.5"
+                    className="w-full px-3 py-2 rounded-xl bg-white border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs"
                     value={statusGradeId}
                     onChange={e => setStatusGradeId(e.target.value)}
                   >
@@ -822,9 +827,9 @@ export function SubmissionsPage() {
                 </div>
 
                 <div>
-                  <label className="form-label text-xs">Filter Learning Area</label>
+                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 block">Filter Learning Area</label>
                   <select
-                    className="form-select text-xs py-1.5"
+                    className="w-full px-3 py-2 rounded-xl bg-white border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs"
                     value={statusLAId}
                     onChange={e => setStatusLAId(e.target.value)}
                   >
@@ -835,120 +840,7 @@ export function SubmissionsPage() {
               </div>
             </div>
 
-            {/* Summary Stat Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Compliance Rate Card */}
-              <div className="card p-5 border-l-4 border-l-blue-600 bg-white">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Compliance Rate</span>
-                  <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs">
-                    %
-                  </div>
-                </div>
-                <div className="text-2xl font-extrabold text-slate-900 mt-2">
-                  {summaryStats.rate}%
-                </div>
-                {/* Progress bar */}
-                <div className="w-full bg-slate-100 rounded-full h-2 mt-3 overflow-hidden">
-                  <div
-                    className="bg-blue-600 h-full rounded-full transition-all duration-500"
-                    style={{ width: `${summaryStats.rate}%` }}
-                  />
-                </div>
-                <p className="text-[11px] text-slate-500 mt-2">
-                  {summaryStats.submitted} of {summaryStats.total} expected items logged
-                </p>
-              </div>
 
-              {/* Submitted Card */}
-              <div className="card p-5 border-l-4 border-l-emerald-500 bg-white">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Submitted Data</span>
-                  <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                    <CheckCircle2 size={18} />
-                  </div>
-                </div>
-                <div className="text-2xl font-extrabold text-emerald-600 mt-2">
-                  {summaryStats.submitted}
-                </div>
-                <p className="text-[11px] text-slate-500 mt-3">
-                  Valid evaluation forms submitted
-                </p>
-              </div>
-
-              {/* Missing Submissions Card */}
-              <div className="card p-5 border-l-4 border-l-red-500 bg-white">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Missing Submissions</span>
-                  <div className="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center">
-                    <AlertCircle size={18} />
-                  </div>
-                </div>
-                <div className="text-2xl font-extrabold text-red-600 mt-2">
-                  {summaryStats.missing}
-                </div>
-                <p className="text-[11px] text-slate-500 mt-3">
-                  Pending school grade/subject assignments
-                </p>
-              </div>
-
-              {/* Fully Compliant Schools Card */}
-              <div className="card p-5 border-l-4 border-l-amber-500 bg-white">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Fully Compliant Schools</span>
-                  <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
-                    <Building2 size={18} />
-                  </div>
-                </div>
-                <div className="text-2xl font-extrabold text-slate-900 mt-2">
-                  {summaryStats.fullSchools} / {summaryStats.totalSchools}
-                </div>
-                <p className="text-[11px] text-slate-500 mt-3">
-                  Schools with 100% submission completion
-                </p>
-              </div>
-            </div>
-
-            {/* Compliance Filter Pills */}
-            <div className="flex items-center justify-between gap-3 flex-wrap bg-white p-3 rounded-xl border border-slate-200">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-600">Filter View:</span>
-                <button
-                  onClick={() => setComplianceFilter('all')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                    complianceFilter === 'all'
-                      ? 'bg-slate-900 text-white shadow-xs'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  All Matrix Items ({summaryStats.total})
-                </button>
-                <button
-                  onClick={() => setComplianceFilter('missing')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                    complianceFilter === 'missing'
-                      ? 'bg-red-600 text-white shadow-xs'
-                      : 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100'
-                  }`}
-                >
-                  🔴 Missing Submissions Only ({summaryStats.missing})
-                </button>
-                <button
-                  onClick={() => setComplianceFilter('submitted')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                    complianceFilter === 'submitted'
-                      ? 'bg-emerald-600 text-white shadow-xs'
-                      : 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
-                  }`}
-                >
-                  🟢 Submitted Only ({summaryStats.submitted})
-                </button>
-              </div>
-
-              <span className="text-xs text-slate-500 font-medium">
-                Showing {statusMatrix.length} matrix entries
-              </span>
-            </div>
 
             {/* Status Matrix Area: Expandable Grade-level View when Filtered by School, Flat Table otherwise */}
             {statusLoading ? (

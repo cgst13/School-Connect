@@ -178,12 +178,17 @@ export function SubmissionPage() {
       setSubmittedRef(refNumber)
       toast('Submission successful!', 'success')
     } catch (err: any) {
-      const msg = err?.message?.includes('unique') || err?.code === '23505'
-        ? 'This submission already exists. Please check the information entered.'
+      console.error('Error creating submission:', err)
+      const is409 = err?.status === 409 || err?.code === '23505' || err?.message?.includes('unique') || err?.message?.includes('duplicate')
+      const is401 = err?.status === 401 || err?.code === '42501' || err?.message?.includes('row-level security')
+      const msg = is409
+        ? 'A submission already exists for this Teacher, School, Grade Level, Subject, School Year, and Quarter. Duplicate submissions are not allowed.'
+        : is401
+        ? 'Database RLS Permission Error on submission child data. Please run migration 014 in Supabase SQL Editor.'
         : err?.message?.includes('network') || err?.code === 'PGRST'
-        ? 'Network error. Please check your connection and try again.'
-        : 'An error occurred. Please try again.'
-      toast(msg, 'error', 8000)
+        ? 'Network connection error. Please check your internet and try again.'
+        : 'An error occurred while saving your submission. Please try again.'
+      toast(msg, 'error', 10000)
     } finally {
       setIsSubmitting(false)
     }

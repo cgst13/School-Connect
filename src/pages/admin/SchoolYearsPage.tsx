@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { SchoolConnectLayout } from '@/components/layouts/SchoolConnectLayout'
 import { DepEdSpinner } from '@/components/ui/DepEdSpinner'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { fetchSchoolYears, fetchTerms, upsertSchoolYear, upsertTerm, setDefaultTerm, insertAuditLog } from '@/lib/supabase/queries'
 import { useAuth } from '@/features/auth/useAuth'
 import { useToast } from '@/hooks/useToast'
+import { formatDetailedError } from '@/utils/formatError'
 import type { SchoolYear, Term } from '@/types'
 import { Plus, Edit2, Star, Check, Calendar, Clock, Sparkles } from 'lucide-react'
 import { captureGenieOrigin } from '@/utils/genieAnimation'
@@ -17,7 +19,7 @@ function SchoolYearsSection() {
   const [editing, setEditing] = useState<Partial<SchoolYear> | null>(null)
   const [saving, setSaving] = useState(false)
 
-  const load = () => { setLoading(true); fetchSchoolYears(false).then(setItems).finally(() => setLoading(false)) }
+  const load = () => { setLoading(true); fetchSchoolYears(false).then(setItems).catch(err => toast(formatDetailedError(err, { action: 'Failed to load school years', table: 'sc_school_years' }), 'error')).finally(() => setLoading(false)) }
   useEffect(load, [])
 
   const handleSave = async () => {
@@ -28,7 +30,7 @@ function SchoolYearsSection() {
       await insertAuditLog({ admin_id: admin!.id, admin_name: admin!.full_name, action: editing.id ? 'edit_school_year' : 'add_school_year', entity_label: editing.name })
       toast(editing.id ? 'School year updated.' : 'School year added.', 'success')
       setEditing(null); load()
-    } catch { toast('Failed to save.', 'error') } finally { setSaving(false) }
+    } catch (err) { toast(formatDetailedError(err, { action: 'Failed to save school year to Supabase', table: 'sc_school_years' }), 'error') } finally { setSaving(false) }
   }
 
   return (
@@ -152,8 +154,8 @@ function TermsSection() {
       })
       toast(`${term.name} is now set as default active submission term.`, 'success')
       load()
-    } catch {
-      toast('Failed to set default term.', 'error')
+    } catch (err) {
+      toast(formatDetailedError(err, { action: 'Failed to set default term in Supabase', table: 'sc_terms' }), 'error')
     }
   }
 
@@ -168,7 +170,7 @@ function TermsSection() {
       await insertAuditLog({ admin_id: admin!.id, admin_name: admin!.full_name, action: editing.id ? 'edit_term' : 'add_term', entity_label: editing.name })
       toast(editing.id ? 'Term updated.' : 'Term added.', 'success')
       setEditing(null); load()
-    } catch { toast('Failed to save.', 'error') } finally { setSaving(false) }
+    } catch (err) { toast(formatDetailedError(err, { action: 'Failed to save term to Supabase', table: 'sc_terms' }), 'error') } finally { setSaving(false) }
   }
 
   return (
@@ -293,20 +295,11 @@ export function SchoolYearsPage() {
     <SchoolConnectLayout systemTitle="School Years & Terms">
       <div className="space-y-6 w-full pb-12 animate-fade-in">
         {/* Header Banner */}
-        <div className="bg-gradient-to-r from-[#60A5FA] via-[#3B82F6] to-[#6366F1] text-white rounded-[36px] p-6 sm:p-9 shadow-[0_20px_40px_rgba(59,130,246,0.28)] border-4 border-white relative overflow-hidden">
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-white border border-white/30 text-xs font-bold backdrop-blur-md shadow-xs">
-                <Calendar size={14} className="text-amber-300" />
-                Academic Master Data
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-black tracking-tight font-display">School Years & Terms Management</h1>
-              <p className="text-xs sm:text-sm text-blue-50 max-w-2xl leading-relaxed font-medium">
-                Configure district academic year schedules, manage evaluation quarter terms, and select default active submission quarters for teacher evaluations.
-              </p>
-            </div>
-          </div>
-        </div>
+        <PageHeader
+          badge="Academic Master Data"
+          title="School Years & Terms Management"
+          description="Configure district academic year schedules, manage evaluation quarter terms, and select default active submission quarters for teacher evaluations."
+        />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <SchoolYearsSection />
