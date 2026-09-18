@@ -252,7 +252,8 @@ export function DTRGeneratorPage() {
 
   // New Custom Holiday Input Form State
   const [newHolidayMonth, setNewHolidayMonth] = useState<number>(new Date().getMonth() + 1)
-  const [newHolidayDay, setNewHolidayDay] = useState<number>(1)
+  const [newHolidayStartDay, setNewHolidayStartDay] = useState<number>(1)
+  const [newHolidayEndDay, setNewHolidayEndDay] = useState<number>(1)
   const [newHolidayYear, setNewHolidayYear] = useState<string>('') // Optional specific year
   const [newHolidayTitle, setNewHolidayTitle] = useState<string>('')
   const [newHolidayIsRecurring, setNewHolidayIsRecurring] = useState<boolean>(true)
@@ -386,18 +387,21 @@ export function DTRGeneratorPage() {
     // Add active national holidays
     for (const nh of nationalHolidays) {
       if (nh.isActive) {
-        map[nh.key] = { title: `HOLIDAY (${nh.name})` }
+        map[nh.key] = { title: nh.name.toUpperCase() }
       }
     }
 
     // Add custom local holidays
     for (const h of customHolidays) {
-      const formattedTitle = h.title.toUpperCase().startsWith('HOLIDAY')
-        ? h.title
-        : `HOLIDAY (${h.title})`
+      let cleanTitle = h.title.trim()
+      if (cleanTitle.toUpperCase().startsWith('HOLIDAY (') && cleanTitle.endsWith(')')) {
+        cleanTitle = cleanTitle.substring(9, cleanTitle.length - 1).trim()
+      } else if (cleanTitle.toUpperCase().startsWith('HOLIDAY ')) {
+        cleanTitle = cleanTitle.substring(8).trim()
+      }
 
       map[h.dateStr] = {
-        title: formattedTitle,
+        title: cleanTitle.toUpperCase(),
         isHalfDay: h.isHalfDay,
         halfDaySession: h.halfDaySession
       }
@@ -619,36 +623,44 @@ export function DTRGeneratorPage() {
     }
 
     const mm = String(newHolidayMonth).padStart(2, '0')
-    const dd = String(newHolidayDay).padStart(2, '0')
-    
-    let dateStr = `${mm}-${dd}` // Recurring default
-    if (!newHolidayIsRecurring && newHolidayYear) {
-      dateStr = `${newHolidayYear}-${mm}-${dd}` // Specific year
-    }
+    const startD = Math.min(newHolidayStartDay || 1, newHolidayEndDay || newHolidayStartDay || 1)
+    const endD = Math.max(newHolidayStartDay || 1, newHolidayEndDay || newHolidayStartDay || 1)
 
     try {
-      const saved = await saveDTRCustomHolidaySupabase({
-        created_by_user_id: admin?.id,
-        date_str: dateStr,
-        title: newHolidayTitle.trim(),
-        is_recurring: newHolidayIsRecurring,
-        is_half_day: newHolidayIsHalfDay,
-        half_day_session: newHolidayIsHalfDay ? newHolidayHalfDaySession : 'am'
-      })
+      const itemsToAdd: CustomHolidayItem[] = []
 
-      const item: CustomHolidayItem = {
-        id: saved?.id || `hol_${Date.now()}`,
-        dateStr,
-        title: newHolidayTitle.trim(),
-        isRecurring: newHolidayIsRecurring,
-        isHalfDay: newHolidayIsHalfDay,
-        halfDaySession: newHolidayIsHalfDay ? newHolidayHalfDaySession : undefined
+      for (let day = startD; day <= endD; day++) {
+        const dd = String(day).padStart(2, '0')
+        let dateStr = `${mm}-${dd}`
+        if (!newHolidayIsRecurring && newHolidayYear) {
+          dateStr = `${newHolidayYear}-${mm}-${dd}`
+        }
+
+        const saved = await saveDTRCustomHolidaySupabase({
+          created_by_user_id: admin?.id,
+          date_str: dateStr,
+          title: newHolidayTitle.trim(),
+          is_recurring: newHolidayIsRecurring,
+          is_half_day: newHolidayIsHalfDay,
+          half_day_session: newHolidayIsHalfDay ? newHolidayHalfDaySession : 'am'
+        })
+
+        itemsToAdd.push({
+          id: saved?.id || `hol_${Date.now()}_${day}`,
+          dateStr,
+          title: newHolidayTitle.trim(),
+          isRecurring: newHolidayIsRecurring,
+          isHalfDay: newHolidayIsHalfDay,
+          halfDaySession: newHolidayIsHalfDay ? newHolidayHalfDaySession : undefined
+        })
       }
 
-      setCustomHolidays(prev => [...prev, item])
+      setCustomHolidays(prev => [...prev, ...itemsToAdd])
       setNewHolidayTitle('')
       setNewHolidayIsHalfDay(false)
-      toast(`Added local holiday "${item.title}" to Supabase (${dateStr})${newHolidayIsHalfDay ? ` [Half Day ${newHolidayHalfDaySession.toUpperCase()}]` : ''}`, 'success')
+
+      const dayText = startD === endD ? `Day ${startD}` : `Days ${startD}-${endD}`
+      toast(`Added local holiday "${newHolidayTitle.trim()}" (${MONTH_NAMES[newHolidayMonth - 1]} ${dayText}) to database.`, 'success')
     } catch (err: any) {
       toast(formatDetailedError(err, { action: 'Failed to save custom holiday to Supabase', table: 'sc_dtr_custom_holidays' }), 'error')
     }
@@ -1782,7 +1794,7 @@ export function DTRGeneratorPage() {
                   Add New Local Holiday
                 </h4>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                   <div>
                     <label className="text-[11px] font-bold text-slate-700 block mb-1">Month</label>
                     <select
@@ -1799,13 +1811,32 @@ export function DTRGeneratorPage() {
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1">Day of Month</label>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">Start Day</label>
                     <input
                       type="number"
                       min={1}
                       max={31}
-                      value={newHolidayDay}
-                      onChange={e => setNewHolidayDay(Number(e.target.value))}
+                      value={newHolidayStartDay}
+                      onChange={e => {
+                        const val = Number(e.target.value)
+                        setNewHolidayStartDay(val)
+                        if (newHolidayEndDay < val) setNewHolidayEndDay(val)
+                      }}
+                      className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200 text-[#2D2638]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                      End Day <span className="text-slate-400 font-normal">(Range)</span>
+                    </label>
+                    <input
+                      type="number"
+                      min={newHolidayStartDay || 1}
+                      max={31}
+                      value={newHolidayEndDay}
+                      onChange={e => setNewHolidayEndDay(Number(e.target.value))}
+                      placeholder="Same as start for 1 day"
                       className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200 text-[#2D2638]"
                     />
                   </div>
@@ -1816,7 +1847,7 @@ export function DTRGeneratorPage() {
                       type="text"
                       value={newHolidayTitle}
                       onChange={e => setNewHolidayTitle(e.target.value)}
-                      placeholder="e.g. Romblon Liberation Day / Town Fiesta"
+                      placeholder="e.g. Concepcion Town Fiesta"
                       className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200 text-[#2D2638] focus:ring-2 focus:ring-[#8B72F4]/30"
                     />
                   </div>
@@ -2507,16 +2538,77 @@ function CSForm48SingleCard({
               let label = ''
               if (e.status === 'saturday') label = 'SATURDAY'
               else if (e.status === 'sunday') label = 'SUNDAY'
-              else if (e.status === 'holiday') label = e.holidayTitle || 'HOLIDAY'
+              else if (e.status === 'holiday') {
+                label = (e.holidayTitle || '')
+                  .replace(/^HOLIDAY\s*(\(|\s*)/i, '')
+                  .replace(/\)$/, '')
+                  .trim()
+                  .toUpperCase()
+                if (!label) label = 'HOLIDAY'
+              }
               else if (e.status === 'leave') label = 'ON LEAVE'
               else if (e.status === 'travel') label = 'OFFICIAL BUSINESS'
+
+              const currentIdx = entries.indexOf(e)
+              const prevEntry = currentIdx > 0 ? entries[currentIdx - 1] : null
+              let prevLabel = ''
+              if (prevEntry && prevEntry.status !== 'work' && prevEntry.status !== 'blank') {
+                if (prevEntry.status === 'saturday') prevLabel = 'SATURDAY'
+                else if (prevEntry.status === 'sunday') prevLabel = 'SUNDAY'
+                else if (prevEntry.status === 'holiday') {
+                  prevLabel = (prevEntry.holidayTitle || '')
+                    .replace(/^HOLIDAY\s*(\(|\s*)/i, '')
+                    .replace(/\)$/, '')
+                    .trim()
+                    .toUpperCase()
+                  if (!prevLabel) prevLabel = 'HOLIDAY'
+                }
+                else if (prevEntry.status === 'leave') prevLabel = 'ON LEAVE'
+                else if (prevEntry.status === 'travel') prevLabel = 'OFFICIAL BUSINESS'
+              }
+
+              const isContinuation = prevEntry && prevEntry.status === e.status && prevLabel === label
+
+              let spanCount = 1
+              if (!isContinuation) {
+                for (let j = currentIdx + 1; j < entries.length; j++) {
+                  const nextEntry = entries[j]
+                  if (!nextEntry || nextEntry.status !== e.status) break
+
+                  let nextLabel = ''
+                  if (nextEntry.status === 'saturday') nextLabel = 'SATURDAY'
+                  else if (nextEntry.status === 'sunday') nextLabel = 'SUNDAY'
+                  else if (nextEntry.status === 'holiday') {
+                    nextLabel = (nextEntry.holidayTitle || '')
+                      .replace(/^HOLIDAY\s*(\(|\s*)/i, '')
+                      .replace(/\)$/, '')
+                      .trim()
+                      .toUpperCase()
+                    if (!nextLabel) nextLabel = 'HOLIDAY'
+                  }
+                  else if (nextEntry.status === 'leave') nextLabel = 'ON LEAVE'
+                  else if (nextEntry.status === 'travel') nextLabel = 'OFFICIAL BUSINESS'
+
+                  if (nextLabel === label) {
+                    spanCount++
+                  } else {
+                    break
+                  }
+                }
+              }
 
               return (
                 <tr key={e.dayNumber} className="border-b border-black">
                   <td className="border-r border-black font-bold py-0.5">{e.dayNumber}</td>
-                  <td colSpan={4} className="border-r border-black font-extrabold text-[7pt] tracking-wider py-0.5 uppercase">
-                    {label}
-                  </td>
+                  {!isContinuation && (
+                    <td
+                      colSpan={4}
+                      rowSpan={spanCount}
+                      className="border-r border-black font-extrabold text-[7pt] tracking-wider py-0.5 uppercase align-middle text-center px-1"
+                    >
+                      {label}
+                    </td>
+                  )}
                   <td className="border-r border-black"></td>
                   <td></td>
                 </tr>
