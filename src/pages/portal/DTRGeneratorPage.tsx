@@ -2419,7 +2419,7 @@ function CSForm48SingleCard({
   supervisorTitle
 }: CSForm48Props) {
   return (
-    <div className="dtr-card-cut-wrapper flex-1 relative border border-dashed border-black p-[0.2in] bg-white box-sizing-border font-sans">
+    <div className="dtr-card-cut-wrapper flex-1 relative border border-dashed border-black p-[0.1in] bg-white box-sizing-border font-sans">
       {/* Scissor icon indicator */}
       <span className="dtr-scissor-tag absolute -top-2.5 left-3 bg-white px-1 text-[8pt] text-black font-mono flex items-center gap-1 z-10 select-none">
         ✂
