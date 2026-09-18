@@ -617,8 +617,11 @@
    ============================================================ */
 @media print {
   @page {
-    size: letter portrait;
-    margin: 4mm;
+    size: A4 portrait;
+    margin-top: 0.3in;
+    margin-bottom: 0.3in;
+    margin-left: 1in;
+    margin-right: 1in;
   }
 
   html, body, #root {
