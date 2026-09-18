@@ -52,7 +52,8 @@ import {
   Settings as SettingsIcon,
   ToggleLeft,
   ToggleRight,
-  ChevronDown
+  ChevronDown,
+  Lock
 } from 'lucide-react'
 import {
   fetchAllAdmins,
@@ -224,6 +225,7 @@ export function DTRGeneratorPage() {
   // History Records State (Synced to Supabase)
   const [savedRecords, setSavedRecords] = useState<SavedDTRRecord[]>([])
   const [activeRecordId, setActiveRecordId] = useState<string | null>(null)
+  const [isSavedRecordLoaded, setIsSavedRecordLoaded] = useState<boolean>(false)
   const [historySearch, setHistorySearch] = useState<string>('')
 
   // National Holidays State
@@ -781,28 +783,18 @@ export function DTRGeneratorPage() {
     const targetEmployeeName = employeeName.trim().toUpperCase()
     const currentGeneratorName = (admin?.full_name || 'Admin').toUpperCase()
 
-    // Enforce 1 DTR per staff per month: check if DTR already exists for (targetEmployeeName, selectedMonth, selectedYear)
+    // Find existing record for this staff + month + year
     const existing = savedRecords.find(
       r => r.employeeName.trim().toUpperCase() === targetEmployeeName &&
            r.month === selectedMonth &&
            r.year === selectedYear
     )
 
-    // Block duplicate save if existing record exists and we are not currently editing that specific record
-    if (existing && activeRecordId !== existing.id) {
-      setIsSavingDb(false)
-      toast(
-        `A DTR for ${targetEmployeeName} (${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}) already exists! Only 1 DTR per staff per month is allowed. Please load the existing record from My DTRs to edit it.`,
-        'error'
-      )
-      return
-    }
-
     const targetId = activeRecordId || existing?.id
 
     try {
       if (targetId && !targetId.startsWith('dtr_local_')) {
-        // Update existing record in Supabase (1 DTR per staff per month enforced)
+        // Update existing record in Supabase with new generated entries
         await updateDTRRecordSupabase(targetId, {
           created_by_name: currentGeneratorName,
           employee_name: targetEmployeeName,
@@ -834,7 +826,8 @@ export function DTRGeneratorPage() {
           })
         )
         setActiveRecordId(targetId)
-        toast(`Updated official DTR for ${targetEmployeeName} (${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}). Redirecting to My DTRs...`, 'success')
+        setIsSavedRecordLoaded(false)
+        toast(`Saved new DTR for ${targetEmployeeName} (${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}), updating record. Redirecting to My DTRs...`, 'success')
       } else {
         // Create single record in Supabase
         const savedDb = await saveDTRRecordSupabase({
@@ -866,6 +859,7 @@ export function DTRGeneratorPage() {
 
         setSavedRecords(prev => [newRecord, ...prev])
         setActiveRecordId(newRecord.id)
+        setIsSavedRecordLoaded(false)
         toast(`Saved official DTR for ${targetEmployeeName} (${MONTH_NAMES[selectedMonth - 1]} ${selectedYear})! Redirecting to My DTRs...`, 'success')
       }
 
@@ -878,8 +872,8 @@ export function DTRGeneratorPage() {
     }
   }
 
-  // Load Record from Supabase History
-  const handleLoadRecord = (record: SavedDTRRecord, switchTab: boolean = true) => {
+  // View Saved DTR in Read-Only 2-in-1 Preview Mode
+  const handleViewRecord = (record: SavedDTRRecord) => {
     setEmployeeName(record.employeeName)
     setDtrTargetRole(record.role)
     setSelectedMonth(record.month)
@@ -888,14 +882,14 @@ export function DTRGeneratorPage() {
     if (record.schoolHeadName) setSchoolHeadName(record.schoolHeadName)
     setEntries(record.entries)
     setActiveRecordId(record.id)
-    if (switchTab) {
-      setTab('generate')
-      toast(`Loaded DTR record for ${record.employeeName} (${MONTH_NAMES[record.month - 1]} ${record.year}) into generator.`, 'info')
-    }
+    setIsSavedRecordLoaded(true)
+    setGenerateSubTab('preview')
+    setTab('generate')
+    toast(`Viewing saved official DTR for ${record.employeeName} (${MONTH_NAMES[record.month - 1]} ${record.year}).`, 'info')
   }
 
   const handlePrintRecord = (record: SavedDTRRecord) => {
-    handleLoadRecord(record, false)
+    handleViewRecord(record)
     setTimeout(() => {
       window.print()
     }, 350)
@@ -907,7 +901,10 @@ export function DTRGeneratorPage() {
       try {
         await deleteDTRRecordSupabase(id)
         setSavedRecords(prev => prev.filter(r => r.id !== id))
-        if (activeRecordId === id) setActiveRecordId(null)
+        if (activeRecordId === id) {
+          setActiveRecordId(null)
+          setIsSavedRecordLoaded(false)
+        }
         toast(`Deleted DTR record for ${name} from Supabase.`, 'info')
       } catch (err: any) {
         toast(formatDetailedError(err, { action: 'Failed to delete DTR record from Supabase', table: 'sc_dtr_records' }), 'error')
@@ -915,9 +912,10 @@ export function DTRGeneratorPage() {
     }
   }
 
-  // Create New Blank DTR
+  // Create New Blank DTR Session
   const handleNewDTR = () => {
     setActiveRecordId(null)
+    setIsSavedRecordLoaded(false)
     setEmployeeName(admin?.full_name || 'MICHELLE S. MOSQUERA')
     setSelectedProxyStaffId('')
     if (admin?.role === 'school_head') setDtrTargetRole('school_head')
@@ -927,8 +925,9 @@ export function DTRGeneratorPage() {
 
     const initial = buildInitialDays(selectedYear, selectedMonth)
     setEntries(initial)
+    setGenerateSubTab('editor')
     setTab('generate')
-    toast('Started a new DTR session.', 'info')
+    toast('Started new DTR generation session.', 'info')
   }
 
   // Handler for manual personnel role category change
@@ -1266,10 +1265,12 @@ export function DTRGeneratorPage() {
                           <td className="py-3 px-4 text-right space-x-2">
                             <button
                               type="button"
-                              onClick={() => handleLoadRecord(record)}
-                              className="px-2.5 py-1 rounded-lg bg-[#8B72F4] text-white font-bold text-[11px]"
+                              onClick={() => handleViewRecord(record)}
+                              className="px-2.5 py-1 rounded-lg bg-slate-700 hover:bg-slate-800 text-white font-bold text-[11px] inline-flex items-center gap-1"
+                              title="View saved 2-in-1 preview"
                             >
-                              Load
+                              <Eye size={12} />
+                              View
                             </button>
                             <button
                               type="button"
@@ -1317,7 +1318,7 @@ export function DTRGeneratorPage() {
                     1 DTR per Staff / Month Enforced
                   </span>
                 </h3>
-                <p className="text-xs text-[#7A7289]">View, edit, update, delete, or print archived DTRs for district personnel</p>
+                <p className="text-xs text-[#7A7289]">View, print, or delete final archived DTRs. (To make changes, click 'New Session')</p>
               </div>
 
               <div className="flex items-center gap-2">
@@ -1402,10 +1403,12 @@ export function DTRGeneratorPage() {
                         <td className="py-3.5 px-4 text-right space-x-2">
                           <button
                             type="button"
-                            onClick={() => handleLoadRecord(record)}
-                            className="px-3 py-1.5 rounded-xl bg-[#8B72F4] text-white font-extrabold text-xs shadow-xs hover:opacity-95"
+                            onClick={() => handleViewRecord(record)}
+                            className="px-3 py-1.5 rounded-xl bg-slate-700 hover:bg-slate-800 text-white font-extrabold text-xs shadow-xs inline-flex items-center gap-1"
+                            title="View saved 2-in-1 preview"
                           >
-                            Load & Edit
+                            <Eye size={13} />
+                            <span>View Preview</span>
                           </button>
                           <button
                             type="button"
@@ -1444,6 +1447,28 @@ export function DTRGeneratorPage() {
         {/* VIEW 3: GENERATE DTR VIEW (DEFAULT / PREVIEW & EDITOR) */}
         {currentTab === 'generate' && (
           <div className="space-y-6">
+            {isSavedRecordLoaded && (
+              <div className="p-4 rounded-2xl bg-[#F6EFFF] border-2 border-[#8B72F4]/30 text-[#2D2638] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-[#8B72F4]/15 flex items-center justify-center shrink-0">
+                    <Lock size={18} className="text-[#8B72F4]" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black font-display text-[#2D2638]">Viewing Saved Official DTR for {employeeName} ({monthYearLabel})</h4>
+                    <p className="text-[11px] text-[#7A7289] font-medium">Saved DTRs are final and read-only. To make changes or regenerate times, click <b>Generate New DTR</b>.</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleNewDTR}
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#8B72F4] to-[#795CEE] text-white font-extrabold text-xs shadow-md hover:opacity-95 shrink-0 cursor-pointer flex items-center gap-1.5"
+                >
+                  <PlusCircle size={14} />
+                  <span>Generate New DTR</span>
+                </button>
+              </div>
+            )}
+
             {/* CONTROLS & CONFIGURATION PANEL */}
             <div className="clay-card p-6 space-y-6">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-[#F0E6DD]">
