@@ -2437,24 +2437,27 @@ function CSForm48SingleCard({
       </div>
 
       {/* Month & Official Hours Header Info */}
-      <div className="mt-2 space-y-0.5 text-[8pt]">
+      <div className="mt-2 space-y-0.5 text-[7.5pt] leading-snug">
         <div className="flex items-baseline justify-between">
-          <span>For the month of</span>
-          <span className="font-extrabold uppercase border-b border-black px-2 text-[9pt]">
+          <span className="font-semibold">For the month of:</span>
+          <span className="font-extrabold uppercase border-b border-black px-2 text-[8.5pt]">
             {monthYearLabel}
           </span>
         </div>
 
-        <div className="text-[7.5pt]">
-          <span className="font-semibold">Official hours for arrival and departure</span>
-        </div>
-        <div className="text-[7.5pt] flex justify-between">
-          <span>Regular days:</span>
-          <span className="font-bold">{officialHoursText || '7:00–11:30AM / 1:00–5:00PM'}</span>
-        </div>
-        <div className="text-[7.5pt] flex justify-between">
-          <span>Saturdays:</span>
-          <span className="font-semibold">{saturdaysText || '—'}</span>
+        <div className="flex items-start justify-between">
+          <div className="font-semibold">
+            <div>Office hours for arrival</div>
+            <div>and departure</div>
+          </div>
+          <div className="text-right">
+            <div className="font-bold">{officialHoursText || 'Regular days 7:00–11:30AM / 1:00–5:00PM'}</div>
+            <div className="font-semibold">
+              {saturdaysText
+                ? (saturdaysText.toLowerCase().startsWith('saturdays') ? saturdaysText : `Saturdays: ${saturdaysText}`)
+                : 'Saturdays: —'}
+            </div>
+          </div>
         </div>
       </div>
 
