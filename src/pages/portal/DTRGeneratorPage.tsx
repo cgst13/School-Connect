@@ -769,7 +769,7 @@ export function DTRGeneratorPage() {
     setEntries(reset)
     setActiveRecordId(null)
     toast('DTR table reset to blank template.', 'info')
-  }  // Save Current DTR directly to Supabase Database
+  }  // Save Current DTR directly to Supabase Database & redirect to My DTRs tab
   const handleSaveToHistory = async () => {
     if (!employeeName.trim()) {
       toast('Please provide employee name before saving.', 'error')
@@ -787,6 +787,16 @@ export function DTRGeneratorPage() {
            r.month === selectedMonth &&
            r.year === selectedYear
     )
+
+    // Block duplicate save if existing record exists and we are not currently editing that specific record
+    if (existing && activeRecordId !== existing.id) {
+      setIsSavingDb(false)
+      toast(
+        `A DTR for ${targetEmployeeName} (${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}) already exists! Only 1 DTR per staff per month is allowed. Please load the existing record from My DTRs to edit it.`,
+        'error'
+      )
+      return
+    }
 
     const targetId = activeRecordId || existing?.id
 
@@ -824,7 +834,7 @@ export function DTRGeneratorPage() {
           })
         )
         setActiveRecordId(targetId)
-        toast(`Updated official DTR for ${targetEmployeeName} (${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}).`, 'success')
+        toast(`Updated official DTR for ${targetEmployeeName} (${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}). Redirecting to My DTRs...`, 'success')
       } else {
         // Create single record in Supabase
         const savedDb = await saveDTRRecordSupabase({
@@ -856,8 +866,11 @@ export function DTRGeneratorPage() {
 
         setSavedRecords(prev => [newRecord, ...prev])
         setActiveRecordId(newRecord.id)
-        toast(`Saved official DTR for ${targetEmployeeName} (${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}) to database!`, 'success')
+        toast(`Saved official DTR for ${targetEmployeeName} (${MONTH_NAMES[selectedMonth - 1]} ${selectedYear})! Redirecting to My DTRs...`, 'success')
       }
+
+      // Automatically redirect to My DTRs tab after saving
+      setTab('my_dtrs')
     } catch (err: any) {
       toast(formatDetailedError(err, { action: 'Failed to save DTR record to Supabase', table: 'sc_dtr_records' }), 'error')
     } finally {
@@ -866,7 +879,7 @@ export function DTRGeneratorPage() {
   }
 
   // Load Record from Supabase History
-  const handleLoadRecord = (record: SavedDTRRecord) => {
+  const handleLoadRecord = (record: SavedDTRRecord, switchTab: boolean = true) => {
     setEmployeeName(record.employeeName)
     setDtrTargetRole(record.role)
     setSelectedMonth(record.month)
@@ -875,8 +888,17 @@ export function DTRGeneratorPage() {
     if (record.schoolHeadName) setSchoolHeadName(record.schoolHeadName)
     setEntries(record.entries)
     setActiveRecordId(record.id)
-    setTab('generate')
-    toast(`Loaded DTR record for ${record.employeeName} (${MONTH_NAMES[record.month - 1]} ${record.year}) into generator.`, 'info')
+    if (switchTab) {
+      setTab('generate')
+      toast(`Loaded DTR record for ${record.employeeName} (${MONTH_NAMES[record.month - 1]} ${record.year}) into generator.`, 'info')
+    }
+  }
+
+  const handlePrintRecord = (record: SavedDTRRecord) => {
+    handleLoadRecord(record, false)
+    setTimeout(() => {
+      window.print()
+    }, 350)
   }
 
   // Delete Record from Supabase Database
@@ -999,11 +1021,17 @@ export function DTRGeneratorPage() {
 
   const monthYearLabel = `${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}`
 
-  // Filtered History for Logged-In User Only
+  // Filtered History for Logged-In User (Includes self-generated & proxy-generated DTRs)
   const userSavedRecords = useMemo(() => {
     if (!admin?.full_name) return savedRecords
     const currentName = admin.full_name.trim().toLowerCase()
-    return savedRecords.filter(r => r.employeeName.trim().toLowerCase() === currentName)
+    const currentUserId = admin.id
+    return savedRecords.filter(r => {
+      const isEmployee = r.employeeName.trim().toLowerCase() === currentName
+      const isCreator = (currentUserId && r.createdByUserId === currentUserId) ||
+                        (Boolean(r.createdByName) && r.createdByName!.trim().toLowerCase() === currentName)
+      return isEmployee || isCreator
+    })
   }, [savedRecords, admin])
 
   const filteredHistory = useMemo(() => {
@@ -1073,8 +1101,8 @@ export function DTRGeneratorPage() {
                 onClick={() => setTab('my_dtrs')}
                 className="px-5 py-2 rounded-full bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] text-white font-black text-xs shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer active:animate-button-sparkle"
               >
-                <Printer size={14} />
-                <span>Print (My DTRs)</span>
+                <FolderOpen size={14} />
+                <span>My DTRs ({userSavedRecords.length})</span>
               </button>
             </>
           }
@@ -1204,7 +1232,8 @@ export function DTRGeneratorPage() {
                   </thead>
                   <tbody className="divide-y divide-slate-200">
                     {userSavedRecords.slice(0, 5).map(record => {
-                      const isProxy = record.createdByName && record.createdByName.trim().toUpperCase() !== record.employeeName.trim().toUpperCase()
+                      const isSelf = record.employeeName.trim().toUpperCase() === (admin?.full_name || '').trim().toUpperCase()
+                      const generatorName = record.createdByName || 'Admin'
                       return (
                         <tr key={record.id} className="hover:bg-slate-50 transition-colors">
                           <td className="py-3 px-4 font-bold text-slate-800">{record.employeeName}</td>
@@ -1213,14 +1242,21 @@ export function DTRGeneratorPage() {
                             {MONTH_NAMES[record.month - 1]} {record.year}
                           </td>
                           <td className="py-3 px-4 font-semibold">
-                            {isProxy ? (
-                              <span className="px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 text-[10px] font-black border border-purple-200 inline-flex items-center gap-1">
-                                <UserCheck size={12} className="text-[#8B72F4]" />
-                                {record.createdByName}
-                              </span>
+                            {isSelf ? (
+                              generatorName.toUpperCase() !== record.employeeName.trim().toUpperCase() ? (
+                                <span className="px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 text-[10px] font-black border border-purple-200 inline-flex items-center gap-1">
+                                  <UserCheck size={12} className="text-[#8B72F4]" />
+                                  By {generatorName}
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold">
+                                  Self-Generated
+                                </span>
+                              )
                             ) : (
-                              <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold">
-                                Self-Generated
+                              <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px] font-black border border-amber-200 inline-flex items-center gap-1">
+                                <UserCheck size={12} className="text-amber-700" />
+                                For {record.employeeName}
                               </span>
                             )}
                           </td>
@@ -1234,6 +1270,15 @@ export function DTRGeneratorPage() {
                               className="px-2.5 py-1 rounded-lg bg-[#8B72F4] text-white font-bold text-[11px]"
                             >
                               Load
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handlePrintRecord(record)}
+                              className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-[#8B72F4] to-[#795CEE] text-white font-bold text-[11px] inline-flex items-center gap-1"
+                              title="Print DTR"
+                            >
+                              <Printer size={12} />
+                              Print
                             </button>
                             <button
                               type="button"
@@ -1316,7 +1361,8 @@ export function DTRGeneratorPage() {
                   {filteredHistory.map(record => {
                     const isActive = record.id === activeRecordId
                     const workDays = record.entries.filter(e => e.status === 'work').length
-                    const isProxy = record.createdByName && record.createdByName.trim().toUpperCase() !== record.employeeName.trim().toUpperCase()
+                    const isSelf = record.employeeName.trim().toUpperCase() === (admin?.full_name || '').trim().toUpperCase()
+                    const generatorName = record.createdByName || 'Admin'
 
                     return (
                       <tr
@@ -1331,14 +1377,21 @@ export function DTRGeneratorPage() {
                           {MONTH_NAMES[record.month - 1]} {record.year}
                         </td>
                         <td className="py-3.5 px-4 font-semibold">
-                          {isProxy ? (
-                            <span className="px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 text-[10px] font-black border border-purple-200 inline-flex items-center gap-1">
-                              <UserCheck size={12} className="text-[#8B72F4]" />
-                              {record.createdByName}
-                            </span>
+                          {isSelf ? (
+                            generatorName.toUpperCase() !== record.employeeName.trim().toUpperCase() ? (
+                              <span className="px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 text-[10px] font-black border border-purple-200 inline-flex items-center gap-1">
+                                <UserCheck size={12} className="text-[#8B72F4]" />
+                                By {generatorName}
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold">
+                                Self-Generated
+                              </span>
+                            )
                           ) : (
-                            <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold">
-                              Self-Generated
+                            <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px] font-black border border-amber-200 inline-flex items-center gap-1">
+                              <UserCheck size={12} className="text-amber-700" />
+                              For {record.employeeName}
                             </span>
                           )}
                         </td>
@@ -1356,10 +1409,7 @@ export function DTRGeneratorPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => {
-                              handleLoadRecord(record)
-                              setTimeout(() => window.print(), 350)
-                            }}
+                            onClick={() => handlePrintRecord(record)}
                             className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#8B72F4] to-[#795CEE] text-white font-extrabold text-xs shadow-xs hover:opacity-95 inline-flex items-center gap-1.5 cursor-pointer"
                             title="Print Form 48 for this record"
                           >
@@ -1425,7 +1475,7 @@ export function DTRGeneratorPage() {
                         : 'text-[#7A7289] hover:text-[#2D2638]'
                     }`}
                   >
-                    <Printer size={14} className="inline mr-1.5" />
+                    <Eye size={14} className="inline mr-1.5" />
                     2-in-1 Side-by-Side Preview
                   </button>
 
@@ -1615,11 +1665,12 @@ export function DTRGeneratorPage() {
                   </div>
 
                   <button
-                    onClick={handlePrintDTR}
-                    className="px-5 py-2.5 rounded-full bg-gradient-to-r from-[#8B72F4] to-[#795CEE] text-white font-extrabold text-xs shadow-md hover:opacity-95 transition-all flex items-center gap-2 cursor-pointer"
+                    onClick={handleSaveToHistory}
+                    disabled={isSavingDb}
+                    className="px-5 py-2.5 rounded-full bg-gradient-to-r from-[#8B72F4] to-[#795CEE] text-white font-extrabold text-xs shadow-md hover:opacity-95 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
                   >
-                    <Printer size={16} />
-                    Print Form No. 48
+                    {isSavingDb ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    <span>{activeRecordId ? 'Update DTR & View in My DTRs' : 'Save DTR & View in My DTRs'}</span>
                   </button>
                 </div>
 
