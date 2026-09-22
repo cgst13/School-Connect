@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { DepEdPageLoader } from '@/components/ui/DepEdSpinner'
 import {
   Grid,
   Users,
@@ -1230,58 +1231,67 @@ export function SchoolConnectHubPage() {
               </div>
 
               {/* Systems Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                {filteredSystems.map((sys) => {
-                  const Icon = sys.icon
-                  const isActive = sys.enabled
+              {loadingData ? (
+                <div className="py-12 bg-white/80 rounded-[32px] border border-white">
+                  <DepEdPageLoader
+                    label="Loading School Connect Portal Hub..."
+                    subtitle="Fetching District Announcements, Tasks, and Calendar Events"
+                  />
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {filteredSystems.map((sys) => {
+                    const Icon = sys.icon
+                    const isActive = sys.enabled
 
-                  return (
-                    <div
-                      key={sys.id}
-                      onClick={() => handleLaunchSystem(sys)}
-                      className={`p-5 rounded-[28px] transition-all duration-300 flex items-center justify-between gap-4 group ${
-                        isActive
-                          ? 'bg-white shadow-[0_10px_25px_rgba(185,170,210,0.15)] border border-white/90 hover:shadow-lg hover:-translate-y-1 cursor-pointer'
-                          : 'bg-[#FAF5F0]/60 opacity-60 cursor-not-allowed border border-transparent'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3.5 min-w-0">
-                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border border-white ${
+                    return (
+                      <div
+                        key={sys.id}
+                        onClick={() => handleLaunchSystem(sys)}
+                        className={`p-5 rounded-[28px] transition-all duration-300 flex items-center justify-between gap-4 group ${
                           isActive
-                            ? 'bg-gradient-to-tr from-[#A88BEB] to-[#8B72F4] text-white shadow-md'
-                            : 'bg-slate-200 text-slate-400'
-                        }`}>
-                          <Icon className="w-6 h-6" />
+                            ? 'bg-white shadow-[0_10px_25px_rgba(185,170,210,0.15)] border border-white/90 hover:shadow-lg hover:-translate-y-1 cursor-pointer'
+                            : 'bg-[#FAF5F0]/60 opacity-60 cursor-not-allowed border border-transparent'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3.5 min-w-0">
+                          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border border-white ${
+                            isActive
+                              ? 'bg-gradient-to-tr from-[#A88BEB] to-[#8B72F4] text-white shadow-md'
+                              : 'bg-slate-200 text-slate-400'
+                          }`}>
+                            <Icon className="w-6 h-6" />
+                          </div>
+
+                          <div className="min-w-0">
+                            <h4 className="text-sm font-black text-[#2D2638] truncate font-display group-hover:text-[#8B72F4] transition-colors">
+                              {sys.name}
+                            </h4>
+                            <p className="text-[11px] text-[#7A7289] truncate font-medium mt-0.5">
+                              {sys.description}
+                            </p>
+                          </div>
                         </div>
 
-                        <div className="min-w-0">
-                          <h4 className="text-xs font-black text-[#2D2638] group-hover:text-[#8B72F4] truncate transition-colors">
-                            {sys.name}
-                          </h4>
-                          <p className="text-[11px] text-[#7A7289] truncate font-medium mt-0.5">
-                            {sys.description}
-                          </p>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className={`text-[10px] font-extrabold px-3 py-1 rounded-full whitespace-nowrap ${
+                            isActive
+                              ? 'clay-badge-purple'
+                              : 'bg-slate-100 text-slate-500 border border-slate-200'
+                          }`}>
+                            {sys.badgeText || (isActive ? 'Active' : 'Soon')}
+                          </span>
+                          {isActive ? (
+                            <ChevronRight className="w-4 h-4 text-[#A39BAF] group-hover:text-[#8B72F4] transition-transform group-hover:translate-x-1" />
+                          ) : (
+                            <Lock className="w-3.5 h-3.5 text-[#A39BAF]" />
+                          )}
                         </div>
                       </div>
-
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <span className={`text-[10px] font-extrabold px-3 py-1 rounded-full whitespace-nowrap ${
-                          isActive
-                            ? 'clay-badge-purple'
-                            : 'bg-slate-100 text-slate-500 border border-slate-200'
-                        }`}>
-                          {sys.badgeText || (isActive ? 'Active' : 'Soon')}
-                        </span>
-                        {isActive ? (
-                          <ChevronRight className="w-4 h-4 text-[#A39BAF] group-hover:text-[#8B72F4] transition-transform group-hover:translate-x-1" />
-                        ) : (
-                          <Lock className="w-3.5 h-3.5 text-[#A39BAF]" />
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Global Governance & Master Data Section (Above Announcements & Events) */}

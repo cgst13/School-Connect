@@ -12,7 +12,6 @@ import { SchoolConnectHubPage } from '@/pages/portal/SchoolConnectHubPage'
 import { SchoolConnectLoginPage } from '@/pages/portal/SchoolConnectLoginPage'
 import { FacultyStaffPage } from '@/pages/portal/FacultyStaffPage'
 import { NotesPage } from '@/pages/portal/NotesPage'
-import { OneDriveVaultPage } from '@/pages/portal/OneDriveVaultPage'
 import { DTRGeneratorPage } from '@/pages/portal/DTRGeneratorPage'
 
 // Admin pages
@@ -22,6 +21,8 @@ import { SubmissionsPage } from '@/pages/admin/SubmissionsPage'
 import { SubmissionDetailPage } from '@/pages/admin/SubmissionDetailPage'
 import { SubmissionEditPage } from '@/pages/admin/SubmissionEditPage'
 import { ConsolidationPage } from '@/pages/admin/ConsolidationPage'
+import { LearnerMismatchPage } from '@/pages/admin/LearnerMismatchPage'
+import { SubjectConsistencyPage } from '@/pages/admin/SubjectConsistencyPage'
 import { CompetenciesPage } from '@/pages/admin/CompetenciesPage'
 import { ReportsPage } from '@/pages/admin/ReportsPage'
 import { SchoolsPage } from '@/pages/admin/SchoolsPage'
@@ -59,14 +60,6 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <NotesPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/cloud-vault"
-              element={
-                <ProtectedRoute>
-                  <OneDriveVaultPage />
                 </ProtectedRoute>
               }
             />
@@ -150,6 +143,22 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <ConsolidationPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/learner-mismatch"
+              element={
+                <ProtectedRoute>
+                  <LearnerMismatchPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/learner-consistency"
+              element={
+                <ProtectedRoute>
+                  <SubjectConsistencyPage />
                 </ProtectedRoute>
               }
             />

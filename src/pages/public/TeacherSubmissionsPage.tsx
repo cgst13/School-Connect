@@ -7,7 +7,7 @@ import { fetchSubmissionsByTeacher } from '@/lib/supabase/queries'
 import type { TermcatSubmission, GradeLevel } from '@/types'
 import { format } from 'date-fns'
 import {
-  User, GraduationCap, BookOpen, Printer, Eye, X, ArrowLeft, Building2, Calendar, FileText, Sparkles, CheckCircle2, Layers
+  User, GraduationCap, BookOpen, Printer, Eye, X, ArrowLeft, Building2, Calendar, FileText, Sparkles, CheckCircle2, Layers, Download, Loader2
 } from 'lucide-react'
 
 interface GradeGroup {
@@ -27,6 +27,7 @@ export function TeacherSubmissionsPage() {
   // Modal for Viewing / Printing an individual submission form or entire grade consolidation
   const [selectedSub, setSelectedSub] = useState<TermcatSubmission | null>(null)
   const [selectedGroup, setSelectedGroup] = useState<GradeGroup | null>(null)
+  const [isExportingPdf, setIsExportingPdf] = useState(false)
 
   useEffect(() => {
     if (!teacherName) {
@@ -331,12 +332,18 @@ export function TeacherSubmissionsPage() {
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
-                    onClick={() => window.print()}
+                    onClick={() => {
+                      const scrollables = document.querySelectorAll('div, main, section, dialog')
+                      scrollables.forEach(el => { if (el.scrollTop > 0) el.scrollTop = 0 })
+                      window.scrollTo(0, 0)
+                      setTimeout(() => window.print(), 50)
+                    }}
                     className="px-4 py-2.5 rounded-2xl bg-white text-[#795CEE] font-black text-xs shadow-md hover:bg-purple-50 hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer border border-white"
                   >
                     <Printer size={15} />
                     <span>{selectedGroup ? 'Print Grade Report' : 'Print Form'}</span>
                   </button>
+
 
                   <button
                     type="button"

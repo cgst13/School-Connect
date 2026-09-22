@@ -4,7 +4,6 @@ import {
   ClipboardList,
   FileCheck,
   NotebookPen,
-  Cloud,
   Clock,
   LucideIcon
 } from 'lucide-react'
@@ -41,17 +40,6 @@ export const REGISTERED_SYSTEMS: SystemConfig[] = [
     category: 'Productivity & Utilities',
     icon: NotebookPen,
     route: '/notes',
-    enabled: true,
-    badgeText: 'Active',
-  },
-  {
-    id: 'onedrive-vault',
-    name: 'OneDrive Cloud Vault',
-    shortName: 'Cloud Vault',
-    description: 'Upload, manage, and retrieve PDF, Word, Excel & media files via Microsoft OneDrive',
-    category: 'Cloud Storage & Documents',
-    icon: Cloud,
-    route: '/cloud-vault',
     enabled: true,
     badgeText: 'Active',
   },

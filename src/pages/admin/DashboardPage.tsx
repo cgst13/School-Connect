@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AdminLayout } from '@/components/layouts/AdminLayout'
+import { DepEdPageLoader } from '@/components/ui/DepEdSpinner'
 import { fetchDashboardStats, fetchSubmissions, fetchSchoolYears, fetchTerms } from '@/lib/supabase/queries'
 import type { DashboardStats, TermcatSubmission, SchoolYear, Term } from '@/types'
 import { useAuth } from '@/features/auth/useAuth'
@@ -13,7 +14,7 @@ export function DashboardPage() {
   const { admin, hasFullAccess } = useAuth()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [, setRecent] = useState<TermcatSubmission[]>([])
-  const [, setLoading] = useState(true)
+  const [loading, setLoading] = useState(true)
   const [schoolYears, setSchoolYears] = useState<SchoolYear[]>([])
   const [terms, setTerms] = useState<Term[]>([])
   const [filterSY, setFilterSY] = useState('')
@@ -58,6 +59,12 @@ export function DashboardPage() {
 
   return (
     <AdminLayout>
+      {loading && !stats ? (
+        <DepEdPageLoader
+          label="Loading Executive Dashboard..."
+          subtitle="Fetching real-time district statistics and submission metrics"
+        />
+      ) : (
       <div className="space-y-6 animate-fade-in pb-12">
         {/* Top Header Controls Bar */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-[28px] border border-white shadow-xs">
@@ -467,6 +474,7 @@ export function DashboardPage() {
           </div>
         </div>
       </div>
+      )}
     </AdminLayout>
   )
 }

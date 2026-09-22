@@ -15,6 +15,7 @@ import {
 import { saveLocalSuggestion, saveTeacherSchoolMapping } from '@/lib/supabase/suggestions'
 import { useToast } from '@/hooks/useToast'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
+import { DepEdFullScreenLoader } from '@/components/ui/DepEdSpinner'
 import type { FullSubmissionFormData, TeacherInfo, KS1LearnerData, KS2to4LearnerData, CompetencySummary, TopCompetenciesData, InstructionalDifficulty, School, GradeLevel, LearningArea } from '@/types'
 import { SuccessPage } from './SuccessPage'
 

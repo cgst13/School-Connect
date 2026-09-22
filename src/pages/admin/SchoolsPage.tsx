@@ -54,12 +54,19 @@ function SchoolModal({ isOpen, school, onSave, onClose, isLoading }: SchoolModal
   })
 
   useEffect(() => {
-    if (school?.offered_grade_numbers && school.offered_grade_numbers.length > 0) {
-      setOfferedGrades(school.offered_grade_numbers)
-    } else {
-      setOfferedGrades(type === 'elementary' ? [0, 1, 2, 3, 4, 5, 6] : [7, 8, 9, 10, 11, 12])
+    if (isOpen) {
+      setName(school?.name || '')
+      setType(school?.school_type || 'elementary')
+      setActive(school?.is_active ?? true)
+      setError('')
+      const schoolType = school?.school_type || 'elementary'
+      if (school?.offered_grade_numbers && school.offered_grade_numbers.length > 0) {
+        setOfferedGrades(school.offered_grade_numbers)
+      } else {
+        setOfferedGrades(schoolType === 'elementary' ? [0, 1, 2, 3, 4, 5, 6] : [7, 8, 9, 10, 11, 12])
+      }
     }
-  }, [type, school])
+  }, [isOpen, school])
 
   const { shouldRender, triggerClose, containerClass, backdropClass } = useGenieModal(isOpen, onClose)
 
@@ -107,7 +114,11 @@ function SchoolModal({ isOpen, school, onSave, onClose, isLoading }: SchoolModal
             <select
               className="w-full px-4 py-3 text-xs rounded-2xl bg-white border-2 border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] font-bold focus:outline-none focus:ring-4 focus:ring-[#8B72F4]/20"
               value={type}
-              onChange={e => setType(e.target.value as any)}
+              onChange={e => {
+                const newType = e.target.value as 'elementary' | 'secondary'
+                setType(newType)
+                setOfferedGrades(newType === 'elementary' ? [0, 1, 2, 3, 4, 5, 6] : [7, 8, 9, 10, 11, 12])
+              }}
             >
               <option value="elementary">Elementary School</option>
               <option value="secondary">Secondary School (High School / Senior High)</option>

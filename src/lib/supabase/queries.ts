@@ -100,9 +100,18 @@ export async function createSubmission(
     if (error) throw error
   }
 
-  // 3. Insert competency summary
+  // 3. Insert competency summary (sanitized & explicitly converted to numbers to enforce constraint: taught + notTaught <= intended)
+  const csTaught = Math.max(0, Number(competencySummary.competencies_taught) || 0)
+  const csNotTaught = Math.max(0, Number(competencySummary.competencies_not_taught) || 0)
+  const csIntendedRaw = Math.max(0, Number(competencySummary.total_intended_competencies) || 0)
+  const csIntended = Math.max(csIntendedRaw, csTaught + csNotTaught)
+  const safeNotTaught = Math.min(csNotTaught, Math.max(0, csIntended - csTaught))
+
   const { error: csError } = await supabase.from('termcat_competency_summary').insert({
     ...competencySummary,
+    total_intended_competencies: csIntended,
+    competencies_taught: csTaught,
+    competencies_not_taught: safeNotTaught,
     submission_id: submissionId,
   })
   if (csError) throw csError
@@ -232,7 +241,9 @@ export async function fetchSubmissions(filters: Partial<SubmissionFilters> = {})
       grade_level:sc_grade_levels(id, name, grade_number),
       learning_area:sc_learning_areas(id, name),
       school_year:sc_school_years(id, name),
-      term:sc_terms(id, name)
+      term:sc_terms(id, name),
+      ks1_learner_data:termcat_ks1_learner_data(*),
+      ks2to4_learner_data:termcat_ks2to4_learner_data(*)
     `,
       { count: 'exact' }
     )
@@ -360,6 +371,27 @@ export async function updateSubmissionData(
 ): Promise<void> {
   const { teacherInfo, ks1LearnerData, ks2to4LearnerData, competencySummary, topCompetencies, instructionalDifficulty } = formData
 
+  // Determine form_type from grade_level_id
+  let formType: 'ks1' | 'ks2to4' = 'ks2to4'
+  if (teacherInfo.grade_level_id) {
+    let { data: gl, error: glErr } = await supabase
+      .from('sc_grade_levels')
+      .select('grade_number')
+      .eq('id', teacherInfo.grade_level_id)
+      .maybeSingle()
+    if (glErr || !gl) {
+      const res = await supabase
+        .from('termcat_grade_levels')
+        .select('grade_number')
+        .eq('id', teacherInfo.grade_level_id)
+        .maybeSingle()
+      gl = res.data
+    }
+    if (gl && typeof gl.grade_number === 'number' && gl.grade_number <= 3) {
+      formType = 'ks1'
+    }
+  }
+
   // Update main submission record
   const { error: mainError } = await supabase
     .from('termcat_submissions')
@@ -370,30 +402,46 @@ export async function updateSubmissionData(
       learning_area_id: teacherInfo.learning_area_id,
       school_year_id: teacherInfo.school_year_id,
       term_id: teacherInfo.term_id,
+      form_type: formType,
       last_edited_by: adminId,
       last_edited_at: new Date().toISOString(),
     })
     .eq('id', submissionId)
   if (mainError) throw mainError
 
-  // Upsert learner data
-  if (ks1LearnerData) {
+  // Upsert learner data based on formType
+  if (formType === 'ks1' && ks1LearnerData) {
     const { error } = await supabase
       .from('termcat_ks1_learner_data')
       .upsert({ ...ks1LearnerData, submission_id: submissionId }, { onConflict: 'submission_id' })
     if (error) throw error
-  }
-  if (ks2to4LearnerData) {
+    // Delete any stale ks2to4 data if form_type changed
+    await supabase.from('termcat_ks2to4_learner_data').delete().eq('submission_id', submissionId)
+  } else if (formType === 'ks2to4' && ks2to4LearnerData) {
     const { error } = await supabase
       .from('termcat_ks2to4_learner_data')
       .upsert({ ...ks2to4LearnerData, submission_id: submissionId }, { onConflict: 'submission_id' })
     if (error) throw error
+    // Delete any stale ks1 data if form_type changed
+    await supabase.from('termcat_ks1_learner_data').delete().eq('submission_id', submissionId)
   }
 
-  // Upsert competency summary
+  // Upsert competency summary (sanitized & explicitly converted to numbers to enforce constraint: taught + notTaught <= intended)
+  const csTaught = Math.max(0, Number(competencySummary.competencies_taught) || 0)
+  const csNotTaught = Math.max(0, Number(competencySummary.competencies_not_taught) || 0)
+  const csIntendedRaw = Math.max(0, Number(competencySummary.total_intended_competencies) || 0)
+  const csIntended = Math.max(csIntendedRaw, csTaught + csNotTaught)
+  const safeNotTaught = Math.min(csNotTaught, Math.max(0, csIntended - csTaught))
+
   const { error: csError } = await supabase
     .from('termcat_competency_summary')
-    .upsert({ ...competencySummary, submission_id: submissionId }, { onConflict: 'submission_id' })
+    .upsert({
+      ...competencySummary,
+      total_intended_competencies: csIntended,
+      competencies_taught: csTaught,
+      competencies_not_taught: safeNotTaught,
+      submission_id: submissionId
+    }, { onConflict: 'submission_id' })
   if (csError) throw csError
 
   // Delete and re-insert competencies
@@ -424,9 +472,11 @@ export async function updateSubmissionData(
   }
 
   // Upsert instructional difficulty
-  await supabase
-    .from('termcat_instructional_difficulty')
-    .upsert({ ...instructionalDifficulty, submission_id: submissionId }, { onConflict: 'submission_id' })
+  if (instructionalDifficulty && instructionalDifficulty.factors_text?.trim()) {
+    await supabase
+      .from('termcat_instructional_difficulty')
+      .upsert({ ...instructionalDifficulty, submission_id: submissionId }, { onConflict: 'submission_id' })
+  }
 }
 
 // ============================================================
@@ -517,6 +567,8 @@ export async function fetchConsolidationData(filters: ConsolidationFilters): Pro
   return (data || []) as TermcatSubmission[]
 }
 
+const SAVED_REPORTS_LOCAL_KEY = 'termcat_saved_reports_v1'
+
 export async function saveConsolidatedReport(reportPayload: {
   title: string
   school_year_id: string
@@ -532,38 +584,64 @@ export async function saveConsolidatedReport(reportPayload: {
   created_by?: string | null
   created_by_name?: string | null
 }) {
+  const payload = {
+    title: reportPayload.title,
+    school_year_id: reportPayload.school_year_id,
+    term_id: reportPayload.term_id,
+    level_type: reportPayload.level_type,
+    grade_level_id: reportPayload.grade_level_id === 'all' ? null : reportPayload.grade_level_id,
+    learning_area_id: reportPayload.learning_area_id === 'all' ? null : reportPayload.learning_area_id,
+    total_schools_included: reportPayload.total_schools_included,
+    total_submissions_count: reportPayload.total_submissions_count,
+    total_learners_count: reportPayload.total_learners_count,
+    average_mps: reportPayload.average_mps,
+    consolidated_data: reportPayload.consolidated_data,
+    created_by: reportPayload.created_by,
+    created_by_name: reportPayload.created_by_name,
+  }
+
+  let savedItem: any = null
+
   try {
     const { data, error } = await supabase
       .from('termcat_consolidated_reports')
-      .insert({
-        title: reportPayload.title,
-        school_year_id: reportPayload.school_year_id,
-        term_id: reportPayload.term_id,
-        level_type: reportPayload.level_type,
-        grade_level_id: reportPayload.grade_level_id === 'all' ? null : reportPayload.grade_level_id,
-        learning_area_id: reportPayload.learning_area_id === 'all' ? null : reportPayload.learning_area_id,
-        total_schools_included: reportPayload.total_schools_included,
-        total_submissions_count: reportPayload.total_submissions_count,
-        total_learners_count: reportPayload.total_learners_count,
-        average_mps: reportPayload.average_mps,
-        consolidated_data: reportPayload.consolidated_data,
-        created_by: reportPayload.created_by,
-        created_by_name: reportPayload.created_by_name,
-      })
+      .insert(payload)
       .select()
       .single()
 
-    if (error) {
-      console.warn('Consolidated report table insert fallback:', error.message)
+    if (!error && data) {
+      savedItem = data
+    } else {
+      console.warn('Supabase table missing, storing in local fallback storage:', error?.message)
     }
+  } catch (err) {
+    console.warn('Failed to insert into Supabase table, saving to local fallback:', err)
+  }
 
-    // Always record audit log as well
+  // Fallback storage if Supabase table does not exist yet
+  if (!savedItem) {
+    savedItem = {
+      id: crypto.randomUUID ? crypto.randomUUID() : `rep-${Date.now()}`,
+      ...payload,
+      created_at: new Date().toISOString(),
+    }
+    try {
+      const existing = JSON.parse(localStorage.getItem(SAVED_REPORTS_LOCAL_KEY) || '[]')
+      const updated = [savedItem, ...existing.filter((x: any) => x.id !== savedItem.id)]
+      localStorage.setItem(SAVED_REPORTS_LOCAL_KEY, JSON.stringify(updated))
+    } catch (e) {
+      console.warn('LocalStorage save failed:', e)
+    }
+  }
+
+  // Always record audit log as well
+  try {
     await insertAuditLog({
       admin_id: reportPayload.created_by || null,
       admin_name: reportPayload.created_by_name || 'System Admin',
       action: 'save_consolidated_report',
       entity_type: 'consolidated_report',
-      entity_id: data?.id || null,
+      entity_id: savedItem?.id || null,
       entity_label: reportPayload.title,
       details: {
         total_schools: reportPayload.total_schools_included,
@@ -572,40 +650,59 @@ export async function saveConsolidatedReport(reportPayload: {
         average_mps: reportPayload.average_mps,
       }
     })
+  } catch {}
 
-    return data
-  } catch (err) {
-    console.error('Error saving consolidated report:', err)
-    throw err
-  }
+  return savedItem
 }
 
 export async function fetchConsolidatedReports() {
-  const { data, error } = await supabase
-    .from('termcat_consolidated_reports')
-    .select(`
-      *,
-      school_year:sc_school_years(*),
-      term:sc_terms(*),
-      grade_level:sc_grade_levels(*),
-      learning_area:sc_learning_areas(*)
-    `)
-    .order('created_at', { ascending: false })
+  let dbReports: any[] = []
+  try {
+    const { data, error } = await supabase
+      .from('termcat_consolidated_reports')
+      .select(`
+        *,
+        school_year:sc_school_years(*),
+        term:sc_terms(*),
+        grade_level:sc_grade_levels(*),
+        learning_area:sc_learning_areas(*)
+      `)
+      .order('created_at', { ascending: false })
 
-  if (error) {
-    console.warn('Could not fetch saved consolidated reports:', error.message)
-    return []
+    if (!error && data) {
+      dbReports = data
+    } else {
+      console.warn('Using local fallback for consolidated reports:', error?.message)
+    }
+  } catch (e) {
+    console.warn('Could not fetch from Supabase, loading local fallback:', e)
   }
-  return data || []
+
+  // Read local fallback reports
+  let localReports: any[] = []
+  try {
+    localReports = JSON.parse(localStorage.getItem(SAVED_REPORTS_LOCAL_KEY) || '[]')
+  } catch {}
+
+  if (dbReports.length > 0) return dbReports
+
+  return localReports
 }
 
 export async function deleteConsolidatedReport(id: string) {
-  const { error } = await supabase
-    .from('termcat_consolidated_reports')
-    .delete()
-    .eq('id', id)
+  try {
+    await supabase
+      .from('termcat_consolidated_reports')
+      .delete()
+      .eq('id', id)
+  } catch {}
 
-  if (error) throw error
+  // Delete from local storage fallback
+  try {
+    const existing = JSON.parse(localStorage.getItem(SAVED_REPORTS_LOCAL_KEY) || '[]')
+    const updated = existing.filter((x: any) => x.id !== id)
+    localStorage.setItem(SAVED_REPORTS_LOCAL_KEY, JSON.stringify(updated))
+  } catch {}
 }
 
 // ============================================================
@@ -614,19 +711,19 @@ export async function deleteConsolidatedReport(id: string) {
 
 // Schools
 export async function upsertSchool(school: Partial<School>): Promise<School> {
+  const { id, created_at, updated_at, ...payload } = school as any
   try {
-    const { data, error } = school.id
-      ? await supabase.from('sc_schools').update(school).eq('id', school.id).select().single()
-      : await supabase.from('sc_schools').insert(school).select().single()
+    const { data, error } = id
+      ? await supabase.from('sc_schools').update(payload).eq('id', id).select().single()
+      : await supabase.from('sc_schools').insert(payload).select().single()
     if (error) {
-      if (error.code === 'PGRST204' || error.message?.includes('offered_grade_numbers')) {
-        const fallback = { ...school }
+      if ('offered_grade_numbers' in payload) {
+        const fallback = { ...payload }
         delete fallback.offered_grade_numbers
-        const { data: retryData, error: retryErr } = school.id
-          ? await supabase.from('sc_schools').update(fallback).eq('id', school.id).select().single()
+        const { data: retryData, error: retryErr } = id
+          ? await supabase.from('sc_schools').update(fallback).eq('id', id).select().single()
           : await supabase.from('sc_schools').insert(fallback).select().single()
-        if (retryErr) throw retryErr
-        return retryData as School
+        if (!retryErr && retryData) return retryData as School
       }
       throw error
     }
@@ -717,10 +814,29 @@ const isTableMissingError = (err: any, tableName: string) => {
   if (!err) return false
   const msg = (err.message || '').toLowerCase()
   // Table missing error is strictly when PostgreSQL table (42P01) or PostgREST route (PGRST204/PGRST205) does not exist
-  if (err.code === '42P01' || err.code === 'PGRST204' || err.code === 'PGRST205') return true
+  if (err.code === '42P01' || err.code === 'PGRST205') return true
   if (msg.includes('relation') && msg.includes('does not exist')) return true
   if (msg.includes('could not find the table') && msg.includes('schema cache')) return true
+  if (err.code === 'PGRST204' && msg.includes('table')) return true
   return false
+}
+
+const isColumnMissingError = (err: any) => {
+  if (!err) return false
+  const msg = (err.message || '').toLowerCase()
+  if (err.code === 'PGRST204' && msg.includes('column')) return true
+  if (msg.includes('column') && (msg.includes('does not exist') || msg.includes('schema cache'))) return true
+  return false
+}
+
+function cleanPayload<T extends Record<string, any>>(obj: T): Partial<T> {
+  const result: Partial<T> = {}
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      result[key as keyof T] = value
+    }
+  }
+  return result
 }
 
 // Helper to automatically retry queries on transient network drops (e.g. ERR_CONNECTION_CLOSED)
@@ -1041,9 +1157,13 @@ export async function upsertStaffProfile(profile: Partial<AdminProfile>): Promis
     ? profile.district_name
     : (existing?.district_name || (profile.role === 'psds' ? 'Concepcion District' : undefined))
 
-  const avatarUrl = profile.avatar_url !== undefined
-    ? profile.avatar_url
-    : existing?.avatar_url
+  const schoolSessions = profile.school_sessions !== undefined
+    ? profile.school_sessions
+    : existing?.school_sessions
+
+  const workingHoursPreset = profile.working_hours_preset !== undefined
+    ? profile.working_hours_preset
+    : (existing?.working_hours_preset || 'option_1')
 
   const newProfile: AdminProfile = {
     id: profile.id || crypto.randomUUID(),
@@ -1052,23 +1172,41 @@ export async function upsertStaffProfile(profile: Partial<AdminProfile>): Promis
     full_name: profile.full_name || existing?.full_name || '',
     role: profile.role || existing?.role || 'teacher',
     is_active: profile.is_active ?? existing?.is_active ?? true,
-    avatar_url: avatarUrl,
+    avatar_url: profile.avatar_url ?? existing?.avatar_url,
     teacher_category: teacherCategory,
     assigned_school_ids: assignedSchoolIds,
     assigned_grade_ids: assignedGradeIds,
+    school_sessions: schoolSessions,
+    working_hours_preset: workingHoursPreset,
     district_name: districtName,
     created_at: profile.created_at || existing?.created_at || new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }
 
+  const fullPayload = cleanPayload(newProfile)
+
   // 1. Primary Attempt: sc_admin_profiles with full payload
   try {
     const { data, error } = await supabase
       .from('sc_admin_profiles')
-      .upsert(newProfile)
+      .upsert(fullPayload)
       .select()
       .single()
     if (!error && data) return data as AdminProfile
+
+    // If column like school_sessions or last_seen_at is missing in DB schema, retry without it
+    if (error && isColumnMissingError(error)) {
+      const payloadWithoutSessions = { ...fullPayload }
+      delete payloadWithoutSessions.school_sessions
+      delete payloadWithoutSessions.last_seen_at
+
+      const retry1 = await supabase
+        .from('sc_admin_profiles')
+        .upsert(payloadWithoutSessions)
+        .select()
+        .single()
+      if (!retry1.error && retry1.data) return { ...retry1.data, ...newProfile } as AdminProfile
+    }
   } catch {}
 
   // 2. Secondary Attempt: sc_admin_profiles with schema-safe base payload

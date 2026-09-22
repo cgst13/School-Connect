@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { AdminLayout } from '@/components/layouts/AdminLayout'
+import { DepEdSpinner } from '@/components/ui/DepEdSpinner'
 import type { LearningCompetency } from '@/types'
 import {
   fetchLearningCompetencies,
@@ -588,9 +589,8 @@ export function CompetenciesPage() {
           </div>
 
           {loading ? (
-            <div className="p-12 text-center text-[#6E675F] space-y-3">
-              <RefreshCw size={24} className="animate-spin mx-auto text-[#8B72F4]" />
-              <p className="text-sm">Loading DepEd Budget of Work competencies...</p>
+            <div className="p-12 text-center text-[#6E675F]">
+              <DepEdSpinner size="lg" label="Loading DepEd Budget of Work competencies..." subtitle="Fetching active learning competencies and grade level targets" />
             </div>
           ) : filteredCompetencies.length === 0 ? (
             <div className="p-12 text-center text-[#6E675F] space-y-3">

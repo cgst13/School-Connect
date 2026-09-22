@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/features/auth/useAuth'
 import { insertAuditLog } from '@/lib/supabase/queries'
+import { DepEdFullScreenLoader } from '@/components/ui/DepEdSpinner'
 
 interface AuthErrorState {
   type: 'disabled' | 'wrong_credentials' | 'missing_fields' | 'general'
@@ -94,6 +95,12 @@ export function SchoolConnectLoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col justify-between font-sans relative bg-gradient-to-br from-[#F4EFFC] via-[#EBF3FE] to-[#FFF1F6] text-[#1E293B] select-none overflow-x-hidden">
+      {(isLoading || loading) && (
+        <DepEdFullScreenLoader
+          label="Signing in to School Connect..."
+          subtitle="Authenticating user credentials with DepEd security server"
+        />
+      )}
       
       {/* Responsive Fixed Non-Scrollable Background Wallpaper */}
       <picture className="fixed inset-0 w-screen h-[100dvh] min-h-[100dvh] overflow-hidden pointer-events-none z-0">

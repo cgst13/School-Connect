@@ -12,6 +12,7 @@ import {
   fetchSchools,
   fetchGradeLevels,
   fetchLearningAreas,
+  fetchLearningAreasForGrade,
   fetchSchoolYears,
   fetchTerms,
   insertAuditLog
@@ -103,6 +104,21 @@ export function SubmissionEditPage() {
       setReasonsSuggestions(rs)
     })
   }, [])
+
+  // Dynamic learning areas assigned to selected Grade Level
+  useEffect(() => {
+    const gid = formData.teacherInfo.grade_level_id
+    if (!gid) return
+    fetchLearningAreasForGrade(gid).then(las => {
+      if (las && las.length > 0) {
+        setLearningAreas(las)
+      } else {
+        fetchLearningAreas(false).then(setLearningAreas)
+      }
+    }).catch(() => {
+      fetchLearningAreas(false).then(setLearningAreas)
+    })
+  }, [formData.teacherInfo.grade_level_id])
 
   const load = useCallback(async () => {
     if (!id) return
@@ -292,9 +308,19 @@ export function SubmissionEditPage() {
                   required
                   className="form-select text-sm"
                   value={formData.teacherInfo.grade_level_id}
-                  onChange={e => setFormData(p => ({ ...p, teacherInfo: { ...p.teacherInfo, grade_level_id: e.target.value } }))}
+                  onChange={e => {
+                    const newGradeId = e.target.value
+                    setFormData(p => ({
+                      ...p,
+                      teacherInfo: {
+                        ...p.teacherInfo,
+                        grade_level_id: newGradeId,
+                        learning_area_id: '',
+                      },
+                    }))
+                  }}
                 >
-                  <option value="">Select Grade</option>
+                  <option value="">Select Grade Level</option>
                   {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                 </select>
               </div>
@@ -303,11 +329,14 @@ export function SubmissionEditPage() {
                 <label className="form-label text-xs font-semibold">Learning Area / Subject</label>
                 <select
                   required
-                  className="form-select text-sm"
+                  disabled={!formData.teacherInfo.grade_level_id}
+                  className="form-select text-sm disabled:opacity-50 disabled:bg-slate-100"
                   value={formData.teacherInfo.learning_area_id}
                   onChange={e => setFormData(p => ({ ...p, teacherInfo: { ...p.teacherInfo, learning_area_id: e.target.value } }))}
                 >
-                  <option value="">Select Learning Area</option>
+                  <option value="">
+                    {!formData.teacherInfo.grade_level_id ? '— Select Grade First —' : 'Select Learning Area'}
+                  </option>
                   {learningAreas.map(la => <option key={la.id} value={la.id}>{la.name}</option>)}
                 </select>
               </div>
@@ -449,7 +478,21 @@ export function SubmissionEditPage() {
                   min={0}
                   className="form-input text-sm font-semibold"
                   value={formData.competencySummary.total_intended_competencies}
-                  onChange={e => setFormData(p => ({ ...p, competencySummary: { ...p.competencySummary, total_intended_competencies: Number(e.target.value) } }))}
+                  onChange={e => {
+                    const val = Math.max(0, Number(e.target.value))
+                    setFormData(p => {
+                      const taught = p.competencySummary.competencies_taught
+                      const notTaught = Math.max(0, val - taught)
+                      return {
+                        ...p,
+                        competencySummary: {
+                          ...p.competencySummary,
+                          total_intended_competencies: val,
+                          competencies_not_taught: notTaught,
+                        }
+                      }
+                    })
+                  }}
                 />
               </div>
               <div>
@@ -459,7 +502,22 @@ export function SubmissionEditPage() {
                   min={0}
                   className="form-input text-sm"
                   value={formData.competencySummary.competencies_taught}
-                  onChange={e => setFormData(p => ({ ...p, competencySummary: { ...p.competencySummary, competencies_taught: Number(e.target.value) } }))}
+                  onChange={e => {
+                    const taught = Math.max(0, Number(e.target.value))
+                    setFormData(p => {
+                      const intended = Math.max(p.competencySummary.total_intended_competencies, taught + p.competencySummary.competencies_not_taught)
+                      const notTaught = Math.max(0, intended - taught)
+                      return {
+                        ...p,
+                        competencySummary: {
+                          ...p.competencySummary,
+                          total_intended_competencies: intended,
+                          competencies_taught: taught,
+                          competencies_not_taught: notTaught,
+                        }
+                      }
+                    })
+                  }}
                 />
               </div>
               <div>
@@ -469,7 +527,21 @@ export function SubmissionEditPage() {
                   min={0}
                   className="form-input text-sm"
                   value={formData.competencySummary.competencies_not_taught}
-                  onChange={e => setFormData(p => ({ ...p, competencySummary: { ...p.competencySummary, competencies_not_taught: Number(e.target.value) } }))}
+                  onChange={e => {
+                    const notTaught = Math.max(0, Number(e.target.value))
+                    setFormData(p => {
+                      const taught = p.competencySummary.competencies_taught
+                      const intended = Math.max(p.competencySummary.total_intended_competencies, taught + notTaught)
+                      return {
+                        ...p,
+                        competencySummary: {
+                          ...p.competencySummary,
+                          total_intended_competencies: intended,
+                          competencies_not_taught: notTaught,
+                        }
+                      }
+                    })
+                  }}
                 />
               </div>
             </div>

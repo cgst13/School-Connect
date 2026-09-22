@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { DepEdPageLoader } from '@/components/ui/DepEdSpinner'
 import { SchoolConnectLayout, type NavGroup } from '@/components/layouts/SchoolConnectLayout'
 import { useAuth } from '@/features/auth/useAuth'
 import { useToast } from '@/hooks/useToast'
@@ -216,9 +217,22 @@ export function DTRGeneratorPage() {
     { id: string; name: string; schoolNames: string; assignedSchoolIds: string[] }[]
   >([])
 
-  // All District Staff for Proxy Generation ("Generate DTR for Someone")
+  // All District Staff & Schools for Proxy & Multi-School Session Generation
+  const [allSchools, setAllSchools] = useState<{ id: string; name: string }[]>([])
+  const [selectedSchoolId, setSelectedSchoolId] = useState<string>('')
+  const [dtrSessionMode, setDtrSessionMode] = useState<'full_day' | 'am' | 'pm'>('full_day')
+
   const [allStaffProfiles, setAllStaffProfiles] = useState<
-    { id: string; name: string; role: 'teacher' | 'ao_2' | 'school_head' | 'psds'; roleTitle: string; schoolNames: string; assignedSchoolIds: string[] }[]
+    {
+      id: string
+      name: string
+      role: 'teacher' | 'ao_2' | 'school_head' | 'psds'
+      roleTitle: string
+      schoolNames: string
+      assignedSchoolIds: string[]
+      schoolSessions?: Record<string, 'am' | 'pm' | 'full_day'> | null
+      workingHoursPreset?: 'option_1' | 'option_2' | null
+    }[]
   >([])
   const [selectedProxyStaffId, setSelectedProxyStaffId] = useState<string>('')
 
@@ -265,13 +279,72 @@ export function DTRGeneratorPage() {
   const [newHolidayHalfDaySession, setNewHolidayHalfDaySession] = useState<'am' | 'pm'>('am')
 
   // Generator Time Range Configurations (Default: Non-late working ranges)
-  const [amArrivalRange, setAmArrivalRange] = useState({ start: 15, end: 58 }) // 6:15 AM - 6:58 AM (Start at 7:00 AM)
-  const [amDepartureRange, setAmDepartureRange] = useState({ start: 30, end: 42 }) // 11:30 AM - 11:42 AM
+  const [workingHoursPreset, setWorkingHoursPreset] = useState<'option_1' | 'option_2'>('option_1')
+  const [amArrivalRange, setAmArrivalRange] = useState({ start: 15, end: 58 }) // e.g. 6:15 - 6:58 AM or 7:15 - 7:58 AM
+  const [amDepartureRange, setAmDepartureRange] = useState({ start: 30, end: 45 }) // e.g. 11:30 - 11:45 AM or 12:00 - 12:15 PM
   const [pmArrivalRange, setPmArrivalRange] = useState({ start: 22, end: 58 }) // 12:22 PM - 12:58 PM (Start at 1:00 PM)
-  const [pmDepartureRange, setPmDepartureRange] = useState({ start: 0, end: 12 }) // 5:00 PM - 5:12 PM
+  const [pmDepartureRange, setPmDepartureRange] = useState({ start: 0, end: 15 }) // 5:00 PM - 5:15 PM
 
   const [includeSaturdays, setIncludeSaturdays] = useState<boolean>(false)
   const [includeSundays, setIncludeSundays] = useState<boolean>(false)
+
+  // Load Personal Settings for Logged-In User on Mount or User Switch
+  useEffect(() => {
+    const userId = admin?.id || 'default'
+    const key = `termcat_dtr_user_settings_v1_${userId}`
+    const saved = localStorage.getItem(key)
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved)
+        if (parsed.workingHoursPreset) setWorkingHoursPreset(parsed.workingHoursPreset)
+        if (parsed.officialHoursText) setOfficialHoursText(parsed.officialHoursText)
+        if (parsed.saturdaysText !== undefined) setSaturdaysText(parsed.saturdaysText)
+        if (parsed.amArrivalRange) setAmArrivalRange(parsed.amArrivalRange)
+        if (parsed.amDepartureRange) setAmDepartureRange(parsed.amDepartureRange)
+        if (parsed.pmArrivalRange) setPmArrivalRange(parsed.pmArrivalRange)
+        if (parsed.pmDepartureRange) setPmDepartureRange(parsed.pmDepartureRange)
+      } catch (err) {
+        console.error('Error loading personal DTR settings:', err)
+      }
+    }
+  }, [admin?.id])
+
+  const handleSavePersonalSettings = () => {
+    const userId = admin?.id || 'default'
+    const key = `termcat_dtr_user_settings_v1_${userId}`
+    const dataToSave = {
+      workingHoursPreset,
+      officialHoursText,
+      saturdaysText,
+      amArrivalRange,
+      amDepartureRange,
+      pmArrivalRange,
+      pmDepartureRange,
+      updatedAt: new Date().toISOString()
+    }
+    localStorage.setItem(key, JSON.stringify(dataToSave))
+    toast(`Saved personal working hours & generator settings for ${admin?.full_name || 'yourself'}!`, 'success')
+  }
+
+  const handleApplyPreset = (preset: 'option_1' | 'option_2') => {
+    setWorkingHoursPreset(preset)
+    if (preset === 'option_1') {
+      setOfficialHoursText('Regular days 7:00-11:30AM')
+      setSaturdaysText('Saturdays: 1:00-5:00PM')
+      setAmArrivalRange({ start: 15, end: 58 })
+      setAmDepartureRange({ start: 30, end: 45 })
+      setPmArrivalRange({ start: 22, end: 58 })
+      setPmDepartureRange({ start: 0, end: 15 })
+    } else {
+      setOfficialHoursText('Regular days 8:00-12:00NN')
+      setSaturdaysText('Saturdays: 8:00-12:00NN')
+      setAmArrivalRange({ start: 15, end: 58 })
+      setAmDepartureRange({ start: 0, end: 15 })
+      setPmArrivalRange({ start: 22, end: 58 })
+      setPmDepartureRange({ start: 0, end: 15 })
+    }
+    toast(`Applied ${preset === 'option_1' ? 'Option 1 (7:00AM-11:30AM & 1:00PM-5:00PM)' : 'Option 2 (8:00AM-12:00PM & 1:00PM-5:00PM)'} preset. Click Save System Settings to save for yourself.`, 'info')
+  }
 
   // Sub-tab view inside Generate DTR view ('preview' or 'editor')
   const [generateSubTab, setGenerateSubTab] = useState<'preview' | 'editor'>('preview')
@@ -368,7 +441,19 @@ export function DTRGeneratorPage() {
         setSchoolHeadName(prev => prev || heads[0].name)
       }
 
-      // 4. All Staff Profiles for Proxy Generation
+      // 4. Store All Schools & Staff Profiles for Proxy Generation
+      setAllSchools(schools.map(s => ({ id: s.id, name: s.name })))
+
+      const userAssignedSchools = admin?.assigned_school_ids || []
+      const initialSchoolId = userAssignedSchools.length > 0 ? userAssignedSchools[0] : (schools.length > 0 ? schools[0].id : '')
+      if (initialSchoolId) {
+        setSelectedSchoolId(initialSchoolId)
+        const userSessions = admin?.school_sessions || {}
+        if (userSessions[initialSchoolId]) {
+          setDtrSessionMode(userSessions[initialSchoolId])
+        }
+      }
+
       const staffList = admins.map(a => {
         const sNames = schools
           .filter(s => a.assigned_school_ids?.includes(s.id))
@@ -394,7 +479,9 @@ export function DTRGeneratorPage() {
           role: parsedRole,
           roleTitle: rTitle,
           schoolNames: sNames ? `(${sNames})` : '',
-          assignedSchoolIds: a.assigned_school_ids || []
+          assignedSchoolIds: a.assigned_school_ids || [],
+          schoolSessions: a.school_sessions || {},
+          workingHoursPreset: a.working_hours_preset || null
         }
       })
       setAllStaffProfiles(staffList)
@@ -450,7 +537,7 @@ export function DTRGeneratorPage() {
     : (schoolHeadName.trim() || 'SCHOOL HEAD / PRINCIPAL')
 
   const finalSupervisorTitle = dtrTargetRole === 'psds'
-    ? 'CID Chief'
+    ? 'Public Schools District Supervisor'
     : dtrTargetRole === 'school_head'
     ? 'Schools Division Superintendent'
     : (schoolHeadTitle.trim() || 'In-charge')
@@ -555,6 +642,11 @@ export function DTRGeneratorPage() {
       if (entry.isSunday && !includeSundays) {
         return { ...entry, status: 'sunday' as const, amArrival: '', amDeparture: '', pmArrival: '', pmDeparture: '' }
       }
+      const amArrHour = workingHoursPreset === 'option_2' ? 7 : 6
+      const amDepHour = workingHoursPreset === 'option_2' ? 12 : 11
+      const pmArrHour = 12
+      const pmDepHour = 5
+
       if (entry.isHoliday) {
         if (entry.isHalfDay) {
           // Half day holiday generation:
@@ -567,8 +659,8 @@ export function DTRGeneratorPage() {
               status: 'work' as const,
               amArrival: 'HOLIDAY',
               amDeparture: 'HOLIDAY',
-              pmArrival: `12:${String(pmArrMin).padStart(2, '0')}`,
-              pmDeparture: `5:${String(pmDepMin).padStart(2, '0')}`,
+              pmArrival: `${pmArrHour}:${String(pmArrMin).padStart(2, '0')}`,
+              pmDeparture: `${pmDepHour}:${String(pmDepMin).padStart(2, '0')}`,
               undertimeHours: '',
               undertimeMinutes: ''
             }
@@ -579,8 +671,8 @@ export function DTRGeneratorPage() {
             return {
               ...entry,
               status: 'work' as const,
-              amArrival: `6:${String(amArrMin).padStart(2, '0')}`,
-              amDeparture: `11:${String(amDepMin).padStart(2, '0')}`,
+              amArrival: `${amArrHour}:${String(amArrMin).padStart(2, '0')}`,
+              amDeparture: `${amDepHour}:${String(amDepMin).padStart(2, '0')}`,
               pmArrival: 'HOLIDAY',
               pmDeparture: 'HOLIDAY',
               undertimeHours: '',
@@ -592,21 +684,25 @@ export function DTRGeneratorPage() {
         }
       }
 
-      // Generate realistic non-late morning arrival (e.g. 6:15 - 6:58 AM)
-      const amArrMin = getRandomInt(amArrivalRange.start, amArrivalRange.end)
-      const amArrival = `6:${String(amArrMin).padStart(2, '0')}`
+      // Generate punch times based on Session Duty Mode ('full_day' | 'am' | 'pm')
+      let amArrival = ''
+      let amDeparture = ''
+      let pmArrival = ''
+      let pmDeparture = ''
 
-      // Generate morning departure (e.g. 11:30 - 11:42 AM)
-      const amDepMin = getRandomInt(amDepartureRange.start, amDepartureRange.end)
-      const amDeparture = `11:${String(amDepMin).padStart(2, '0')}`
+      if (dtrSessionMode === 'full_day' || dtrSessionMode === 'am') {
+        const amArrMin = getRandomInt(amArrivalRange.start, amArrivalRange.end)
+        amArrival = `${amArrHour}:${String(amArrMin).padStart(2, '0')}`
+        const amDepMin = getRandomInt(amDepartureRange.start, amDepartureRange.end)
+        amDeparture = `${amDepHour}:${String(amDepMin).padStart(2, '0')}`
+      }
 
-      // Generate afternoon arrival (e.g. 12:22 - 12:58 PM)
-      const pmArrMin = getRandomInt(pmArrivalRange.start, pmArrivalRange.end)
-      const pmArrival = `12:${String(pmArrMin).padStart(2, '0')}`
-
-      // Generate afternoon departure (e.g. 5:00 - 5:12 PM)
-      const pmDepMin = getRandomInt(pmDepartureRange.start, pmDepartureRange.end)
-      const pmDeparture = `5:${String(pmDepMin).padStart(2, '0')}`
+      if (dtrSessionMode === 'full_day' || dtrSessionMode === 'pm') {
+        const pmArrMin = getRandomInt(pmArrivalRange.start, pmArrivalRange.end)
+        pmArrival = `${pmArrHour}:${String(pmArrMin).padStart(2, '0')}`
+        const pmDepMin = getRandomInt(pmDepartureRange.start, pmDepartureRange.end)
+        pmDeparture = `${pmDepHour}:${String(pmDepMin).padStart(2, '0')}`
+      }
 
       return {
         ...entry,
@@ -621,7 +717,8 @@ export function DTRGeneratorPage() {
     })
 
     setEntries(updated)
-    toast(`Generated non-late punch times for ${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}.`, 'success')
+    const modeLabel = dtrSessionMode === 'am' ? ' (Morning Session Only)' : dtrSessionMode === 'pm' ? ' (Afternoon Session Only)' : ''
+    toast(`Generated non-late punch times${modeLabel} for ${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}.`, 'success')
   }
 
   // Handle single cell edit
@@ -950,6 +1047,31 @@ export function DTRGeneratorPage() {
     }
   }
 
+  // Helper: Select School & auto-detect Session Mode (Morning AM vs Afternoon PM vs Full Day)
+  const handleSelectSchool = (schId: string, customStaff?: typeof allStaffProfiles[0]) => {
+    setSelectedSchoolId(schId)
+    const staff = customStaff || allStaffProfiles.find(s => s.id === selectedProxyStaffId)
+    const sessMap = staff?.schoolSessions || admin?.school_sessions || {}
+    const mode = sessMap[schId] || 'full_day'
+    setDtrSessionMode(mode)
+
+    // Auto-update school head signatory for the newly selected target school
+    if (schId) {
+      const matchedHead = schoolHeadOptions.find(h => h.assignedSchoolIds.includes(schId))
+      if (matchedHead) {
+        setSchoolHeadName(matchedHead.name)
+      }
+    }
+
+    if (mode === 'am') {
+      setOfficialHoursText(workingHoursPreset === 'option_2' ? 'Regular days 8:00-12:00NN (Morning A.M. Session)' : 'Regular days 7:00-11:30AM (Morning A.M. Session)')
+    } else if (mode === 'pm') {
+      setOfficialHoursText('Regular days 1:00-5:00PM (Afternoon P.M. Session)')
+    } else {
+      setOfficialHoursText(workingHoursPreset === 'option_2' ? 'Regular days 8:00-12:00NN / 1:00-5:00PM' : 'Regular days 7:00-11:30AM / 1:00-5:00PM')
+    }
+  }
+
   // Proxy Generation: "Generate DTR for Someone"
   const handleGenerateForProxyStaff = (staffId: string) => {
     const staff = allStaffProfiles.find(s => s.id === staffId)
@@ -958,6 +1080,41 @@ export function DTRGeneratorPage() {
     const staffName = staff.name.toUpperCase()
     setEmployeeName(staffName)
     setDtrTargetRole(staff.role)
+
+    // Requirement 3: Schedule option defaults to option set on their account, else Option 1 default
+    let targetPreset: 'option_1' | 'option_2' = 'option_1'
+    if (staff.workingHoursPreset === 'option_1' || staff.workingHoursPreset === 'option_2') {
+      targetPreset = staff.workingHoursPreset
+    } else {
+      const savedKey = `termcat_dtr_user_settings_v1_${staff.id}`
+      const saved = localStorage.getItem(savedKey)
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved)
+          if (parsed.workingHoursPreset === 'option_1' || parsed.workingHoursPreset === 'option_2') {
+            targetPreset = parsed.workingHoursPreset
+          }
+        } catch {}
+      }
+    }
+
+    // Apply active schedule preset & ranges for this staff
+    setWorkingHoursPreset(targetPreset)
+    if (targetPreset === 'option_1') {
+      setOfficialHoursText('Regular days 7:00-11:30AM / 1:00-5:00PM')
+      setSaturdaysText('Saturdays: 1:00-5:00PM')
+      setAmArrivalRange({ start: 15, end: 58 })
+      setAmDepartureRange({ start: 30, end: 45 })
+      setPmArrivalRange({ start: 22, end: 58 })
+      setPmDepartureRange({ start: 0, end: 15 })
+    } else {
+      setOfficialHoursText('Regular days 8:00-12:00NN / 1:00-5:00PM')
+      setSaturdaysText('Saturdays: 8:00-12:00NN')
+      setAmArrivalRange({ start: 15, end: 58 })
+      setAmDepartureRange({ start: 0, end: 15 })
+      setPmArrivalRange({ start: 22, end: 58 })
+      setPmDepartureRange({ start: 0, end: 15 })
+    }
 
     // Check if staff already has an official DTR for the active month/year
     const existing = savedRecords.find(
@@ -974,42 +1131,59 @@ export function DTRGeneratorPage() {
       toast(`Loaded existing DTR record for ${staffName} (${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}).`, 'info')
     } else {
       setActiveRecordId(null)
-      // Auto-update signatory according to DepEd governance:
-      if (staff.role === 'teacher' || staff.role === 'ao_2') {
-        const matchedHead = schoolHeadOptions.find(h =>
-          h.assignedSchoolIds.some(sId => staff.assignedSchoolIds.includes(sId))
-        )
+
+      // Requirement 2: Multi-school (e.g. Kindergarten) staff - select 1st assigned school first (One school at a time)
+      const firstSchool = staff.assignedSchoolIds.length > 0 ? staff.assignedSchoolIds[0] : (allSchools.length > 0 ? allSchools[0].id : '')
+      if (firstSchool) {
+        setSelectedSchoolId(firstSchool)
+        const matchedHead = schoolHeadOptions.find(h => h.assignedSchoolIds.includes(firstSchool))
         if (matchedHead) {
           setSchoolHeadName(matchedHead.name)
         } else if (schoolHeadOptions.length > 0) {
           setSchoolHeadName(schoolHeadOptions[0].name)
         }
+
+        const staffSessions = staff.schoolSessions || {}
+        const activeMode = staffSessions[firstSchool] || 'full_day'
+        setDtrSessionMode(activeMode)
+
+        if (activeMode === 'am') {
+          setOfficialHoursText(targetPreset === 'option_2' ? 'Regular days 8:00-12:00NN (Morning A.M. Session)' : 'Regular days 7:00-11:30AM (Morning A.M. Session)')
+        } else if (activeMode === 'pm') {
+          setOfficialHoursText('Regular days 1:00-5:00PM (Afternoon P.M. Session)')
+        } else {
+          setOfficialHoursText(targetPreset === 'option_2' ? 'Regular days 8:00-12:00NN / 1:00-5:00PM' : 'Regular days 7:00-11:30AM / 1:00-5:00PM')
+        }
+
+        // Generate fresh times for the active month based on session duty mode & schedule preset
+        const updated: DTRDayEntry[] = buildInitialDays(selectedYear, selectedMonth).map(entry => {
+          if (entry.status === 'blank' || entry.isSaturday || entry.isSunday || entry.isHoliday) {
+            return entry
+          }
+
+          const amArrMin = getRandomInt(15, 58)
+          const amDepMin = getRandomInt(targetPreset === 'option_1' ? 30 : 0, targetPreset === 'option_1' ? 45 : 15)
+          const pmArrMin = getRandomInt(22, 58)
+          const pmDepMin = getRandomInt(0, 15)
+
+          const amArrHour = targetPreset === 'option_2' ? 7 : 6
+          const amDepHour = targetPreset === 'option_2' ? 12 : 11
+
+          return {
+            ...entry,
+            status: 'work' as const,
+            amArrival: (activeMode === 'full_day' || activeMode === 'am') ? `${amArrHour}:${String(amArrMin).padStart(2, '0')}` : '',
+            amDeparture: (activeMode === 'full_day' || activeMode === 'am') ? `${amDepHour}:${String(amDepMin).padStart(2, '0')}` : '',
+            pmArrival: (activeMode === 'full_day' || activeMode === 'pm') ? `12:${String(pmArrMin).padStart(2, '0')}` : '',
+            pmDeparture: (activeMode === 'full_day' || activeMode === 'pm') ? `5:${String(pmDepMin).padStart(2, '0')}` : '',
+            undertimeHours: '',
+            undertimeMinutes: ''
+          }
+        })
+        setEntries(updated)
+        const modeLabel = activeMode === 'am' ? ' (Morning A.M. Only)' : activeMode === 'pm' ? ' (Afternoon P.M. Only)' : ''
+        toast(`Generated DTR template${modeLabel} for ${staffName} (${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}).`, 'success')
       }
-
-      // Generate fresh times for the active month
-      const updated: DTRDayEntry[] = buildInitialDays(selectedYear, selectedMonth).map(entry => {
-        if (entry.status === 'blank' || entry.isSaturday || entry.isSunday || entry.isHoliday) {
-          return entry
-        }
-
-        const amArrMin = getRandomInt(amArrivalRange.start, amArrivalRange.end)
-        const amDepMin = getRandomInt(amDepartureRange.start, amDepartureRange.end)
-        const pmArrMin = getRandomInt(pmArrivalRange.start, pmArrivalRange.end)
-        const pmDepMin = getRandomInt(pmDepartureRange.start, pmDepartureRange.end)
-
-        return {
-          ...entry,
-          status: 'work' as const,
-          amArrival: `6:${String(amArrMin).padStart(2, '0')}`,
-          amDeparture: `11:${String(amDepMin).padStart(2, '0')}`,
-          pmArrival: `12:${String(pmArrMin).padStart(2, '0')}`,
-          pmDeparture: `5:${String(pmDepMin).padStart(2, '0')}`,
-          undertimeHours: '',
-          undertimeMinutes: ''
-        }
-      })
-      setEntries(updated)
-      toast(`Generated DTR template for ${staffName} (${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}).`, 'success')
     }
   }
 
@@ -1070,7 +1244,13 @@ export function DTRGeneratorPage() {
           systemSubtitle="Concepcion District Non-Late DTR & Official Signatory System"
           navGroups={dtrNavGroups}
         >
-          <div className="space-y-6 w-full pb-16 animate-fade-in no-print">
+          {isLoadingSupabase ? (
+            <DepEdPageLoader
+              label="Loading Civil Service Form No. 48 DTR System..."
+              subtitle="Syncing DTR records, custom local holidays, and official signatories from database"
+            />
+          ) : (
+            <div className="space-y-6 w-full pb-16 animate-fade-in no-print">
         {/* Top Header Card */}
         <PageHeader
           badge="Civil Service Form No. 48 DTR System"
@@ -1520,6 +1700,106 @@ export function DTRGeneratorPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 items-end">
+                {/* Target School & Daily Session Duty Selector (Supports Multi-School Kindergarten) */}
+                <div className="lg:col-span-6 p-3.5 rounded-2xl bg-gradient-to-r from-purple-50/70 to-blue-50/70 border border-purple-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-purple-600 text-white shadow-xs">
+                      <Building2 size={16} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-[#2D2638]">Target School & Daily Session Duty</span>
+                        {dtrSessionMode !== 'full_day' ? (
+                          <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-black uppercase flex items-center gap-1">
+                            <Sun size={10} className="text-amber-600" />
+                            {dtrSessionMode === 'am' ? 'Morning Session (A.M. Only)' : 'Afternoon Session (P.M. Only)'}
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-black uppercase flex items-center gap-1">
+                            Full Day Duty (A.M. & P.M.)
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-[#7A7289] font-medium">
+                        Multi-school personnel (e.g. Kindergarten Morning School 1 & Afternoon School 2) generate two distinct DTRs per month.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    {/* Target School Selector */}
+                    {allSchools.length > 0 && (
+                      <select
+                        value={selectedSchoolId}
+                        onChange={e => handleSelectSchool(e.target.value)}
+                        className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white border border-purple-200 text-[#2D2638] shadow-xs focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30"
+                        title="Select school for this DTR"
+                      >
+                        <option value="">-- Select Target School --</option>
+                        {allSchools.map(sch => {
+                          const activeStaff = allStaffProfiles.find(s => s.id === selectedProxyStaffId)
+                          const sessMap = activeStaff?.schoolSessions || admin?.school_sessions || {}
+                          const sess = sessMap[sch.id]
+                          const tag = sess === 'am' ? ' (A.M. Session)' : sess === 'pm' ? ' (P.M. Session)' : ''
+                          return (
+                            <option key={sch.id} value={sch.id}>
+                              {sch.name}{tag}
+                            </option>
+                          )
+                        })}
+                      </select>
+                    )}
+
+                    {/* Session Mode Toggle Buttons */}
+                    <div className="flex items-center p-1 bg-white rounded-xl border border-purple-200 shadow-2xs">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDtrSessionMode('full_day')
+                          setOfficialHoursText(workingHoursPreset === 'option_2' ? 'Regular days 8:00-12:00NN / 1:00-5:00PM' : 'Regular days 7:00-11:30AM / 1:00-5:00PM')
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold transition-all cursor-pointer ${
+                          dtrSessionMode === 'full_day'
+                            ? 'bg-[#8B72F4] text-white shadow-xs'
+                            : 'text-[#7A7289] hover:text-[#2D2638]'
+                        }`}
+                        title="Full Day (Both Morning and Afternoon)"
+                      >
+                        Full Day
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDtrSessionMode('am')
+                          setOfficialHoursText(workingHoursPreset === 'option_2' ? 'Regular days 8:00-12:00NN (Morning A.M. Session)' : 'Regular days 7:00-11:30AM (Morning A.M. Session)')
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold transition-all cursor-pointer ${
+                          dtrSessionMode === 'am'
+                            ? 'bg-amber-500 text-white shadow-xs'
+                            : 'text-[#7A7289] hover:text-[#2D2638]'
+                        }`}
+                        title="Morning A.M. Session Only"
+                      >
+                        🌅 A.M. Only
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDtrSessionMode('pm')
+                          setOfficialHoursText('Regular days 1:00-5:00PM (Afternoon P.M. Session)')
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold transition-all cursor-pointer ${
+                          dtrSessionMode === 'pm'
+                            ? 'bg-indigo-600 text-white shadow-xs'
+                            : 'text-[#7A7289] hover:text-[#2D2638]'
+                        }`}
+                        title="Afternoon P.M. Session Only"
+                      >
+                        🌆 P.M. Only
+                      </button>
+                    </div>
+                  </div>
+                </div>
                 {/* Employee Name & Proxy Personnel Picker */}
                 <div className="lg:col-span-2">
                   <div className="flex items-center justify-between mb-1">
@@ -1574,7 +1854,7 @@ export function DTRGeneratorPage() {
                     <option value="teacher">Teacher (Signatory: Assigned School Head - In-charge)</option>
                     <option value="ao_2">Administrative Officer II (AO II) (Signatory: Assigned School Head - In-charge)</option>
                     <option value="school_head">School Head / Principal (Signatory: SDS Roger Capa)</option>
-                    <option value="psds">PSDS / District Supervisor (Signatory: CID Chief Melchor Famorcan)</option>
+                    <option value="psds">PSDS / District Supervisor (Signatory: PSDS Melchor Famorcan)</option>
                   </select>
                 </div>
 
@@ -2374,17 +2654,80 @@ export function DTRGeneratorPage() {
         {/* VIEW 7: SETTINGS VIEW */}
         {currentTab === 'settings' && (
           <div className="clay-card p-6 space-y-6">
-            <div className="pb-4 border-b border-[#F0E6DD]">
-              <h3 className="text-base font-black text-[#2D2638] font-display flex items-center gap-2">
-                <SettingsIcon className="text-[#8B72F4]" size={20} />
-                Working Hours & DTR System Settings
-              </h3>
-              <p className="text-xs text-[#7A7289]">Set office working hours, Saturday schedule text, and non-late generator time ranges</p>
+            <div className="pb-4 border-b border-slate-200 flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <h3 className="text-base font-black text-[#2D2638] font-display flex items-center gap-2">
+                  <SettingsIcon className="text-[#FA6B6B]" size={20} />
+                  Working Hours & DTR System Settings
+                </h3>
+                <p className="text-xs text-[#7A7289]">
+                  Customize your prescribed working hours, Saturday header text, and non-late generator minute ranges. Saved for yourself only.
+                </p>
+              </div>
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-[#FFEBEB] text-[#FA6B6B] border border-[#FFCCD4]">
+                <User size={14} />
+                Saved for {admin?.full_name || 'You'} Only
+              </span>
+            </div>
+
+            {/* Prescribed Working Hours Schedule Selection */}
+            <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+              <h4 className="text-xs font-black text-slate-800 uppercase tracking-wide flex items-center gap-1.5">
+                <Clock size={16} className="text-[#FA6B6B]" />
+                Prescribed Working Hours Schedule Option
+              </h4>
+              <p className="text-xs text-slate-500">
+                Select between the two official DepEd working hour schedules:
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                {/* Option 1 Card */}
+                <div
+                  onClick={() => handleApplyPreset('option_1')}
+                  className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                    workingHoursPreset === 'option_1'
+                      ? 'border-[#FA6B6B] bg-[#FFEBEB]/40 shadow-xs'
+                      : 'border-slate-200 hover:border-slate-300 bg-slate-50/50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-slate-900">Option 1 (7:00AM – 11:30AM & 1:00PM – 5:00PM)</span>
+                    {workingHoursPreset === 'option_1' && (
+                      <CheckCircle2 size={18} className="text-[#FA6B6B]" />
+                    )}
+                  </div>
+                  <p className="text-xs font-extrabold text-[#FA6B6B] mt-1">7:00 AM – 11:30 AM & 1:00 PM – 5:00 PM</p>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Morning Arrival: 6:xx AM • Morning Departure: 11:xx AM
+                  </p>
+                </div>
+
+                {/* Option 2 Card */}
+                <div
+                  onClick={() => handleApplyPreset('option_2')}
+                  className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                    workingHoursPreset === 'option_2'
+                      ? 'border-[#FA6B6B] bg-[#FFEBEB]/40 shadow-xs'
+                      : 'border-slate-200 hover:border-slate-300 bg-slate-50/50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-slate-900">Option 2 (8:00AM – 12:00PM & 1:00PM – 5:00PM)</span>
+                    {workingHoursPreset === 'option_2' && (
+                      <CheckCircle2 size={18} className="text-[#FA6B6B]" />
+                    )}
+                  </div>
+                  <p className="text-xs font-extrabold text-[#FA6B6B] mt-1">8:00 AM – 12:00 PM & 1:00 PM – 5:00 PM</p>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Morning Arrival: 7:xx AM • Morning Departure: 12:xx PM
+                  </p>
+                </div>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Working Hours Text Configurations */}
-              <div className="p-5 rounded-2xl bg-[#FAF5F0] border border-slate-200 space-y-4">
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
                 <h4 className="text-xs font-black text-[#2D2638] uppercase tracking-wide">Prescribed Working Hours Header Strings</h4>
 
                 <div>
@@ -2394,7 +2737,7 @@ export function DTRGeneratorPage() {
                     value={officialHoursText}
                     onChange={e => setOfficialHoursText(e.target.value)}
                     placeholder="Regular days 7:00–11:30AM / 1:00–5:00PM"
-                    className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200"
+                    className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#FA6B6B]"
                   />
                   <p className="text-[10px] text-slate-400 mt-1">Printed on Civil Service Form No. 48 header</p>
                 </div>
@@ -2405,19 +2748,23 @@ export function DTRGeneratorPage() {
                     type="text"
                     value={saturdaysText}
                     onChange={e => setSaturdaysText(e.target.value)}
-                    placeholder="e.g. 8:00–12:00NN or Leave blank"
-                    className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200"
+                    placeholder="e.g. Saturdays: 1:00-5:00PM or 8:00-12:00NN"
+                    className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#FA6B6B]"
                   />
                 </div>
               </div>
 
               {/* Random Generator Minute Range Parameters */}
-              <div className="p-5 rounded-2xl bg-[#FAF5F0] border border-slate-200 space-y-4">
-                <h4 className="text-xs font-black text-[#2D2638] uppercase tracking-wide">Non-Late Random Generator Minute Ranges</h4>
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
+                <h4 className="text-xs font-black text-[#2D2638] uppercase tracking-wide">
+                  Non-Late Random Generator Minute Ranges
+                </h4>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1">A.M. Arrival (6:xx AM)</label>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                      A.M. Arrival ({workingHoursPreset === 'option_2' ? '7:xx AM' : '6:xx AM'})
+                    </label>
                     <div className="flex items-center gap-1">
                       <input
                         type="number"
@@ -2425,7 +2772,7 @@ export function DTRGeneratorPage() {
                         max={59}
                         value={amArrivalRange.start}
                         onChange={e => setAmArrivalRange({ ...amArrivalRange, start: Number(e.target.value) })}
-                        className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-white border border-slate-200"
+                        className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#FA6B6B]"
                       />
                       <span className="text-xs text-slate-400">to</span>
                       <input
@@ -2434,13 +2781,15 @@ export function DTRGeneratorPage() {
                         max={59}
                         value={amArrivalRange.end}
                         onChange={e => setAmArrivalRange({ ...amArrivalRange, end: Number(e.target.value) })}
-                        className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-white border border-slate-200"
+                        className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#FA6B6B]"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1">A.M. Departure (11:xx AM)</label>
+                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                      A.M. Departure ({workingHoursPreset === 'option_2' ? '12:xx PM' : '11:xx AM'})
+                    </label>
                     <div className="flex items-center gap-1">
                       <input
                         type="number"
@@ -2448,7 +2797,7 @@ export function DTRGeneratorPage() {
                         max={59}
                         value={amDepartureRange.start}
                         onChange={e => setAmDepartureRange({ ...amDepartureRange, start: Number(e.target.value) })}
-                        className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-white border border-slate-200"
+                        className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#FA6B6B]"
                       />
                       <span className="text-xs text-slate-400">to</span>
                       <input
@@ -2457,7 +2806,7 @@ export function DTRGeneratorPage() {
                         max={59}
                         value={amDepartureRange.end}
                         onChange={e => setAmDepartureRange({ ...amDepartureRange, end: Number(e.target.value) })}
-                        className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-white border border-slate-200"
+                        className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#FA6B6B]"
                       />
                     </div>
                   </div>
@@ -2471,7 +2820,7 @@ export function DTRGeneratorPage() {
                         max={59}
                         value={pmArrivalRange.start}
                         onChange={e => setPmArrivalRange({ ...pmArrivalRange, start: Number(e.target.value) })}
-                        className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-white border border-slate-200"
+                        className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#FA6B6B]"
                       />
                       <span className="text-xs text-slate-400">to</span>
                       <input
@@ -2480,7 +2829,7 @@ export function DTRGeneratorPage() {
                         max={59}
                         value={pmArrivalRange.end}
                         onChange={e => setPmArrivalRange({ ...pmArrivalRange, end: Number(e.target.value) })}
-                        className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-white border border-slate-200"
+                        className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#FA6B6B]"
                       />
                     </div>
                   </div>
@@ -2494,7 +2843,7 @@ export function DTRGeneratorPage() {
                         max={59}
                         value={pmDepartureRange.start}
                         onChange={e => setPmDepartureRange({ ...pmDepartureRange, start: Number(e.target.value) })}
-                        className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-white border border-slate-200"
+                        className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#FA6B6B]"
                       />
                       <span className="text-xs text-slate-400">to</span>
                       <input
@@ -2503,7 +2852,7 @@ export function DTRGeneratorPage() {
                         max={59}
                         value={pmDepartureRange.end}
                         onChange={e => setPmDepartureRange({ ...pmDepartureRange, end: Number(e.target.value) })}
-                        className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-white border border-slate-200"
+                        className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#FA6B6B]"
                       />
                     </div>
                   </div>
@@ -2514,8 +2863,8 @@ export function DTRGeneratorPage() {
             <div className="pt-2 flex justify-end">
               <button
                 type="button"
-                onClick={() => toast('Saved Working Hours & System Settings successfully!', 'success')}
-                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#8B72F4] to-[#795CEE] text-white font-extrabold text-xs shadow-md hover:opacity-95 transition-all flex items-center gap-2 cursor-pointer"
+                onClick={handleSavePersonalSettings}
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#FF7A70] to-[#FA6B6B] text-white font-extrabold text-xs shadow-md hover:opacity-95 transition-all flex items-center gap-2 cursor-pointer"
               >
                 <Save size={16} />
                 Save System Settings
@@ -2523,7 +2872,8 @@ export function DTRGeneratorPage() {
             </div>
           </div>
         )}
-      </div>
+          </div>
+          )}
 
         </SchoolConnectLayout>
       </div>

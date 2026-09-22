@@ -4,6 +4,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { fetchAuditLogs } from '@/lib/supabase/queries'
 import { Pagination } from '@/components/ui/Pagination'
 import { TableSkeleton } from '@/components/ui/EmptyState'
+import { DepEdSpinner } from '@/components/ui/DepEdSpinner'
 import type { AuditLog } from '@/types'
 import { format } from 'date-fns'
 import { ScrollText, ShieldCheck, Search, Activity, UserCheck, Clock, Filter, AlertCircle } from 'lucide-react'
@@ -191,7 +192,9 @@ export function AuditLogPage() {
         {/* Table & Cards Container */}
         <div className="bg-white rounded-2xl border border-[#E8EAF0] shadow-xs overflow-hidden">
           {loading ? (
-            <TableSkeleton rows={10} cols={5} />
+            <div className="p-12 text-center">
+              <DepEdSpinner size="lg" label="Loading System Audit Logs..." subtitle="Fetching security events and activity records from database" />
+            </div>
           ) : filteredLogs.length === 0 ? (
             <div className="p-12 text-center text-[#64748B]">
               <ScrollText size={36} className="mx-auto mb-3 opacity-30 text-[#8B72F4]" />

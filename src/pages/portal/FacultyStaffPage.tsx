@@ -31,7 +31,8 @@ import {
   Crown,
   ChevronDown,
   ChevronRight,
-  Globe
+  Globe,
+  Clock
 } from 'lucide-react'
 import { fetchSchools, fetchGradeLevels, fetchAllAdmins, upsertStaffProfile, deleteStaffProfile, insertAuditLog } from '@/lib/supabase/queries'
 import { useAuth } from '@/features/auth/useAuth'
@@ -83,6 +84,8 @@ export function FacultyStaffPage() {
   const [teacherCategory, setTeacherCategory] = useState<TeacherCategory>('grade_1_6')
   const [assignedSchoolIds, setAssignedSchoolIds] = useState<string[]>([])
   const [assignedGradeIds, setAssignedGradeIds] = useState<string[]>([])
+  const [schoolSessions, setSchoolSessions] = useState<Record<string, 'am' | 'pm' | 'full_day'>>({})
+  const [workingHoursPreset, setWorkingHoursPreset] = useState<'option_1' | 'option_2'>('option_1')
   const [aoScope, setAoScope] = useState<'district' | 'school' | 'both'>('school')
   const [isActive, setIsActive] = useState(true)
 
@@ -130,6 +133,8 @@ export function FacultyStaffPage() {
     setTeacherCategory('grade_1_6')
     setAssignedSchoolIds([])
     setAssignedGradeIds([])
+    setSchoolSessions({})
+    setWorkingHoursPreset('option_1')
     setAoScope('school')
     setIsActive(true)
     setIsModalOpen(true)
@@ -159,6 +164,8 @@ export function FacultyStaffPage() {
     setTeacherCategory(staff.teacher_category || 'grade_1_6')
     setAssignedSchoolIds(staff.assigned_school_ids || [])
     setAssignedGradeIds(staff.assigned_grade_ids || [])
+    setSchoolSessions(staff.school_sessions || {})
+    setWorkingHoursPreset(staff.working_hours_preset || 'option_1')
     setIsActive(staff.is_active)
     setIsModalOpen(true)
   }
@@ -294,6 +301,8 @@ export function FacultyStaffPage() {
         teacher_category: role === 'teacher' ? teacherCategory : undefined,
         assigned_school_ids: finalSchoolIds,
         assigned_grade_ids: role === 'teacher' && teacherCategory === 'grade_1_6' ? assignedGradeIds : [],
+        school_sessions: schoolSessions,
+        working_hours_preset: workingHoursPreset,
         district_name: finalDistrictName,
       }
 
@@ -887,11 +896,17 @@ export function FacultyStaffPage() {
                                   </span>
                                 ) : assignedSchoolNames.length > 0 ? (
                                   <div className="flex flex-wrap gap-1 max-w-xs">
-                                    {assignedSchoolNames.map(name => (
-                                      <span key={name} className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#EEF0FF] text-[#3B49B8] border border-[#BFD7FF]">
-                                        {name}
-                                      </span>
-                                    ))}
+                                    {s.assigned_school_ids?.map(schId => {
+                                      const sch = schools.find(sc => sc.id === schId)
+                                      if (!sch) return null
+                                      const sess = s.school_sessions?.[schId]
+                                      const sessLabel = sess === 'am' ? ' (A.M.)' : sess === 'pm' ? ' (P.M.)' : ''
+                                      return (
+                                        <span key={schId} className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#EEF0FF] text-[#3B49B8] border border-[#BFD7FF]">
+                                          {sch.name}{sessLabel}
+                                        </span>
+                                      )
+                                    })}
                                   </div>
                                 ) : (
                                   <span className="text-[11px] text-[#94A3B8] italic">Unassigned</span>
@@ -1246,6 +1261,63 @@ export function FacultyStaffPage() {
                         </div>
                       </div>
                     )}
+
+                    {/* School Session Assignment Controls */}
+                    {assignedSchoolIds.length > 0 && (
+                      <div className="space-y-2.5 pt-3 border-t border-[#F0E6DD]">
+                        <span className="text-xs font-black text-[#2D2638] block font-display flex items-center gap-1.5">
+                          <Clock size={15} className="text-[#FA6B6B]" />
+                          Daily Session Duty per School (A.M. Morning vs P.M. Afternoon):
+                        </span>
+                        <p className="text-[11px] text-[#7A7289]">
+                          Set session schedule per school (e.g. Kindergarten teaching Morning in School 1 & Afternoon in School 2). This generates two separate monthly DTRs in the DTR System.
+                        </p>
+
+                        <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                          {assignedSchoolIds.map((schId, idx) => {
+                            const sch = schools.find(s => s.id === schId)
+                            if (!sch) return null
+                            const sessionVal = schoolSessions[schId] || (assignedSchoolIds.length > 1 && teacherCategory === 'kindergarten' ? (idx === 0 ? 'am' : 'pm') : 'full_day')
+
+                            return (
+                              <div key={schId} className="flex items-center justify-between p-2.5 rounded-2xl bg-[#FAF5F0] border-2 border-white text-xs">
+                                <span className="font-bold text-[#2D2638] truncate max-w-[55%]">
+                                  {sch.name}
+                                </span>
+                                <select
+                                  value={sessionVal}
+                                  onChange={e => {
+                                    const val = e.target.value as 'am' | 'pm' | 'full_day'
+                                    setSchoolSessions(prev => ({ ...prev, [schId]: val }))
+                                  }}
+                                  className="px-3 py-1.5 rounded-xl text-xs font-extrabold bg-white border border-slate-200 text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#FA6B6B]/20"
+                                >
+                                  <option value="am">🌅 Morning Session Only (A.M.)</option>
+                                  <option value="pm">🌆 Afternoon Session Only (P.M.)</option>
+                                  <option value="full_day">☀️ Full Day Duty (A.M. & P.M.)</option>
+                                </select>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Prescribed Working Hours Schedule Option Selector */}
+                    <div className="space-y-2 pt-3 border-t border-[#F0E6DD]">
+                      <label className="text-xs font-black text-[#2D2638] block font-display flex items-center gap-1.5">
+                        <Clock size={15} className="text-[#8B72F4]" />
+                        Prescribed Working Hours Schedule Option:
+                      </label>
+                      <select
+                        value={workingHoursPreset}
+                        onChange={e => setWorkingHoursPreset(e.target.value as 'option_1' | 'option_2')}
+                        className="w-full px-4 py-2.5 text-xs rounded-2xl bg-[#FAF5F0] border-2 border-white text-[#2D2638] font-bold focus:outline-none focus:ring-4 focus:ring-[#8B72F4]/20"
+                      >
+                        <option value="option_1">Option 1: 7:00 AM – 11:30 AM & 1:00 PM – 5:00 PM (Default)</option>
+                        <option value="option_2">Option 2: 8:00 AM – 12:00 PM & 1:00 PM – 5:00 PM</option>
+                      </select>
+                    </div>
 
                     {teacherCategory === 'grade_1_6' && (
                       <div className="space-y-3.5 pt-3 border-t border-[#F0E6DD]">

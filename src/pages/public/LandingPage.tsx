@@ -62,6 +62,8 @@ interface GradeStatus {
 
 interface SchoolStatus {
   school: School
+  activeNums: number[]
+  missingNums: number[]
   gradeStatuses: GradeStatus[]
   totalGrades: number
   completedGrades: number
@@ -183,8 +185,16 @@ export function LandingPage() {
     })
 
     return schools.map(school => {
-      // Find applicable grade levels for school type
-      const appGrades = gradeLevels.filter(g => g.school_type === school.school_type)
+      // Find applicable grade levels for school type respecting assigned offered_grade_numbers
+      const defaultNums = school.school_type === 'elementary' ? [0, 1, 2, 3, 4, 5, 6] : [7, 8, 9, 10, 11, 12]
+      const activeNums = school.offered_grade_numbers && school.offered_grade_numbers.length > 0
+        ? school.offered_grade_numbers
+        : defaultNums
+      const missingNums = defaultNums.filter(n => !activeNums.includes(n))
+
+      const appGrades = gradeLevels.filter(g =>
+        g.school_type === school.school_type && activeNums.includes(g.grade_number)
+      )
 
       let totalSchoolSubjects = 0
       let submittedSchoolSubjects = 0
@@ -237,6 +247,8 @@ export function LandingPage() {
 
       return {
         school,
+        activeNums,
+        missingNums,
         gradeStatuses,
         totalGrades: totalGradesCount,
         completedGrades: completedGradesCount,
@@ -577,7 +589,7 @@ export function LandingPage() {
           ) : (
             <div className="space-y-4">
               {filteredSchoolStatuses.map(item => {
-                const { school, gradeStatuses, totalGrades, completedGrades, totalSubjects, submittedSubjects, isComplete, isPending } = item
+                const { school, activeNums, missingNums, gradeStatuses, totalGrades, completedGrades, totalSubjects, submittedSubjects, isComplete, isPending } = item
                 const isExpanded = expandedSchoolIds.has(school.id)
                 const completionPercentage = totalSubjects > 0 ? Math.round((submittedSubjects / totalSubjects) * 100) : 0
 
@@ -617,8 +629,34 @@ export function LandingPage() {
                             <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
                               {school.school_type}
                             </span>
+                            {missingNums.length === 0 ? (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                All Grades Active ({school.school_type === 'elementary' ? 'K–6' : 'G7–12'})
+                              </span>
+                            ) : (
+                              <span
+                                className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-900 border border-amber-200"
+                                title={`Exempt grades without enrollees: ${missingNums.map(n => n === 0 ? 'Kinder' : `Grade ${n}`).join(', ')}`}
+                              >
+                                Exempt: {missingNums.map(n => n === 0 ? 'K' : `G${n}`).join(', ')}
+                              </span>
+                            )}
                           </div>
-                          <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-2 flex-wrap">
+                          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                            <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1">
+                              <Layers size={12} className="text-deped-blue" />
+                              Assigned Grades:
+                            </span>
+                            {activeNums.map(n => (
+                              <span
+                                key={n}
+                                className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100"
+                              >
+                                {n === 0 ? 'Kinder' : `Grade ${n}`}
+                              </span>
+                            ))}
+                          </div>
+                          <p className="text-xs text-slate-500 mt-1 flex items-center gap-2 flex-wrap">
                             <span>{completedGrades} of {totalGrades} Grades Completed</span>
                             <span>•</span>
                             <span>{submittedSubjects} of {totalSubjects} Subjects Submitted ({completionPercentage}%)</span>

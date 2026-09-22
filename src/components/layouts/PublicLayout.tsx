@@ -46,7 +46,7 @@ export function PublicHeader() {
             ) : null}
             <Link
               to="/login"
-              className="px-4 py-2 rounded-full text-xs font-black text-white bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] hover:from-[#9C87F6] hover:to-[#795CEE] shadow-md hover:shadow-lg transition-all flex items-center gap-1.5 cursor-pointer"
+              className="px-4 py-2 rounded-full text-xs font-black text-white bg-gradient-to-r from-[#FF7A70] to-[#FA6B6B] hover:from-[#FF6B61] hover:to-[#F05555] shadow-md hover:shadow-lg transition-all flex items-center gap-1.5 cursor-pointer"
               aria-label="Administrative Login"
             >
               <ShieldCheck size={15} />
@@ -55,11 +55,10 @@ export function PublicHeader() {
           </div>
         </div>
 
-        {/* DepEd-inspired Soft Pastel Rainbow Accent Line */}
+        {/* Minimalist Soft Accent Bar */}
         <div className="h-1 flex" aria-hidden="true">
-          <div className="flex-1 bg-gradient-to-r from-[#8B72F4] via-[#A78BFA] to-[#BAE6FD]" />
-          <div className="w-20 bg-gradient-to-r from-[#FDE68A] to-[#FCD34D]" />
-          <div className="w-12 bg-gradient-to-r from-[#FFCCD4] to-[#F43F5E]" />
+          <div className="flex-1 bg-gradient-to-r from-[#FA6B6B] via-[#28C76F] to-[#7367F0]" />
+          <div className="w-20 bg-gradient-to-r from-[#FF9F43] to-[#F59E0B]" />
         </div>
       </header>
     </>
@@ -88,26 +87,11 @@ export function PublicFooter() {
 
 export function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-dvh flex flex-col bg-gradient-to-br from-[#F4EFFC] via-[#EBF3FE] to-[#FFF1F6] text-[#2D2638] font-sans relative overflow-hidden">
-      {/* Background Wallpaper */}
-      <picture className="fixed inset-0 w-screen h-[100dvh] pointer-events-none z-0">
-        <source media="(max-width: 768px)" srcSet="/images/bg-mobile.png" />
-        <img
-          src="/images/bg-desktop.png"
-          alt="Background Wallpaper"
-          className="w-screen h-[100dvh] object-cover object-center opacity-30 mix-blend-multiply pointer-events-none transition-opacity duration-700"
-        />
-      </picture>
-
-      {/* Dynamic Ambient Pastel Glow Orbs */}
-      <div className="fixed top-[-10%] left-[-5%] w-[500px] h-[500px] rounded-full bg-gradient-to-tr from-[#DDD6FE]/40 to-[#C4B5FD]/20 blur-3xl pointer-events-none animate-float-slow z-0" />
-      <div className="fixed top-[20%] right-[-5%] w-[520px] h-[520px] rounded-full bg-gradient-to-br from-[#BAE6FD]/40 to-[#93C5FD]/20 blur-3xl pointer-events-none animate-float-reverse z-0" />
-      <div className="fixed bottom-[-10%] left-[10%] w-[480px] h-[480px] rounded-full bg-gradient-to-tr from-[#A7F3D0]/30 to-[#6EE7B7]/20 blur-3xl pointer-events-none z-0" />
-
+    <div className="min-h-dvh flex flex-col bg-[#F5F6FA] text-slate-900 font-sans relative overflow-hidden">
       {/* Subtle Micro-Grid Texture */}
       <div 
-        className="fixed inset-0 w-screen h-[100dvh] opacity-[0.035] pointer-events-none z-0" 
-        style={{ backgroundImage: `radial-gradient(#475569 1px, transparent 1px)`, backgroundSize: '28px 28px' }} 
+        className="fixed inset-0 w-screen h-[100dvh] opacity-[0.025] pointer-events-none z-0" 
+        style={{ backgroundImage: `radial-gradient(#475569 1px, transparent 1px)`, backgroundSize: '24px 24px' }} 
       />
 
       <PublicHeader />

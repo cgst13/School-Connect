@@ -199,26 +199,11 @@ export function SchoolConnectLayout({
   const hasSidebar = navGroups.length > 0
 
   return (
-    <div className="h-dvh max-h-dvh relative bg-gradient-to-br from-[#F4EFFC] via-[#EBF3FE] to-[#FFF1F6] text-[#2D2638] flex flex-col w-full overflow-hidden font-sans">
-      {/* Responsive Fixed Non-Scrollable Background Wallpaper */}
-      <picture className="fixed inset-0 w-screen h-[100dvh] min-h-[100dvh] overflow-hidden pointer-events-none z-0 no-print">
-        <source media="(max-width: 768px)" srcSet="/images/bg-mobile.png" />
-        <img
-          src="/images/bg-desktop.png"
-          alt="Background Wallpaper"
-          className="w-screen h-[100dvh] min-h-[100dvh] object-cover object-center opacity-40 mix-blend-multiply transition-opacity duration-700 pointer-events-none"
-        />
-      </picture>
-
-      {/* Dynamic Pastel Ambient Glow Orbs */}
-      <div className="fixed top-[-12%] left-[-8%] w-[540px] h-[540px] rounded-full bg-gradient-to-tr from-[#DDD6FE]/40 to-[#C4B5FD]/20 blur-3xl pointer-events-none animate-float-slow z-0 no-print" />
-      <div className="fixed top-[15%] right-[-8%] w-[580px] h-[580px] rounded-full bg-gradient-to-br from-[#BAE6FD]/40 to-[#93C5FD]/20 blur-3xl pointer-events-none animate-float-reverse z-0 no-print" />
-      <div className="fixed bottom-[-10%] left-[10%] w-[480px] h-[480px] rounded-full bg-gradient-to-tr from-[#A7F3D0]/30 to-[#6EE7B7]/20 blur-3xl pointer-events-none z-0 no-print" />
-
-      {/* Subtle Micro-Grid Texture Overlay */}
+    <div className="h-dvh max-h-dvh relative bg-[#F5F6FA] text-slate-900 flex flex-col w-full overflow-hidden font-sans">
+      {/* Micro-Grid Texture Overlay */}
       <div 
-        className="fixed inset-0 w-screen h-[100dvh] opacity-[0.035] pointer-events-none z-0 no-print" 
-        style={{ backgroundImage: `radial-gradient(#475569 1px, transparent 1px)`, backgroundSize: '28px 28px' }} 
+        className="fixed inset-0 w-screen h-[100dvh] opacity-[0.025] pointer-events-none z-0 no-print" 
+        style={{ backgroundImage: `radial-gradient(#475569 1px, transparent 1px)`, backgroundSize: '24px 24px' }} 
       />
 
       {/* 3D Claymorphic Top Header Navbar */}
@@ -393,8 +378,8 @@ export function SchoolConnectLayout({
           <>
             {/* Desktop Sidebar */}
             <aside
-              className={`hidden lg:flex flex-col flex-shrink-0 bg-[#EFE6FA] rounded-[32px] border border-white/80 h-full transition-all duration-300 z-30 shadow-[0_14px_30px_rgba(185,170,210,0.18)] no-print ${
-                isCollapsed ? 'w-20 p-3' : 'w-64 p-5'
+              className={`hidden lg:flex flex-col flex-shrink-0 bg-white rounded-2xl border border-[#EAECEF] h-full transition-all duration-300 z-30 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.03)] no-print ${
+                isCollapsed ? 'w-20 p-3' : 'w-64 p-4'
               }`}
             >
               {/* 3D Profile Frame */}
@@ -442,18 +427,18 @@ export function SchoolConnectLayout({
                           key={item.to}
                           to={item.to}
                           title={isCollapsed ? item.label : undefined}
-                          className={`flex items-center gap-3 py-2.5 px-3.5 rounded-2xl text-xs font-extrabold transition-all ${
+                          className={`flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-extrabold transition-all ${
                             isCollapsed ? 'justify-center px-2' : ''
                           } ${
                             isActive
-                              ? 'bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] text-white shadow-md shadow-indigo-500/20'
-                              : 'text-[#7A7289] hover:bg-white/60 hover:text-[#2D2638]'
+                              ? 'bg-[#FFEBEB] text-[#FA6B6B] shadow-2xs font-black'
+                              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                           }`}
                         >
-                          <span className={`flex-shrink-0 ${isActive ? 'text-white' : 'text-[#7A7289]'}`}>{item.icon}</span>
+                          <span className={`flex-shrink-0 ${isActive ? 'text-[#FA6B6B]' : 'text-slate-400'}`}>{item.icon}</span>
                           {!isCollapsed && <span className="truncate">{item.label}</span>}
                           {!isCollapsed && item.badge && (
-                            <span className="ml-auto text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-white/80 text-[#8B72F4] shadow-xs">
+                            <span className="ml-auto text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-[#FFEBEB] text-[#FA6B6B]">
                               {item.badge}
                             </span>
                           )}
@@ -464,20 +449,51 @@ export function SchoolConnectLayout({
                 ))}
               </nav>
 
-            {/* Bottom Back to Portal Button */}
-            <div className="pt-2 border-t border-purple-200/40 mt-auto shrink-0">
-              <Link
-                to="/portal"
-                title={isCollapsed ? "Back to Portal" : undefined}
-                className={`flex items-center gap-3 py-3 px-4 rounded-[22px] text-xs font-extrabold text-[#795CEE] bg-white border border-white shadow-xs hover:bg-[#F6EFFF] hover:shadow-md transition-all ${
-                  isCollapsed ? 'justify-center px-2' : ''
-                }`}
-              >
-                <ArrowLeft size={16} className="shrink-0 text-[#795CEE]" />
-                {!isCollapsed && <span>Back to Portal</span>}
-              </Link>
-            </div>
-          </aside>
+              {/* Bottom Monthly Target Widget (Matching Reference Dashboard Sidebar) */}
+              {!isCollapsed && (
+                <div className="my-2 p-3 rounded-2xl bg-gradient-to-br from-[#F8F9FD] to-[#F1F3FB] border border-[#EAECEF] text-center space-y-1.5 shrink-0">
+                  <div className="relative w-12 h-12 mx-auto flex items-center justify-center">
+                    <svg className="w-12 h-12 transform -rotate-90" viewBox="0 0 36 36">
+                      <path
+                        className="text-slate-200"
+                        strokeWidth="3.5"
+                        stroke="currentColor"
+                        fill="none"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                      />
+                      <path
+                        className="text-[#FA6B6B]"
+                        strokeDasharray="78, 100"
+                        strokeWidth="3.5"
+                        strokeLinecap="round"
+                        stroke="currentColor"
+                        fill="none"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                      />
+                    </svg>
+                    <span className="absolute text-[11px] font-black text-[#1E202A]">78%</span>
+                  </div>
+                  <div>
+                    <h4 className="text-[11px] font-bold text-[#1E202A] leading-tight">Monthly Progress</h4>
+                    <p className="text-[10px] text-slate-400 font-medium">Concepcion District</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Bottom Back to Portal Button */}
+              <div className="pt-2 border-t border-[#EAECEF] mt-auto shrink-0">
+                <Link
+                  to="/portal"
+                  title={isCollapsed ? "Back to Portal" : undefined}
+                  className={`flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-bold text-[#FA6B6B] bg-[#FFEBEB] border border-[#FFCCD4]/60 hover:bg-[#FFD6D6] transition-all ${
+                    isCollapsed ? 'justify-center px-2' : ''
+                  }`}
+                >
+                  <ArrowLeft size={16} className="shrink-0 text-[#FA6B6B]" />
+                  {!isCollapsed && <span>Back to Portal</span>}
+                </Link>
+              </div>
+            </aside>
 
             {/* Mobile Drawer */}
             {mobileOpen && (

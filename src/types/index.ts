@@ -94,6 +94,8 @@ export interface AdminProfile {
   teacher_category?: TeacherCategory;
   assigned_school_ids?: string[];
   assigned_grade_ids?: string[];
+  school_sessions?: Record<string, 'am' | 'pm' | 'full_day'> | null;
+  working_hours_preset?: 'option_1' | 'option_2' | null;
   district_name?: string;
   created_at: string;
   updated_at?: string;
@@ -242,9 +244,19 @@ export interface ConsolidationFilters {
   statuses: SubmissionStatus[];
 }
 
+export interface ReportedDetail {
+  school_name: string;
+  teacher_name: string;
+  reference_number: string;
+  exact_text: string;
+  submission_id?: string;
+}
+
 export interface CompetencyCount {
   competency_text: string;
   count: number;
+  raw_texts?: string[];
+  reported_details?: ReportedDetail[];
 }
 
 export interface ConsolidationResult {
@@ -268,6 +280,7 @@ export interface ConsolidationResult {
   mostLearned: CompetencyCount[];
   leastMastered: CompetencyCount[];
   mostDifficult: CompetencyCount[];
+  factorsContributing?: CompetencyCount[];
   // Instructional difficulty texts
   instructionalDifficultyTexts: string[];
 }
@@ -415,28 +428,6 @@ export interface UserNote {
   updatedAt?: string;
 }
 
-// ---- ONEDRIVE CLOUD VAULT & DOCUMENTS ----
-
-export type CloudFileType = 'pdf' | 'word' | 'excel' | 'powerpoint' | 'image' | 'archive' | 'other';
-
-export interface CloudFileItem {
-  id: string;
-  name: string;
-  size: number; // bytes
-  mimeType: string;
-  fileType: CloudFileType;
-  downloadUrl?: string;
-  webUrl?: string; // Microsoft Office Online web view URL
-  previewUrl?: string;
-  oneDriveItemId?: string;
-  uploadedBy?: string;
-  uploadedAt: string;
-  updatedAt: string;
-  isPinned?: boolean;
-  colorTheme?: 'purple' | 'blue' | 'green' | 'amber' | 'rose' | 'slate';
-  tags?: string[];
-  notes?: string;
-}
 // ---- CIVIL SERVICE FORM NO. 48 DTR DATA ----
 
 export interface DTRRecord {

@@ -19,7 +19,7 @@ import {
 } from '@/lib/supabase/suggestions'
 import {
   X, Upload, Download, FileSpreadsheet, CheckCircle2, AlertTriangle, RefreshCw,
-  User, Building2, GraduationCap, Calendar, Clock, AlertCircle, Layers, Eye, Printer, Sparkles, Lock
+  User, Building2, GraduationCap, Calendar, Clock, AlertCircle, Layers, Eye, Printer, Sparkles, Lock, Loader2
 } from 'lucide-react'
 import { useGenieModal } from '@/utils/genieAnimation'
 
@@ -62,6 +62,7 @@ export function ImportSubmissionsModal({
 
   // File & parsing state
   const [fileName, setFileName] = useState<string | null>(null)
+  const [isExportingPdf, setIsExportingPdf] = useState(false)
   const [fileBuffer, setFileBuffer] = useState<ArrayBuffer | null>(null)
   const [sheetNames, setSheetNames] = useState<string[]>([])
   const [selectedSheet, setSelectedSheet] = useState<string>('')
@@ -1007,7 +1008,12 @@ export function ImportSubmissionsModal({
               <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  onClick={() => window.print()}
+                  onClick={() => {
+                    const scrollables = document.querySelectorAll('div, main, section, dialog')
+                    scrollables.forEach(el => { if (el.scrollTop > 0) el.scrollTop = 0 })
+                    window.scrollTo(0, 0)
+                    setTimeout(() => window.print(), 50)
+                  }}
                   className="px-4 py-2.5 rounded-2xl bg-white text-[#795CEE] font-black text-xs shadow-md hover:bg-purple-50 transition-all flex items-center gap-2 cursor-pointer border border-white"
                 >
                   <Printer size={15} />

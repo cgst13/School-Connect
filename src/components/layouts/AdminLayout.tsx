@@ -4,7 +4,7 @@ import {
   LayoutDashboard, FileText, BarChart3, Building2, BookOpen,
   Calendar, Clock, Users, LogOut, Menu, X,
   ClipboardList, ScrollText, Shield, ChevronRight,
-  PanelLeftClose, PanelLeftOpen, Settings, Grid
+  PanelLeftClose, PanelLeftOpen, Settings, Grid, AlertTriangle, Scale
 } from 'lucide-react'
 import { useAuth } from '@/features/auth/useAuth'
 import { useToast } from '@/hooks/useToast'
@@ -27,6 +27,8 @@ const navGroups: NavGroup[] = [
       { to: '/admin', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
       { to: '/admin/submissions', label: 'Submissions & Monitoring', icon: <FileText size={18} /> },
       { to: '/admin/consolidation', label: 'Data Consolidation', icon: <ClipboardList size={18} /> },
+      { to: '/admin/learner-mismatch', label: 'Learner Mismatch Report', icon: <AlertTriangle size={18} /> },
+      { to: '/admin/learner-consistency', label: 'Subject Consistency Tracker', icon: <Scale size={18} /> },
       { to: '/admin/competencies', label: 'Budget of Work (Competencies)', icon: <BookOpen size={18} /> },
       { to: '/admin/reports', label: 'Reports & Analytics', icon: <BarChart3 size={18} /> },
       { to: '/admin/settings', label: 'System Settings', icon: <Settings size={18} /> },

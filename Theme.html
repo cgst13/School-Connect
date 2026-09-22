@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Minimalist UI Component System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              500: '#0284c7',
+              600: '#0369a1',
+              700: '#075985',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom ultra-compact scrollbar */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.4);
+      border-radius: 9999px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(100, 116, 139, 0.6);
+    }
+
+    /* Compact transitions */
+    .transition-fast {
+      transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+  </style>
+</head>
+
+<body
+  class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-sans antialiased h-full flex flex-col overflow-hidden text-xs">
+
+  <!-- STICKY TOP MENU HEADER -->
+  <header
+    class="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-b border-slate-200 dark:border-slate-800 px-3 py-1.5 flex items-center justify-between gap-3 shadow-xs flex-shrink-0">
+    <!-- Left: Brand & Sidebar toggle -->
+    <div class="flex items-center gap-2">
+      <button id="toggleSidebarBtn"
+        class="p-1 rounded-md text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400 transition-fast"
+        title="Toggle Sidebar">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+      <div class="flex items-center gap-1.5 font-bold tracking-tight text-sm text-slate-900 dark:text-white">
+        <div class="w-5 h-5 rounded bg-brand-600 flex items-center justify-center text-white text-[11px] font-black">N
+        </div>
+        <span>NEXUS<span class="text-brand-500 font-normal">UI</span></span>
+      </div>
+      <span
+        class="hidden sm:inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">v2.4
+        Live</span>
+    </div>
+
+    <!-- Center: Global Compact Search -->
+    <div class="flex-1 max-w-md hidden md:flex items-center">
+      <div class="relative w-full">
+        <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </span>
+        <input type="text" placeholder="Jump to command, metric or component... (Ctrl+K)"
+          class="w-full pl-8 pr-12 py-1 bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-md text-xs placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500 transition-fast">
+        <span class="absolute inset-y-0 right-0 pr-2 flex items-center">
+          <kbd
+            class="px-1.5 py-0.5 text-[9px] font-mono text-slate-400 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded">⌘K</kbd>
+        </span>
+      </div>
+    </div>
+
+    <!-- Right: Quick actions, notifications, theme switch, profile -->
+    <div class="flex items-center gap-1.5">
+      <!-- Fast trigger toast action -->
+      <button onclick="showToast('Data synchronized in 14ms', 'success')"
+        class="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 font-medium text-slate-700 dark:text-slate-200 flex items-center gap-1 transition-fast">
+        <svg class="w-3.5 h-3.5 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+        <span class="hidden lg:inline">Sync</span>
+      </button>
+
+      <!-- Open Modal Demo Button -->
+      <button onclick="toggleModal(true)"
+        class="px-2.5 py-1 rounded bg-brand-600 hover:bg-brand-700 text-white font-medium flex items-center gap-1 shadow-xs transition-fast">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        </svg>
+        <span>New Modal</span>
+      </button>
+
+      <!-- Theme Switcher -->
+      <button id="themeToggle"
+        class="p-1.5 rounded-md text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400 transition-fast"
+        title="Toggle Dark/Light Mode">
+        <svg class="w-4 h-4 hidden dark:block text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 3v1m0 16v1m9-9h-1M4 9h-1m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+        <svg class="w-4 h-4 block dark:hidden text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+      </button>
+
+      <!-- Notifications -->
+      <div class="relative">
+        <button onclick="toggleDropdown('notificationMenu')"
+          class="relative p-1.5 rounded-md text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400 transition-fast">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+          </svg>
+          <span class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+        </button>
+        <!-- Dropdown Menu -->
+        <div id="notificationMenu"
+          class="hidden absolute right-0 mt-1 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg py-1 z-50">
+          <div class="px-2.5 py-1.5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+            <span class="font-semibold text-[11px]">System Alerts</span>
+            <span class="text-[10px] text-brand-600 dark:text-brand-400 cursor-pointer">Clear all</span>
+          </div>
+          <a href="#" class="block px-2.5 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-fast">
+            <div class="font-medium text-[11px] text-slate-900 dark:text-slate-200">Cluster #4 Scaled +100%</div>
+            <div class="text-[10px] text-slate-400">2 minutes ago • Auto-scaling engine</div>
+          </a>
+          <a href="#"
+            class="block px-2.5 py-2 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-fast border-t border-slate-100 dark:border-slate-800/50">
+            <div class="font-medium text-[11px] text-slate-900 dark:text-slate-200">Weekly Analytics Report Ready</div>
+            <div class="text-[10px] text-slate-400">1 hour ago • BI Pipeline</div>
+          </a>
+        </div>
+      </div>
+
+      <!-- Avatar Profile -->
+      <div class="flex items-center gap-1.5 pl-1.5 border-l border-slate-200 dark:border-slate-800">
+        <div
+          class="w-6 h-6 rounded-full bg-gradient-to-tr from-brand-600 to-indigo-500 text-white font-bold flex items-center justify-center text-[10px]">
+          JD</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN FULL SCREEN WRAPPER (ZERO WASTED SPACE) -->
+  <div class="flex flex-1 overflow-hidden w-full h-[calc(100vh-41px)]">
+
+    <!-- MINIMAL COLLAPSIBLE SIDEBAR -->
+    <aside id="sidebar"
+      class="w-48 flex-shrink-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col transition-all duration-200 z-30">
+      <div class="p-2 space-y-0.5 overflow-y-auto flex-1">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 px-2 py-1">Workspace</div>
+
+        <button
+          class="w-full flex items-center justify-between px-2 py-1.5 rounded-md bg-brand-50 dark:bg-brand-950/60 text-brand-700 dark:text-brand-300 font-medium transition-fast">
+          <div class="flex items-center gap-2">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
+            <span class="sidebar-text">Overview</span>
+          </div>
+          <span
+            class="sidebar-text text-[9px] bg-brand-200 dark:bg-brand-900 text-brand-800 dark:text-brand-200 px-1 rounded font-bold">12</span>
+        </button>
+
+        <button
+          class="w-full flex items-center justify-between px-2 py-1.5 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition-fast">
+          <div class="flex items-center gap-2">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            <span class="sidebar-text">Analytics</span>
+          </div>
+        </button>
+
+        <button
+          class="w-full flex items-center justify-between px-2 py-1.5 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition-fast">
+          <div class="flex items-center gap-2">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+            </svg>
+            <span class="sidebar-text">Billing</span>
+          </div>
+          <span
+            class="sidebar-text text-[9px] bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1 rounded">PRO</span>
+        </button>
+
+        <button
+          class="w-full flex items-center justify-between px-2 py-1.5 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition-fast">
+          <div class="flex items-center gap-2">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            <span class="sidebar-text">Team</span>
+          </div>
+        </button>
+
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 px-2 pt-3 pb-1">System</div>
+
+        <button
+          class="w-full flex items-center justify-between px-2 py-1.5 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition-fast">
+          <div class="flex items-center gap-2">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span class="sidebar-text">Settings</span>
+          </div>
+        </button>
+      </div>
+
+      <!-- Compact Storage/Status Footbar in Sidebar -->
+      <div class="p-2 border-t border-slate-200 dark:border-slate-800 text-[10px] space-y-1">
+        <div class="flex justify-between text-slate-500 dark:text-slate-400">
+          <span class="sidebar-text">Disk Quota</span>
+          <span class="font-bold">78%</span>
+        </div>
+        <div class="w-full bg-slate-200 dark:bg-slate-700 h-1 rounded-full overflow-hidden">
+          <div class="bg-brand-500 h-1 rounded-full" style="width: 78%"></div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN SCROLLABLE DASHBOARD CANVAS (MAX REAL ESTATE) -->
+    <main class="flex-1 overflow-y-auto p-2 md:p-2.5 space-y-2.5 w-full">
+
+      <!-- SUB-HEADER / CONTROLS & BREADCRUMBS -->
+      <div
+        class="flex flex-wrap items-center justify-between gap-2 bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-200 dark:border-slate-800">
+        <div class="flex items-center gap-2">
+          <span class="text-slate-400">Production</span>
+          <span class="text-slate-300 dark:text-slate-700">/</span>
+          <span class="font-semibold text-slate-900 dark:text-white">Global Infrastructure</span>
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block ml-1"></span>
+        </div>
+
+        <!-- Segmented Tab Control Component -->
+        <div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-md">
+          <button onclick="switchTab(this, 'all')"
+            class="tab-btn px-2.5 py-0.5 rounded bg-white dark:bg-slate-700 shadow-xs font-semibold text-slate-800 dark:text-slate-100 transition-fast">All
+            Panels</button>
+          <button onclick="switchTab(this, 'charts')"
+            class="tab-btn px-2.5 py-0.5 rounded text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-fast">Charts
+            Only</button>
+          <button onclick="switchTab(this, 'tables')"
+            class="tab-btn px-2.5 py-0.5 rounded text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-fast">Tables</button>
+          <button onclick="switchTab(this, 'ui-kit')"
+            class="tab-btn px-2.5 py-0.5 rounded text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-fast">UI
+            Kit</button>
+        </div>
+      </div>
+
+      <!-- SECTION 1: STATS / METRIC CARDS (COMPACT ROW OF 4) -->
+      <div id="metricsRow" class="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <!-- Card 1 -->
+        <div
+          class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2.5 rounded-lg flex items-center justify-between">
+          <div>
+            <p class="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Gross Revenue</p>
+            <h3 class="text-base font-bold text-slate-900 dark:text-white mt-0.5">$184,920</h3>
+            <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-0.5">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+              </svg> +18.4%
+            </span>
+          </div>
+          <div
+            class="w-8 h-8 rounded-md bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center text-emerald-600">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+        </div>
+
+        <!-- Card 2 -->
+        <div
+          class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2.5 rounded-lg flex items-center justify-between">
+          <div>
+            <p class="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Active Nodes</p>
+            <h3 class="text-base font-bold text-slate-900 dark:text-white mt-0.5">2,841</h3>
+            <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-0.5">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+              </svg> +99.98%
+            </span>
+          </div>
+          <div
+            class="w-8 h-8 rounded-md bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800 flex items-center justify-center text-sky-600">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+            </svg>
+          </div>
+        </div>
+
+        <!-- Card 3 -->
+        <div
+          class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2.5 rounded-lg flex items-center justify-between">
+          <div>
+            <p class="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">P99 Latency</p>
+            <h3 class="text-base font-bold text-slate-900 dark:text-white mt-0.5">18.2 ms</h3>
+            <span class="text-[10px] text-rose-500 font-semibold flex items-center gap-0.5">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                  d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+              </svg> +1.4ms
+            </span>
+          </div>
+          <div
+            class="w-8 h-8 rounded-md bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 flex items-center justify-center text-amber-600">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+        </div>
+
+        <!-- Card 4 -->
+        <div
+          class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2.5 rounded-lg flex items-center justify-between">
+          <div>
+            <p class="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Error Rate</p>
+            <h3 class="text-base font-bold text-slate-900 dark:text-white mt-0.5">0.003%</h3>
+            <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-0.5">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                  d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+              </svg> -0.01%
+            </span>
+          </div>
+          <div
+            class="w-8 h-8 rounded-md bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 flex items-center justify-center text-purple-600">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 2: CHARTS & TELEMETRY (SPLIT 2/3 and 1/3) -->
+      <div id="chartsSection" class="grid grid-cols-1 lg:grid-cols-3 gap-2">
+        <!-- Main Line/Area Chart -->
+        <div
+          class="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2.5 rounded-lg flex flex-col justify-between">
+          <div class="flex items-center justify-between mb-1.5">
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-slate-800 dark:text-slate-100">Network Throughput & Load</span>
+              <span
+                class="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-[10px] text-slate-500 font-mono">Gbps /
+                Sec</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <button onclick="updateChartRange('1h')"
+                class="px-2 py-0.5 rounded text-[10px] bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-medium">1H</button>
+              <button onclick="updateChartRange('24h')"
+                class="px-2 py-0.5 rounded text-[10px] bg-brand-600 text-white font-medium">24H</button>
+              <button onclick="updateChartRange('7d')"
+                class="px-2 py-0.5 rounded text-[10px] bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-medium">7D</button>
+            </div>
+          </div>
+          <div class="h-44 w-full relative">
+            <canvas id="trafficChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Donut / Distribution Chart -->
+        <div
+          class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2.5 rounded-lg flex flex-col justify-between">
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="font-bold text-slate-800 dark:text-slate-100">Regional Traffic Share</span>
+            <span class="text-[10px] text-emerald-500 font-medium">● Operational</span>
+          </div>
+          <div class="h-32 w-full relative flex items-center justify-center">
+            <canvas id="donutChart"></canvas>
+          </div>
+          <div class="grid grid-cols-3 gap-1 pt-1 border-t border-slate-100 dark:border-slate-800 text-center">
+            <div>
+              <div class="text-[9px] text-slate-400">US-East</div>
+              <div class="font-bold text-slate-800 dark:text-slate-200 text-[11px]">45%</div>
+            </div>
+            <div>
+              <div class="text-[9px] text-slate-400">EU-West</div>
+              <div class="font-bold text-slate-800 dark:text-slate-200 text-[11px]">35%</div>
+            </div>
+            <div>
+              <div class="text-[9px] text-slate-400">AP-South</div>
+              <div class="font-bold text-slate-800 dark:text-slate-200 text-[11px]">20%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 3: ULTRA DENSE DATA TABLE -->
+      <div id="tablesSection"
+        class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden flex flex-col">
+        <!-- Table Toolbar -->
+        <div
+          class="p-2 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 bg-slate-50/50 dark:bg-slate-900/50">
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-slate-900 dark:text-white">Active Deployments</span>
+            <span
+              class="bg-brand-100 dark:bg-brand-900/50 text-brand-700 dark:text-brand-300 px-1.5 py-0.5 rounded text-[10px] font-semibold">1,024
+              Records</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <input id="tableSearchInput" onkeyup="filterTable()" type="text" placeholder="Filter instances..."
+              class="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-xs focus:ring-1 focus:ring-brand-500 focus:outline-none">
+            <button onclick="showToast('Exporting CSV...', 'info')"
+              class="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 rounded text-slate-700 dark:text-slate-200 font-medium">Export</button>
+            <button onclick="toggleModal(true)"
+              class="px-2 py-1 bg-brand-600 hover:bg-brand-700 text-white rounded font-medium">+ Add Node</button>
+          </div>
+        </div>
+
+        <!-- Table Scroll Container -->
+        <div class="overflow-x-auto w-full">
+          <table class="w-full text-left border-collapse" id="nodesTable">
+            <thead>
+              <tr
+                class="border-b border-slate-200 dark:border-slate-800 bg-slate-100/60 dark:bg-slate-800/40 text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400">
+                <th class="py-1.5 px-2.5 w-6"><input type="checkbox"
+                    class="rounded border-slate-300 text-brand-600 focus:ring-0"></th>
+                <th class="py-1.5 px-2.5">Instance ID</th>
+                <th class="py-1.5 px-2.5">Region</th>
+                <th class="py-1.5 px-2.5">Status</th>
+                <th class="py-1.5 px-2.5">CPU Load</th>
+                <th class="py-1.5 px-2.5">Memory</th>
+                <th class="py-1.5 px-2.5">Uptime</th>
+                <th class="py-1.5 px-2.5 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60 text-slate-700 dark:text-slate-300">
+              <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-fast">
+                <td class="py-1.5 px-2.5"><input type="checkbox" class="rounded border-slate-300"></td>
+                <td class="py-1.5 px-2.5 font-mono font-medium text-slate-900 dark:text-slate-100">node-us-east-01a</td>
+                <td class="py-1.5 px-2.5">us-east-1 (N. Virginia)</td>
+                <td class="py-1.5 px-2.5">
+                  <span
+                    class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                    <span class="w-1 h-1 rounded-full bg-emerald-500"></span> Healthy
+                  </span>
+                </td>
+                <td class="py-1.5 px-2.5">
+                  <div class="flex items-center gap-1.5">
+                    <div class="w-12 bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
+                      <div class="bg-emerald-500 h-1.5 rounded-full" style="width: 24%"></div>
+                    </div>
+                    <span class="font-mono text-[10px]">24%</span>
+                  </div>
+                </td>
+                <td class="py-1.5 px-2.5 font-mono">1.2 / 8 GB</td>
+                <td class="py-1.5 px-2.5">42d 18h</td>
+                <td class="py-1.5 px-2.5 text-right space-x-1">
+                  <button onclick="showToast('Rebooting node-us-east-01a', 'warning')"
+                    class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300">Reboot</button>
+                  <button onclick="showToast('Opened terminal', 'info')"
+                    class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300">SSH</button>
+                </td>
+              </tr>
+
+              <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-fast">
+                <td class="py-1.5 px-2.5"><input type="checkbox" class="rounded border-slate-300"></td>
+                <td class="py-1.5 px-2.5 font-mono font-medium text-slate-900 dark:text-slate-100">node-eu-west-04b</td>
+                <td class="py-1.5 px-2.5">eu-west-1 (Ireland)</td>
+                <td class="py-1.5 px-2.5">
+                  <span
+                    class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                    <span class="w-1 h-1 rounded-full bg-emerald-500"></span> Healthy
+                  </span>
+                </td>
+                <td class="py-1.5 px-2.5">
+                  <div class="flex items-center gap-1.5">
+                    <div class="w-12 bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
+                      <div class="bg-amber-500 h-1.5 rounded-full" style="width: 71%"></div>
+                    </div>
+                    <span class="font-mono text-[10px]">71%</span>
+                  </div>
+                </td>
+                <td class="py-1.5 px-2.5 font-mono">5.8 / 8 GB</td>
+                <td class="py-1.5 px-2.5">14d 02h</td>
+                <td class="py-1.5 px-2.5 text-right space-x-1">
+                  <button onclick="showToast('Rebooting node-eu-west-04b', 'warning')"
+                    class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300">Reboot</button>
+                  <button onclick="showToast('Opened terminal', 'info')"
+                    class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300">SSH</button>
+                </td>
+              </tr>
+
+              <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-fast">
+                <td class="py-1.5 px-2.5"><input type="checkbox" class="rounded border-slate-300"></td>
+                <td class="py-1.5 px-2.5 font-mono font-medium text-slate-900 dark:text-slate-100">node-ap-east-09c</td>
+                <td class="py-1.5 px-2.5">ap-east-1 (Hong Kong)</td>
+                <td class="py-1.5 px-2.5">
+                  <span
+                    class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800">
+                    <span class="w-1 h-1 rounded-full bg-rose-500"></span> High Temp
+                  </span>
+                </td>
+                <td class="py-1.5 px-2.5">
+                  <div class="flex items-center gap-1.5">
+                    <div class="w-12 bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
+                      <div class="bg-rose-500 h-1.5 rounded-full" style="width: 94%"></div>
+                    </div>
+                    <span class="font-mono text-[10px]">94%</span>
+                  </div>
+                </td>
+                <td class="py-1.5 px-2.5 font-mono">7.6 / 8 GB</td>
+                <td class="py-1.5 px-2.5">3d 11h</td>
+                <td class="py-1.5 px-2.5 text-right space-x-1">
+                  <button onclick="showToast('Draining node-ap-east-09c', 'danger')"
+                    class="px-1.5 py-0.5 rounded bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300 hover:bg-rose-200">Drain</button>
+                  <button onclick="showToast('Opened terminal', 'info')"
+                    class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300">SSH</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Compact Table Pagination -->
+        <div
+          class="p-1.5 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-500">
+          <span>Showing 1-3 of 1,024 items</span>
+          <div class="flex items-center gap-1">
+            <button
+              class="px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50"
+              disabled>Previous</button>
+            <button class="px-2 py-0.5 rounded bg-brand-600 text-white font-medium">1</button>
+            <button
+              class="px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800">2</button>
+            <button
+              class="px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800">3</button>
+            <button
+              class="px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800">Next</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 4: COMPLETE UI COMPONENT CATALOG (BUTTONS, FORMS, CARDS, ACCORDIONS) -->
+      <div id="uikitSection" class="grid grid-cols-1 md:grid-cols-3 gap-2">
+
+        <!-- CARD 1: BUTTONS & INTERACTIVE BADGES -->
+        <div
+          class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2.5 rounded-lg space-y-2">
+          <div class="font-bold text-slate-900 dark:text-white flex items-center justify-between">
+            <span>Button & Pill Variants</span>
+            <span class="text-[10px] text-slate-400">Micro-size</span>
+          </div>
+
+          <!-- Button hierarchy row -->
+          <div class="flex flex-wrap gap-1.5 items-center">
+            <button
+              class="px-2 py-1 rounded bg-brand-600 hover:bg-brand-700 text-white font-medium shadow-xs">Primary</button>
+            <button
+              class="px-2 py-1 rounded bg-slate-800 dark:bg-slate-700 hover:bg-slate-700 text-white font-medium">Secondary</button>
+            <button
+              class="px-2 py-1 rounded border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium">Outline</button>
+            <button
+              class="px-2 py-1 rounded text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium">Ghost</button>
+            <button class="px-2 py-1 rounded bg-rose-600 hover:bg-rose-700 text-white font-medium">Danger</button>
+          </div>
+
+          <!-- Button groups & Icon Buttons -->
+          <div class="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800">
+            <div class="inline-flex rounded-md shadow-xs">
+              <button
+                class="px-2 py-0.5 rounded-l bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 border border-slate-200 dark:border-slate-700 font-medium">Left</button>
+              <button
+                class="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 border-t border-b border-slate-200 dark:border-slate-700 font-medium">Mid</button>
+              <button
+                class="px-2 py-0.5 rounded-r bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 border border-slate-200 dark:border-slate-700 font-medium">Right</button>
+            </div>
+
+            <!-- Tags / Badges -->
+            <div class="flex items-center gap-1">
+              <span
+                class="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300">Info</span>
+              <span
+                class="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">Live</span>
+              <span
+                class="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300">Warn</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- CARD 2: FORM CONTROLS & COMPACT INPUTS -->
+        <div
+          class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2.5 rounded-lg space-y-2">
+          <div class="font-bold text-slate-900 dark:text-white flex items-center justify-between">
+            <span>Inputs & Controls</span>
+            <span class="text-[10px] text-slate-400">Dense form</span>
+          </div>
+
+          <div class="space-y-1.5">
+            <div>
+              <label class="block text-[10px] text-slate-500 mb-0.5">Instance Alias</label>
+              <input type="text" value="prod-balancer-alpha"
+                class="w-full px-2 py-1 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded text-xs focus:ring-1 focus:ring-brand-500 focus:outline-none">
+            </div>
+
+            <div class="grid grid-cols-2 gap-1.5">
+              <div>
+                <label class="block text-[10px] text-slate-500 mb-0.5">Environment</label>
+                <select
+                  class="w-full px-1.5 py-1 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded text-xs focus:outline-none">
+                  <option>Production</option>
+                  <option>Staging</option>
+                  <option>Sandbox</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-[10px] text-slate-500 mb-0.5">Threshold (ms)</label>
+                <input type="number" value="150"
+                  class="w-full px-2 py-1 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded text-xs focus:outline-none">
+              </div>
+            </div>
+
+            <!-- Toggle switch & Checkbox row -->
+            <div class="flex items-center justify-between pt-1">
+              <label class="flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" checked class="rounded border-slate-300 text-brand-600 focus:ring-0">
+                <span class="text-[10px] font-medium text-slate-600 dark:text-slate-300">Auto-heal</span>
+              </label>
+
+              <!-- Minimal Switch -->
+              <label class="flex items-center gap-1.5 cursor-pointer">
+                <span class="text-[10px] text-slate-500">Mute Alerts</span>
+                <input type="checkbox" id="muteToggle" class="sr-only peer">
+                <div
+                  class="w-7 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[1px] after:left-[1px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3 after:transition-all peer-checked:bg-brand-600 relative">
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- CARD 3: ACCORDION & MEDIA PREVIEW -->
+        <div
+          class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2.5 rounded-lg space-y-2">
+          <div class="font-bold text-slate-900 dark:text-white flex items-center justify-between">
+            <span>Accordion & Task Card</span>
+            <span class="text-[10px] text-slate-400">Interactive</span>
+          </div>
+
+          <!-- Accordion item 1 -->
+          <div class="border border-slate-200 dark:border-slate-800 rounded">
+            <button onclick="toggleAccordion('acc1')"
+              class="w-full px-2 py-1.5 flex items-center justify-between bg-slate-50 dark:bg-slate-800/60 font-medium text-slate-800 dark:text-slate-200">
+              <span>Security Protocols</span>
+              <svg id="acc1-icon" class="w-3.5 h-3.5 transform transition-transform" fill="none" stroke="currentColor"
+                viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            <div id="acc1"
+              class="hidden p-2 text-[10px] text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800">
+              mTLS v1.3 strict enforcement enabled across all microservice ingress points. Key rotation interval: 72
+              hours.
+            </div>
+          </div>
+
+          <!-- Task Card Preview with Avatar stack -->
+          <div
+            class="p-2 rounded bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800/70 flex items-center justify-between">
+            <div>
+              <div class="font-semibold text-slate-900 dark:text-white text-[11px]">Database Sharding v2</div>
+              <div class="text-[10px] text-slate-400">Due tomorrow • 80% Complete</div>
+            </div>
+            <!-- Avatar stack -->
+            <div class="flex -space-x-1.5 overflow-hidden">
+              <span
+                class="inline-block h-5 w-5 rounded-full ring-2 ring-white dark:ring-slate-900 bg-emerald-500 text-white text-[9px] font-bold text-center leading-5">AL</span>
+              <span
+                class="inline-block h-5 w-5 rounded-full ring-2 ring-white dark:ring-slate-900 bg-sky-500 text-white text-[9px] font-bold text-center leading-5">KM</span>
+              <span
+                class="inline-block h-5 w-5 rounded-full ring-2 ring-white dark:ring-slate-900 bg-purple-500 text-white text-[9px] font-bold text-center leading-5">VR</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+  </div>
+
+  <!-- MODAL DIALOG COMPONENT (HIDDEN BY DEFAULT) -->
+  <div id="systemModal"
+    class="hidden fixed inset-0 z-50 overflow-y-auto bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-3">
+    <div
+      class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-2xl max-w-md w-full overflow-hidden transition-all transform duration-200">
+      <!-- Modal Header -->
+      <div class="px-3 py-2 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+        <h3 class="font-bold text-slate-900 dark:text-white text-xs">Provision New Node Instance</h3>
+        <button onclick="toggleModal(false)" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-3 space-y-2 text-xs">
+        <p class="text-slate-500 text-[11px]">Configure an edge worker node with automated SSL provisioning and
+          health-check loops.</p>
+
+        <div>
+          <label class="block text-[10px] text-slate-400 uppercase font-semibold mb-1">Node Identifier</label>
+          <input type="text" placeholder="e.g. edge-worker-lon-01"
+            class="w-full px-2.5 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-xs focus:ring-1 focus:ring-brand-500 focus:outline-none">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[10px] text-slate-400 uppercase font-semibold mb-1">Target Cluster</label>
+            <select
+              class="w-full px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-xs focus:outline-none">
+              <option>EU-Central-1</option>
+              <option>US-East-1</option>
+              <option>AP-Southeast-1</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[10px] text-slate-400 uppercase font-semibold mb-1">RAM Allocation</label>
+            <select
+              class="w-full px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-xs focus:outline-none">
+              <option>4 GB (Standard)</option>
+              <option>8 GB (High Compute)</option>
+              <option>16 GB (Heavy IO)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Radio Selection -->
+        <div>
+          <label class="block text-[10px] text-slate-400 uppercase font-semibold mb-1">Replication Level</label>
+          <div class="grid grid-cols-3 gap-1">
+            <label
+              class="border border-brand-500 bg-brand-50/50 dark:bg-brand-950/40 p-1.5 rounded flex items-center gap-1 cursor-pointer">
+              <input type="radio" name="replication" checked class="text-brand-600 focus:ring-0">
+              <span class="text-[10px] font-medium">Triple</span>
+            </label>
+            <label
+              class="border border-slate-200 dark:border-slate-700 p-1.5 rounded flex items-center gap-1 cursor-pointer">
+              <input type="radio" name="replication" class="text-brand-600 focus:ring-0">
+              <span class="text-[10px] font-medium">Dual</span>
+            </label>
+            <label
+              class="border border-slate-200 dark:border-slate-700 p-1.5 rounded flex items-center gap-1 cursor-pointer">
+              <input type="radio" name="replication" class="text-brand-600 focus:ring-0">
+              <span class="text-[10px] font-medium">Solo</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div
+        class="px-3 py-2 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-1.5">
+        <button onclick="toggleModal(false)"
+          class="px-2.5 py-1 rounded border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 font-medium">Cancel</button>
+        <button onclick="deployNode()"
+          class="px-3 py-1 rounded bg-brand-600 hover:bg-brand-700 text-white font-medium shadow-xs">Deploy
+          Instance</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMPACT TOAST NOTIFICATION CONTAINER -->
+  <div id="toastContainer" class="fixed bottom-3 right-3 z-50 space-y-1.5 pointer-events-none"></div>
+
+  <script>
+    /* Chart instances */
+    let trafficChartInstance = null;
+    let donutChartInstance = null;
+
+    /* Initialize charts on load */
+    window.addEventListener('DOMContentLoaded', () => {
+      initCharts();
+      setupThemeToggle();
+      setupSidebarToggle();
+      setupKeyboardShortcuts();
+    });
+
+    function initCharts() {
+      const isDark = document.documentElement.classList.contains('dark');
+      const gridColor = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)';
+      const textColor = isDark ? '#94a3b8' : '#64748b';
+
+      // 1. Throughput Line Chart
+      const trafficCtx = document.getElementById('trafficChart').getContext('2d');
+      trafficChartInstance = new Chart(trafficCtx, {
+        type: 'line',
+        data: {
+          labels: ['00:00', '03:00', '06:00', '09:00', '12:00', '15:00', '18:00', '21:00'],
+          datasets: [
+            {
+              label: 'Inbound (Gbps)',
+              data: [12, 19, 15, 38, 42, 35, 54, 48],
+              borderColor: '#0284c7',
+              backgroundColor: 'rgba(2, 132, 199, 0.1)',
+              borderWidth: 2,
+              fill: true,
+              tension: 0.35,
+              pointRadius: 2,
+            },
+            {
+              label: 'Outbound (Gbps)',
+              data: [8, 12, 10, 22, 29, 24, 38, 32],
+              borderColor: '#10b981',
+              backgroundColor: 'transparent',
+              borderWidth: 1.5,
+              borderDash: [4, 4],
+              tension: 0.35,
+              pointRadius: 1,
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top',
+              align: 'end',
+              labels: { boxWidth: 10, boxHeight: 10, font: { size: 10 }, color: textColor }
+            },
+            tooltip: { padding: 6, boxPadding: 4, cornerRadius: 4 }
+          },
+          scales: {
+            x: { grid: { color: gridColor }, ticks: { font: { size: 9 }, color: textColor } },
+            y: { grid: { color: gridColor }, ticks: { font: { size: 9 }, color: textColor } }
+          }
+        }
+      });
+
+      // 2. Regional Traffic Donut Chart
+      const donutCtx = document.getElementById('donutChart').getContext('2d');
+      donutChartInstance = new Chart(donutCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['US-East', 'EU-West', 'AP-South'],
+          datasets: [{
+            data: [45, 35, 20],
+            backgroundColor: ['#0284c7', '#10b981', '#f59e0b'],
+            borderWidth: 0,
+            hoverOffset: 3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { padding: 6, cornerRadius: 4 }
+          },
+          cutout: '72%'
+        }
+      });
+    }
+
+    function setupSidebarToggle() {
+      const btn = document.getElementById('toggleSidebarBtn');
+      const sidebar = document.getElementById('sidebar');
+      const textElements = document.querySelectorAll('.sidebar-text');
+
+      btn.addEventListener('click', () => {
+        if (sidebar.classList.contains('w-48')) {
+          sidebar.classList.remove('w-48');
+          sidebar.classList.add('w-12');
+          textElements.forEach(el => el.classList.add('hidden'));
+        } else {
+          sidebar.classList.remove('w-12');
+          sidebar.classList.add('w-48');
+          textElements.forEach(el => el.classList.remove('hidden'));
+        }
+      });
+    }
+
+    function setupThemeToggle() {
+      const themeBtn = document.getElementById('themeToggle');
+
+      // Auto-detect or default to dark/light
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.documentElement.classList.add('dark');
+      }
+
+      themeBtn.addEventListener('click', () => {
+        document.documentElement.classList.toggle('dark');
+        if (trafficChartInstance && donutChartInstance) {
+          trafficChartInstance.destroy();
+          donutChartInstance.destroy();
+          initCharts();
+        }
+      });
+    }
+
+    function toggleModal(show) {
+      const modal = document.getElementById('systemModal');
+      if (show) {
+        modal.classList.remove('hidden');
+      } else {
+        modal.classList.add('hidden');
+      }
+    }
+
+    function toggleDropdown(id) {
+      const menu = document.getElementById(id);
+      menu.classList.toggle('hidden');
+    }
+
+    function toggleAccordion(id) {
+      const body = document.getElementById(id);
+      const icon = document.getElementById(id + '-icon');
+      body.classList.toggle('hidden');
+      icon.classList.toggle('rotate-180');
+    }
+
+    /* Non-blocking modern toast notification */
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+
+      let colors = 'bg-slate-900 text-white border-slate-700';
+      if (type === 'success') colors = 'bg-emerald-600 text-white border-emerald-500';
+      if (type === 'warning') colors = 'bg-amber-600 text-white border-amber-500';
+      if (type === 'danger') colors = 'bg-rose-600 text-white border-rose-500';
+
+      toast.className = `pointer-events-auto flex items-center gap-2 px-3 py-1.5 rounded shadow-lg text-xs font-medium border transition-all duration-200 transform translate-y-2 opacity-0 ${colors}`;
+      toast.innerHTML = `
+        <span>${message}</span>
+        <button onclick="this.parentElement.remove()" class="ml-2 text-white/80 hover:text-white">&times;</button>
+      `;
+
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      }, 10);
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 200);
+      }, 3200);
+    }
+
+    /* Modal Deploy Action */
+    function deployNode() {
+      toggleModal(false);
+      showToast('Initiated provisioning worker... Syncing cluster.', 'success');
+    }
+
+    function filterTable() {
+      const query = document.getElementById('tableSearchInput').value.toLowerCase();
+      const rows = document.querySelectorAll('#nodesTable tbody tr');
+      rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        row.style.display = text.includes(query) ? '' : 'none';
+      });
+    }
+
+    function updateChartRange(range) {
+      if (!trafficChartInstance) return;
+      if (range === '1h') {
+        trafficChartInstance.data.datasets[0].data = [42, 45, 48, 52, 58, 62, 55, 50];
+      } else if (range === '24h') {
+        trafficChartInstance.data.datasets[0].data = [12, 19, 15, 38, 42, 35, 54, 48];
+      } else if (range === '7d') {
+        trafficChartInstance.data.datasets[0].data = [80, 92, 75, 110, 130, 105, 120, 115];
+      }
+      trafficChartInstance.update();
+      showToast(`Updated telemetry window to ${range}`, 'info');
+    }
+
+    function switchTab(btn, mode) {
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        b.className = 'tab-btn px-2.5 py-0.5 rounded text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-fast';
+      });
+      btn.className = 'tab-btn px-2.5 py-0.5 rounded bg-white dark:bg-slate-700 shadow-xs font-semibold text-slate-800 dark:text-slate-100 transition-fast';
+
+      const metrics = document.getElementById('metricsRow');
+      const charts = document.getElementById('chartsSection');
+      const tables = document.getElementById('tablesSection');
+      const uikit = document.getElementById('uikitSection');
+
+      if (mode === 'all') {
+        metrics.classList.remove('hidden');
+        charts.classList.remove('hidden');
+        tables.classList.remove('hidden');
+        uikit.classList.remove('hidden');
+      } else if (mode === 'charts') {
+        metrics.classList.remove('hidden');
+        charts.classList.remove('hidden');
+        tables.classList.add('hidden');
+        uikit.classList.add('hidden');
+      } else if (mode === 'tables') {
+        metrics.classList.add('hidden');
+        charts.classList.add('hidden');
+        tables.classList.remove('hidden');
+        uikit.classList.add('hidden');
+      } else if (mode === 'ui-kit') {
+        metrics.classList.add('hidden');
+        charts.classList.add('hidden');
+        tables.classList.add('hidden');
+        uikit.classList.remove('hidden');
+      }
+    }
+
+    function setupKeyboardShortcuts() {
+      window.addEventListener('keydown', (e) => {
+        // ESC to close modal
+        if (e.key === 'Escape') {
+          toggleModal(false);
+          const menu = document.getElementById('notificationMenu');
+          if (menu && !menu.classList.contains('hidden')) {
+            menu.classList.add('hidden');
+          }
+        }
+      });
+    }
+  </script>
+</body>
+
+</html>
