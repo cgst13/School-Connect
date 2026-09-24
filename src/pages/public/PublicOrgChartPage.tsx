@@ -13,11 +13,10 @@ import {
   Award,
   ArrowLeft,
   Users,
-  LayoutGrid,
-  GitFork,
   ZoomIn,
   ZoomOut,
-  RotateCcw
+  RotateCcw,
+  UserCheck
 } from 'lucide-react'
 import { fetchAllAdmins, fetchSchools, fetchGradeLevels } from '@/lib/supabase/queries'
 import { DepEdSpinner } from '@/components/ui/DepEdSpinner'
@@ -29,6 +28,7 @@ interface TreeNodeCardProps {
   position: string
   subText?: string
   badgeNumber?: string
+  levelTag?: string
   colorTheme: {
     bannerBg: string
     border: string
@@ -44,6 +44,7 @@ function TreeNodeCard({
   position,
   subText,
   badgeNumber,
+  levelTag,
   colorTheme,
   isTopRoot = false
 }: TreeNodeCardProps) {
@@ -68,7 +69,7 @@ function TreeNodeCard({
         {isTopRoot && (
           <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-amber-400 text-amber-950 text-[9px] font-black border border-white shadow-xs whitespace-nowrap flex items-center gap-1">
             <Crown size={10} className="text-amber-900" />
-            <span>DISTRICT HEAD</span>
+            <span>LEVEL 1 &bull; PSDS</span>
           </div>
         )}
       </div>
@@ -92,6 +93,11 @@ function TreeNodeCard({
               {subText}
             </p>
           )}
+          {levelTag && (
+            <span className="inline-block mt-0.5 px-2 py-0.2 rounded-full text-[8px] font-extrabold bg-slate-100 text-slate-700 border border-slate-200">
+              {levelTag}
+            </span>
+          )}
         </div>
       </div>
     </div>
@@ -108,7 +114,6 @@ export function PublicOrgChartPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedSchoolId, setSelectedSchoolId] = useState<string>('all')
   const [zoomLevel, setZoomLevel] = useState<number>(100)
-  const [viewMode, setViewMode] = useState<'tree' | 'grid'>('tree')
 
   const loadData = async () => {
     setLoading(true)
@@ -129,7 +134,7 @@ export function PublicOrgChartPage() {
   }
 
   useEffect(() => {
-    document.title = 'District Organizational Hierarchy Chart | Public View'
+    document.title = 'Strict Hierarchy Org Chart (PSDS > School Heads > AO IIs > Teachers)'
     loadData()
   }, [])
 
@@ -228,20 +233,12 @@ export function PublicOrgChartPage() {
     )
   }, [staffList, searchQuery])
 
-  // Top Root PSDS Node
+  // LEVEL 1 ROOT NODE: PSDS
   const districtSupervisor = useMemo(() => {
     return filteredStaff.find(s => s.role === 'psds') || staffList.find(s => s.role === 'psds')
   }, [filteredStaff, staffList])
 
-  // District Admins
-  const districtAdmins = useMemo(() => {
-    return filteredStaff.filter(s =>
-      (s.role as string) !== 'psds' &&
-      (s.role === 'admin' || s.role === 'superadmin' || (s.role === 'ao_2' && !!s.district_name))
-    )
-  }, [filteredStaff])
-
-  // School Hierarchy Tree Data
+  // SCHOOL HIERARCHY TREE (LEVEL 2: School Heads -> LEVEL 3: AO IIs -> LEVEL 4: Teachers)
   const schoolTree = useMemo(() => {
     const list = selectedSchoolId === 'all'
       ? schools
@@ -250,7 +247,7 @@ export function PublicOrgChartPage() {
     return list.map(school => {
       const schoolStaff = filteredStaff.filter(s => s.assigned_school_ids?.includes(school.id))
       const schoolHeads = schoolStaff.filter(s => s.role === 'school_head')
-      const ao2s = schoolStaff.filter(s => s.role === 'ao_2' && !s.district_name)
+      const ao2s = schoolStaff.filter(s => s.role === 'ao_2' || (s.role === 'admin' && (s.assigned_school_ids || []).includes(school.id)))
       const teachers = schoolStaff.filter(s => s.role === 'teacher')
 
       return {
@@ -263,7 +260,7 @@ export function PublicOrgChartPage() {
     })
   }, [schools, filteredStaff, selectedSchoolId])
 
-  // Color Themes matching user reference image (Cyan, Purple, Rose Pink, Emerald, Amber, Royal Blue)
+  // Theme palettes per branch
   const themeList = [
     {
       bannerBg: 'bg-gradient-to-r from-[#0284C7] to-[#0EA5E9]',
@@ -352,14 +349,14 @@ export function PublicOrgChartPage() {
           <div className="border-l border-slate-200 pl-3">
             <div className="flex items-center gap-2">
               <h1 className="text-sm sm:text-base font-black text-[#2D2638] tracking-tight font-display">
-                Concepcion District Governance & Personnel Hierarchy
+                Concepcion District 4-Tier Organizational Chart
               </h1>
               <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black border border-emerald-200 flex items-center gap-1">
                 <Globe size={11} /> Public View
               </span>
             </div>
             <p className="text-[11px] text-[#7A7289] font-medium hidden sm:block">
-              Department of Education &bull; Division of Romblon
+              Hierarchy Order: <strong>PSDS &rarr; School Heads &rarr; AO IIs &rarr; Teachers</strong>
             </p>
           </div>
         </div>
@@ -406,12 +403,37 @@ export function PublicOrgChartPage() {
       {/* MAIN CONTAINER */}
       <main className="w-full px-4 sm:px-8 pt-6 sm:pt-8 space-y-6">
 
-        {/* PRINT HEADER ONLY VISIBLE WHEN PRINTING */}
-        <div className="hidden print:block text-center pb-6 border-b-2 border-black space-y-1">
-          <h1 className="text-xl font-black uppercase">DEPARTMENT OF EDUCATION</h1>
-          <h2 className="text-lg font-bold">REGION IV-B MIMAROPA &bull; DIVISION OF ROMBLON</h2>
-          <h3 className="text-md font-extrabold text-purple-900">CONCEPCION DISTRICT OFFICIAL ORGANIZATIONAL HIERARCHY CHART</h3>
-          <p className="text-xs italic">Governance & Personnel Ranking Diagram</p>
+        {/* HIERARCHY LEGEND BAR */}
+        <div className="no-print clay-card p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 max-w-7xl mx-auto border-2 border-purple-200/80 bg-gradient-to-r from-[#F6EFFF] via-[#EEF0FF] to-[#E5E8FF]">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-xl bg-[#8B72F4] text-white">
+              <Network size={18} />
+            </div>
+            <div>
+              <h3 className="text-xs font-black text-[#2D2638] uppercase tracking-wider font-display">
+                Official Governance Hierarchy Levels
+              </h3>
+              <p className="text-[11px] text-[#7A7289] font-medium">Strict ranking order top-to-bottom</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap text-xs font-extrabold">
+            <span className="px-3 py-1 rounded-full bg-blue-600 text-white shadow-2xs">
+              1. PSDS (District Head)
+            </span>
+            <span className="text-[#8B72F4]">&rarr;</span>
+            <span className="px-3 py-1 rounded-full bg-purple-600 text-white shadow-2xs">
+              2. School Heads / Principals
+            </span>
+            <span className="text-[#8B72F4]">&rarr;</span>
+            <span className="px-3 py-1 rounded-full bg-indigo-600 text-white shadow-2xs">
+              3. AO IIs (Admin Officers)
+            </span>
+            <span className="text-[#8B72F4]">&rarr;</span>
+            <span className="px-3 py-1 rounded-full bg-emerald-600 text-white shadow-2xs">
+              4. Teaching Faculty
+            </span>
+          </div>
         </div>
 
         {/* SEARCH AND SCHOOL FILTER CONTROLS BAR */}
@@ -453,7 +475,7 @@ export function PublicOrgChartPage() {
 
         {loading ? (
           <div className="p-16">
-            <DepEdSpinner size="lg" label="Rendering Hierarchical Organizational Diagram..." subtitle="Fetching personnel records and computing tree layout" />
+            <DepEdSpinner size="lg" label="Rendering 4-Tier Organizational Hierarchy Tree..." subtitle="PSDS -> School Heads -> AO IIs -> Teachers" />
           </div>
         ) : (
           <div className="w-full overflow-x-auto custom-scrollbar py-6">
@@ -462,96 +484,98 @@ export function PublicOrgChartPage() {
               style={{ transform: `scale(${zoomLevel / 100})` }}
             >
               
-              {/* TOP ROOT LEVEL: PUBLIC SCHOOLS DISTRICT SUPERVISOR (PSDS) */}
+              {/* LEVEL 1 (TOP ROOT): PUBLIC SCHOOLS DISTRICT SUPERVISOR (PSDS) */}
               <div className="flex flex-col items-center">
                 <TreeNodeCard
                   avatarUrl={districtSupervisor?.avatar_url}
                   name={districtSupervisor?.full_name || 'Public Schools District Supervisor'}
                   position="Public Schools District Supervisor (PSDS)"
                   subText="Concepcion District Governance Head"
+                  levelTag="Level 1 • PSDS"
                   isTopRoot
                   colorTheme={rootTheme}
                 />
 
-                {/* Vertical Stem Connector Down from Root */}
-                <div className="w-0.5 h-10 bg-indigo-400" />
+                {/* Vertical Stem Connector Down from PSDS */}
+                <div className="w-0.5 h-10 bg-indigo-500" />
 
-                {/* LEVEL 2: DISTRICT OFFICE STAFF & SCHOOL HEAD BRANCHES */}
+                {/* LEVEL 2, 3, 4: SCHOOL BRANCHES */}
                 {schoolTree.length > 0 && (
                   <div className="flex flex-col items-center w-full">
-                    {/* Horizontal Bar Connector */}
+                    {/* Horizontal Bar Connector spanning across schools */}
                     <div className="relative w-full flex justify-center">
-                      <div className="h-0.5 bg-indigo-400 w-full max-w-[92%]" />
+                      <div className="h-0.5 bg-indigo-500 w-full max-w-[92%]" />
                     </div>
 
                     {/* SCHOOL BRANCHES CONTAINER */}
-                    <div className="flex items-start justify-center gap-8 sm:gap-12 pt-0">
-                      {schoolTree.map(({ school, schoolStaff, schoolHeads, ao2s, teachers }, idx) => {
+                    <div className="flex items-start justify-center gap-10 sm:gap-14 pt-0">
+                      {schoolTree.map(({ school, schoolHeads, ao2s, teachers }, idx) => {
                         const theme = themeList[idx % themeList.length]
-                        const schoolLeader = schoolHeads[0] || ao2s[0]
+                        const schoolHead = schoolHeads[0]
+                        const ao2 = ao2s[0]
 
                         return (
-                          <div key={school.id} className="flex flex-col items-center">
-                            {/* Vertical Line Connector from Horizontal Bar */}
-                            <div className="w-0.5 h-8 bg-indigo-400" />
+                          <div key={school.id} className="flex flex-col items-center shrink-0">
+                            {/* Vertical Line Connector from PSDS Horizontal Bar */}
+                            <div className="w-0.5 h-8 bg-indigo-500" />
 
-                            {/* LEVEL 2 NODE: SCHOOL HEAD / PRINCIPAL CARD */}
+                            {/* LEVEL 2 NODE: SCHOOL HEAD / PRINCIPAL */}
                             <TreeNodeCard
-                              avatarUrl={schoolLeader?.avatar_url}
-                              name={schoolLeader?.full_name || `School Head (${getSchoolAbbreviation(school.name)})`}
-                              position={schoolLeader ? getStaffDesignation(schoolLeader) : 'School Head / Principal'}
+                              avatarUrl={schoolHead?.avatar_url}
+                              name={schoolHead?.full_name || `School Head (${getSchoolAbbreviation(school.name)})`}
+                              position="School Head / Principal"
                               subText={school.name}
                               badgeNumber={String(idx + 1).padStart(2, '0')}
+                              levelTag="Level 2 • School Head"
                               colorTheme={theme}
                             />
 
-                            {/* SUB-BRANCH FOR AO II / ASSISTANT LEADERS (IF PRESENT) */}
-                            {ao2s.length > 0 && schoolHeads.length > 0 && (
-                              <div className="flex flex-col items-center mt-2">
-                                <div className={`w-0.5 h-6 ${theme.lineColor}`} />
-                                {ao2s.map(ao => (
-                                  <TreeNodeCard
-                                    key={ao.id}
-                                    avatarUrl={ao.avatar_url}
-                                    name={ao.full_name}
-                                    position="Administrative Officer II"
-                                    subText={school.name}
-                                    colorTheme={theme}
-                                  />
-                                ))}
-                              </div>
-                            )}
+                            {/* LEVEL 3 NODE: ADMINISTRATIVE OFFICER II (AO II) */}
+                            <div className="flex flex-col items-center w-full">
+                              {/* Connector from School Head to AO II */}
+                              <div className={`w-0.5 h-8 ${theme.lineColor}`} />
 
-                            {/* LEVEL 3 BRANCH: FACULTY & TEACHERS */}
-                            {teachers.length > 0 && (
-                              <div className="flex flex-col items-center w-full mt-2">
-                                {/* Vertical Stem Down to Teachers */}
-                                <div className={`w-0.5 h-8 ${theme.lineColor}`} />
+                              <TreeNodeCard
+                                avatarUrl={ao2?.avatar_url}
+                                name={ao2?.full_name || `AO II (${getSchoolAbbreviation(school.name)})`}
+                                position="Administrative Officer II (AO II)"
+                                subText={school.name}
+                                levelTag="Level 3 • AO II"
+                                colorTheme={theme}
+                              />
 
-                                {/* Sub Horizontal Bar for Teachers if multiple */}
-                                {teachers.length > 1 && (
-                                  <div className="w-full flex justify-center">
-                                    <div className={`h-0.5 ${theme.lineColor} w-full max-w-[80%]`} />
-                                  </div>
-                                )}
+                              {/* LEVEL 4 BRANCH: TEACHERS & FACULTY */}
+                              {teachers.length > 0 && (
+                                <div className="flex flex-col items-center w-full">
+                                  {/* Connector from AO II down to Teachers */}
+                                  <div className={`w-0.5 h-8 ${theme.lineColor}`} />
 
-                                {/* Teachers Nodes Grid */}
-                                <div className="flex items-start justify-center gap-4 pt-0 flex-wrap max-w-sm sm:max-w-md">
-                                  {teachers.map(t => (
-                                    <div key={t.id} className="flex flex-col items-center">
-                                      {teachers.length > 1 && <div className={`w-0.5 h-6 ${theme.lineColor}`} />}
-                                      <TreeNodeCard
-                                        avatarUrl={t.avatar_url}
-                                        name={t.full_name}
-                                        position={getStaffDesignation(t)}
-                                        subText={formatTeacherGradeBadge(t)}
-                                        colorTheme={theme}
-                                      />
+                                  {/* Horizontal Branch Bar for Teachers */}
+                                  {teachers.length > 1 && (
+                                    <div className="w-full flex justify-center">
+                                      <div className={`h-0.5 ${theme.lineColor} w-full max-w-[85%]`} />
                                     </div>
-                                  ))}
+                                  )}
+
+                                  {/* Teachers Nodes Grid */}
+                                  <div className="flex items-start justify-center gap-4 pt-0 flex-wrap max-w-sm sm:max-w-md">
+                                    {teachers.map(t => (
+                                      <div key={t.id} className="flex flex-col items-center">
+                                        {teachers.length > 1 && <div className={`w-0.5 h-6 ${theme.lineColor}`} />}
+                                        <TreeNodeCard
+                                          avatarUrl={t.avatar_url}
+                                          name={t.full_name}
+                                          position={getStaffDesignation(t)}
+                                          subText={formatTeacherGradeBadge(t)}
+                                          levelTag="Level 4 • Teacher"
+                                          colorTheme={theme}
+                                        />
+                                      </div>
+                                    ))}
+                                  </div>
                                 </div>
-                              </div>
-                            )}
+                              )}
+                            </div>
                           </div>
                         )
                       })}
@@ -567,7 +591,7 @@ export function PublicOrgChartPage() {
 
       {/* FOOTER */}
       <footer className="no-print mt-12 text-center text-xs font-medium text-[#7A7289] space-y-1">
-        <p>&copy; {new Date().getFullYear()} School Connect &bull; Public Hierarchical Organizational Chart</p>
+        <p>&copy; {new Date().getFullYear()} School Connect &bull; 4-Tier Public Organizational Chart (PSDS &rarr; School Heads &rarr; AO IIs &rarr; Teachers)</p>
         <p className="text-[10px] text-[#A39BAF]">Department of Education &bull; Region IV-B MIMAROPA &bull; Division of Romblon</p>
       </footer>
     </div>
