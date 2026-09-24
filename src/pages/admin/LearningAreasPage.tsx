@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { SchoolConnectLayout } from '@/components/layouts/SchoolConnectLayout'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -7,6 +8,8 @@ import {
   fetchLearningAreas,
   fetchGradeLevels,
   fetchLearningAreaGrades,
+  fetchSchools,
+  fetchAllAdmins,
   upsertLearningArea,
   setLearningAreaGrades,
   setGradeLearningAreas,
@@ -15,7 +18,7 @@ import {
 import { useAuth } from '@/features/auth/useAuth'
 import { useToast } from '@/hooks/useToast'
 import { formatDetailedError } from '@/utils/formatError'
-import type { LearningArea, GradeLevel } from '@/types'
+import type { LearningArea, GradeLevel, School, AdminProfile } from '@/types'
 import {
   Plus,
   Pencil,
@@ -33,7 +36,16 @@ import {
   Sparkles,
   AlertCircle,
   Loader2,
-  ListFilter
+  ListFilter,
+  UserX,
+  AlertTriangle,
+  CheckCircle2,
+  Building2,
+  ArrowRight,
+  ExternalLink,
+  Download,
+  Users,
+  ShieldAlert
 } from 'lucide-react'
 
 // Modal for Adding / Editing a single Learning Area
@@ -132,7 +144,7 @@ function LAModal({ la, grades, onSave, onClose, isLoading }: LAModalProps) {
             {/* Elementary Grades */}
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-700">Elementary (Grades 1–6)</span>
+                <span className="text-xs font-bold text-slate-700">ES (Grades 1–6)</span>
                 <button
                   type="button"
                   onClick={() => selectAllType('elementary')}
@@ -162,7 +174,7 @@ function LAModal({ la, grades, onSave, onClose, isLoading }: LAModalProps) {
             {/* Secondary Grades */}
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-700">Secondary (Grades 7–12)</span>
+                <span className="text-xs font-bold text-slate-700">HS (Grades 7–12)</span>
                 <button
                   type="button"
                   onClick={() => selectAllType('secondary')}
@@ -207,6 +219,7 @@ function LAModal({ la, grades, onSave, onClose, isLoading }: LAModalProps) {
 }
 
 export function LearningAreasPage() {
+  const navigate = useNavigate()
   const { admin } = useAuth()
   const { toast } = useToast()
 
@@ -216,6 +229,8 @@ export function LearningAreasPage() {
   // Master Data
   const [learningAreas, setLearningAreas] = useState<LearningArea[]>([])
   const [grades, setGrades] = useState<GradeLevel[]>([])
+  const [schools, setSchools] = useState<School[]>([])
+  const [staffList, setStaffList] = useState<AdminProfile[]>([])
   const [gradeAssignments, setGradeAssignments] = useState<Record<string, string[]>>({})
   const [loading, setLoading] = useState(true)
 
@@ -234,17 +249,27 @@ export function LearningAreasPage() {
   const [copyModalOpen, setCopyModalOpen] = useState(false)
   const [targetGradeIdsToCopy, setTargetGradeIdsToCopy] = useState<string[]>([])
 
+  // Unassigned Teacher Detector Filter States
+  const [detectorSchoolFilter, setDetectorSchoolFilter] = useState<string>('all')
+  const [detectorGradeFilter, setDetectorGradeFilter] = useState<string>('all')
+  const [detectorStatusFilter, setDetectorStatusFilter] = useState<'unassigned' | 'assigned' | 'all'>('unassigned')
+  const [detectorSearchQuery, setDetectorSearchQuery] = useState<string>('')
+
   const load = async () => {
     setLoading(true)
     try {
-      const [las, gs, gradeAssignmentsData] = await Promise.all([
+      const [las, gs, gradeAssignmentsData, schList, sList] = await Promise.all([
         fetchLearningAreas(false),
         fetchGradeLevels(),
         fetchLearningAreaGrades(),
+        fetchSchools(true),
+        fetchAllAdmins(),
       ])
 
       setLearningAreas(las)
       setGrades(gs)
+      setSchools(schList)
+      setStaffList(sList)
 
       // Map: learning_area_id -> grade_level_id[]
       const assignments: Record<string, string[]> = {}
@@ -268,9 +293,117 @@ export function LearningAreasPage() {
     load()
   }, [])
 
+  // Audit slot structure
+  interface AuditSlot {
+    school: School
+    grade: GradeLevel
+    learningArea: LearningArea
+    assignedTeacher: AdminProfile | null
+  }
+
+  const allAuditSlots = useMemo<AuditSlot[]>(() => {
+    if (schools.length === 0 || grades.length === 0 || learningAreas.length === 0) return []
+
+    const activeTeachers = staffList.filter(s => s.role === 'teacher' && s.is_active !== false)
+    const slots: AuditSlot[] = []
+
+    schools.forEach(sch => {
+      // Determine offered grades for school
+      const offeredGrades = grades.filter(g => {
+        if (sch.offered_grade_numbers && sch.offered_grade_numbers.length > 0) {
+          return sch.offered_grade_numbers.includes(g.grade_number)
+        }
+        if (sch.school_type === 'elementary') return g.grade_number >= 1 && g.grade_number <= 6
+        if (sch.school_type === 'secondary') return g.grade_number >= 7 && g.grade_number <= 12
+        return true
+      })
+
+      offeredGrades.forEach(g => {
+        // Get learning area IDs allocated to this grade level
+        const allocatedLaIds = Object.entries(gradeAssignments)
+          .filter(([_, gIds]) => gIds.includes(g.id))
+          .map(([laId]) => laId)
+
+        const activeAllocatedLAs = learningAreas.filter(la => la.is_active && allocatedLaIds.includes(la.id))
+
+        activeAllocatedLAs.forEach(la => {
+          // Check if any teacher covers this school + grade + subject
+          const assignedTeacher = activeTeachers.find(t => {
+            if (!t.assigned_school_ids?.includes(sch.id)) return false
+            if (!t.assigned_grade_ids?.includes(g.id)) return false
+
+            if (t.assigned_grade_subject_ids && t.assigned_grade_subject_ids[g.id]) {
+              return t.assigned_grade_subject_ids[g.id].includes(la.id)
+            }
+            return t.assigned_subject_ids?.includes(la.id)
+          }) || null
+
+          slots.push({
+            school: sch,
+            grade: g,
+            learningArea: la,
+            assignedTeacher,
+          })
+        })
+      })
+    })
+
+    return slots
+  }, [schools, grades, learningAreas, gradeAssignments, staffList])
+
+  // Summary counts
+  const unassignedSlots = useMemo(() => allAuditSlots.filter(s => !s.assignedTeacher), [allAuditSlots])
+  const assignedSlotsCount = allAuditSlots.length - unassignedSlots.length
+  const affectedSchoolCount = useMemo(() => new Set(unassignedSlots.map(s => s.school.id)).size, [unassignedSlots])
+
+  // Filtered slots for detector view
+  const filteredAuditSlots = useMemo(() => {
+    return allAuditSlots.filter(slot => {
+      if (detectorSchoolFilter !== 'all' && slot.school.id !== detectorSchoolFilter) return false
+      if (detectorGradeFilter !== 'all' && slot.grade.id !== detectorGradeFilter) return false
+      if (detectorStatusFilter === 'unassigned' && slot.assignedTeacher) return false
+      if (detectorStatusFilter === 'assigned' && !slot.assignedTeacher) return false
+
+      if (detectorSearchQuery.trim()) {
+        const query = detectorSearchQuery.toLowerCase().trim()
+        const matchesSchool = slot.school.name.toLowerCase().includes(query)
+        const matchesGrade = slot.grade.name.toLowerCase().includes(query)
+        const matchesSubject = slot.learningArea.name.toLowerCase().includes(query)
+        const matchesTeacher = slot.assignedTeacher?.full_name.toLowerCase().includes(query) || false
+        if (!matchesSchool && !matchesGrade && !matchesSubject && !matchesTeacher) return false
+      }
+
+      return true
+    })
+  }, [allAuditSlots, detectorSchoolFilter, detectorGradeFilter, detectorStatusFilter, detectorSearchQuery])
+
+  const handleExportAuditCSV = () => {
+    if (filteredAuditSlots.length === 0) return
+    const headers = ['School Name', 'School Type', 'Grade Level', 'Key Stage', 'Learning Area / Subject', 'Assigned Teacher', 'Status']
+    const rows = filteredAuditSlots.map(s => [
+      `"${s.school.name.replace(/"/g, '""')}"`,
+      s.school.school_type.toUpperCase(),
+      `"${s.grade.name}"`,
+      `KS${s.grade.key_stage.replace('ks', '')}`,
+      `"${s.learningArea.name.replace(/"/g, '""')}"`,
+      s.assignedTeacher ? `"${s.assignedTeacher.full_name.replace(/"/g, '""')}"` : 'NO TEACHER ASSIGNED',
+      s.assignedTeacher ? 'ASSIGNED' : 'UNASSIGNED',
+    ])
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement('a')
+    link.setAttribute('href', encodedUri)
+    link.setAttribute('download', `unassigned_teacher_audit_${new Date().toISOString().slice(0, 10)}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    toast('Unassigned teacher audit report exported to CSV.', 'success')
+  }
+
   // Sync selected grade subjects when selectedGradeId or gradeAssignments change
   useEffect(() => {
-    if (!selectedGradeId) return
+    if (!selectedGradeId || selectedGradeId === 'all' || selectedGradeId === 'unassigned') return
 
     // Find all learningAreaIds assigned to selectedGradeId
     const assignedLaIds: string[] = []
@@ -417,7 +550,32 @@ export function LearningAreasPage() {
             </div>
 
             <div className="space-y-1.5 max-h-[620px] overflow-y-auto pr-1 custom-scrollbar">
-              {/* All Master Subjects Option */}
+              {/* Option 1: Unassigned Teacher Detector Option */}
+              <button
+                onClick={() => setSelectedGradeId('unassigned')}
+                className={`w-full flex items-center justify-between p-3.5 rounded-2xl text-xs font-extrabold transition-all cursor-pointer text-left ${
+                  selectedGradeId === 'unassigned'
+                    ? 'bg-gradient-to-r from-[#FF5E7E] via-[#FF5252] to-[#EE4444] text-white shadow-md shadow-rose-500/25 scale-[1.01]'
+                    : 'bg-rose-50/90 text-[#2D2638] hover:bg-rose-100/90 hover:shadow-2xs border border-rose-200/70'
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <UserX size={16} className={selectedGradeId === 'unassigned' ? 'text-white' : 'text-rose-600'} />
+                  <div>
+                    <span className="block font-black text-xs font-display">Unassigned Detector</span>
+                    <span className={`text-[10px] font-medium block ${selectedGradeId === 'unassigned' ? 'text-white/90' : 'text-rose-700'}`}>
+                      Missing teacher allocation scan
+                    </span>
+                  </div>
+                </div>
+                <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full shrink-0 ${
+                  selectedGradeId === 'unassigned' ? 'bg-white text-rose-600' : 'bg-rose-600 text-white'
+                }`}>
+                  {unassignedSlots.length}
+                </span>
+              </button>
+
+              {/* Option 2: All Master Subjects Option */}
               <button
                 onClick={() => setSelectedGradeId('all')}
                 className={`w-full flex items-center justify-between p-3.5 rounded-2xl text-xs font-extrabold transition-all cursor-pointer text-left ${
@@ -481,7 +639,225 @@ export function LearningAreasPage() {
 
           {/* Right Main Content Area */}
           <div className="lg:col-span-8 space-y-4">
-            {selectedGradeId === 'all' ? (
+            {selectedGradeId === 'unassigned' ? (
+              /* UNASSIGNED TEACHER DETECTOR & AUDIT VIEW */
+              <div className="space-y-5">
+                {/* KPI Stat Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 font-sans">
+                  {/* Card 1: Unassigned Slots */}
+                  <div className="p-4 rounded-3xl bg-gradient-to-br from-[#FFF0F2] to-[#FFE2E6] border-2 border-white shadow-xs space-y-1">
+                    <div className="flex items-center justify-between text-rose-700">
+                      <span className="text-xs font-black uppercase tracking-wider font-display">Unassigned Slots</span>
+                      <div className="p-2 rounded-xl bg-rose-500 text-white shadow-xs">
+                        <UserX size={16} />
+                      </div>
+                    </div>
+                    <div className="text-2xl font-black text-rose-950 font-display">{unassignedSlots.length}</div>
+                    <p className="text-[11px] font-bold text-rose-800">Learning area slots without teacher</p>
+                  </div>
+
+                  {/* Card 2: Assigned Slots */}
+                  <div className="p-4 rounded-3xl bg-gradient-to-br from-[#EDFAF3] to-[#D1F7E2] border-2 border-white shadow-xs space-y-1">
+                    <div className="flex items-center justify-between text-emerald-800">
+                      <span className="text-xs font-black uppercase tracking-wider font-display">Assigned Slots</span>
+                      <div className="p-2 rounded-xl bg-emerald-600 text-white shadow-xs">
+                        <CheckCircle2 size={16} />
+                      </div>
+                    </div>
+                    <div className="text-2xl font-black text-emerald-950 font-display">{assignedSlotsCount}</div>
+                    <p className="text-[11px] font-bold text-emerald-800">Fully staffed subject offerings</p>
+                  </div>
+
+                  {/* Card 3: Affected Schools */}
+                  <div className="p-4 rounded-3xl bg-gradient-to-br from-[#FFF8E6] to-[#FFEBC2] border-2 border-white shadow-xs space-y-1">
+                    <div className="flex items-center justify-between text-amber-800">
+                      <span className="text-xs font-black uppercase tracking-wider font-display">Schools Affected</span>
+                      <div className="p-2 rounded-xl bg-amber-500 text-white shadow-xs">
+                        <Building2 size={16} />
+                      </div>
+                    </div>
+                    <div className="text-2xl font-black text-amber-950 font-display">{affectedSchoolCount}</div>
+                    <p className="text-[11px] font-bold text-amber-800">Schools needing teacher assignments</p>
+                  </div>
+
+                  {/* Card 4: Total Slots scanned */}
+                  <div className="p-4 rounded-3xl bg-gradient-to-br from-[#F2EEFD] to-[#E3D9FC] border-2 border-white shadow-xs space-y-1">
+                    <div className="flex items-center justify-between text-purple-800">
+                      <span className="text-xs font-black uppercase tracking-wider font-display">Coverage Rate</span>
+                      <div className="p-2 rounded-xl bg-[#8B72F4] text-white shadow-xs">
+                        <Sparkles size={16} />
+                      </div>
+                    </div>
+                    <div className="text-2xl font-black text-purple-950 font-display">
+                      {Math.round((assignedSlotsCount / (allAuditSlots.length || 1)) * 100)}%
+                    </div>
+                    <p className="text-[11px] font-bold text-purple-800">
+                      {assignedSlotsCount} of {allAuditSlots.length} slots assigned
+                    </p>
+                  </div>
+                </div>
+
+                {/* Detector Filters & Controls Bar */}
+                <div className="bg-white rounded-[28px] border-2 border-white p-4 sm:p-5 shadow-xs space-y-4 font-sans">
+                  <div className="flex flex-col md:flex-row items-center justify-between gap-3">
+                    <div className="relative w-full md:w-72">
+                      <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#A39BAF]" />
+                      <input
+                        type="text"
+                        value={detectorSearchQuery}
+                        onChange={e => setDetectorSearchQuery(e.target.value)}
+                        placeholder="Search school, grade, or subject..."
+                        className="w-full pl-10 pr-4 py-2 text-xs rounded-xl border border-purple-100 bg-[#FAF5F0] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30 font-medium transition-all"
+                      />
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+                      {/* School Dropdown */}
+                      <select
+                        value={detectorSchoolFilter}
+                        onChange={e => setDetectorSchoolFilter(e.target.value)}
+                        className="text-xs font-bold py-2 px-3 rounded-xl border border-purple-100 bg-[#FAF5F0] text-[#2D2638] focus:outline-none cursor-pointer"
+                      >
+                        <option value="all">All Schools ({schools.length})</option>
+                        {schools.map(sch => (
+                          <option key={sch.id} value={sch.id}>{sch.name}</option>
+                        ))}
+                      </select>
+
+                      {/* Grade Dropdown */}
+                      <select
+                        value={detectorGradeFilter}
+                        onChange={e => setDetectorGradeFilter(e.target.value)}
+                        className="text-xs font-bold py-2 px-3 rounded-xl border border-purple-100 bg-[#FAF5F0] text-[#2D2638] focus:outline-none cursor-pointer"
+                      >
+                        <option value="all">All Grades ({grades.length})</option>
+                        {grades.map(g => (
+                          <option key={g.id} value={g.id}>{g.name}</option>
+                        ))}
+                      </select>
+
+                      {/* Status Dropdown */}
+                      <select
+                        value={detectorStatusFilter}
+                        onChange={e => setDetectorStatusFilter(e.target.value as any)}
+                        className="text-xs font-bold py-2 px-3 rounded-xl border border-purple-100 bg-[#FAF5F0] text-[#2D2638] focus:outline-none cursor-pointer"
+                      >
+                        <option value="unassigned">🔴 Unassigned Only ({unassignedSlots.length})</option>
+                        <option value="assigned">🟢 Assigned Only ({assignedSlotsCount})</option>
+                        <option value="all">All Slots ({allAuditSlots.length})</option>
+                      </select>
+
+                      <button
+                        onClick={handleExportAuditCSV}
+                        className="px-3.5 py-2 rounded-xl bg-[#FAF5F0] hover:bg-[#F6EFFF] text-[#8B72F4] text-xs font-extrabold transition-all border border-white flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                        title="Export CSV Audit Report"
+                      >
+                        <Download size={14} />
+                        <span>Export CSV</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Audit Slots Data Table / List */}
+                  <div className="overflow-x-auto rounded-2xl border border-purple-100/70">
+                    {filteredAuditSlots.length === 0 ? (
+                      <div className="p-10 text-center text-[#7A7289]">
+                        <EmptyState
+                          title="No matching slots found"
+                          description="All scanned subject slots match your current filters or have assigned teachers."
+                          icon={<CheckCircle2 size={32} className="text-emerald-500" />}
+                        />
+                      </div>
+                    ) : (
+                      <table className="w-full text-left border-collapse font-sans">
+                        <thead>
+                          <tr className="bg-[#FAFBFF] border-b border-[#E8EAF0] text-[11px] font-extrabold uppercase tracking-wider text-[#64748B]">
+                            <th className="py-3 px-4">School & Type</th>
+                            <th className="py-3 px-4">Grade Level</th>
+                            <th className="py-3 px-4">Learning Area / Subject</th>
+                            <th className="py-3 px-4">Teacher Status</th>
+                            <th className="py-3 px-4 text-right">Quick Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#F0F2F7]">
+                          {filteredAuditSlots.map((slot, idx) => {
+                            const isUnassigned = !slot.assignedTeacher
+                            return (
+                              <tr key={`${slot.school.id}-${slot.grade.id}-${slot.learningArea.id}-${idx}`} className="hover:bg-[#FAFBFF] transition-colors">
+                                <td className="py-3.5 px-4">
+                                  <div className="flex items-center gap-2">
+                                    <Building2 size={15} className="text-[#8B72F4] shrink-0" />
+                                    <div>
+                                      <span className="text-xs font-bold text-[#1F2937] block">{slot.school.name}</span>
+                                      <span className="text-[10px] font-extrabold text-[#7A7289] uppercase">
+                                        {slot.school.school_type === 'elementary' ? 'ES (Elem)' : 'HS (Sec)'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </td>
+
+                                <td className="py-3.5 px-4">
+                                  <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-[#F2EEFD] text-[#6D4AE4] border border-[#E2D5FE]">
+                                    {slot.grade.name}
+                                  </span>
+                                </td>
+
+                                <td className="py-3.5 px-4">
+                                  <div className="flex items-center gap-2">
+                                    <BookOpen size={14} className="text-[#8B72F4]" />
+                                    <span className="text-xs font-black text-[#2D2638]">{slot.learningArea.name}</span>
+                                  </div>
+                                </td>
+
+                                <td className="py-3.5 px-4">
+                                  {isUnassigned ? (
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-[#FFE0E6] text-[#E11D48] border border-[#FFCCD4]">
+                                      <UserX size={13} />
+                                      No Teacher Assigned
+                                    </span>
+                                  ) : (
+                                    <div className="flex items-center gap-2">
+                                      <img
+                                        src={slot.assignedTeacher?.avatar_url || '/images/clay/avatar_girl.jpg'}
+                                        alt={slot.assignedTeacher?.full_name}
+                                        className="w-6 h-6 rounded-full object-cover border border-white shadow-2xs shrink-0 bg-[#F6EFFF]"
+                                      />
+                                      <div>
+                                        <span className="text-xs font-extrabold text-[#059669] block">{slot.assignedTeacher?.full_name}</span>
+                                        <span className="text-[10px] text-[#7A7289]">{slot.assignedTeacher?.email}</span>
+                                      </div>
+                                    </div>
+                                  )}
+                                </td>
+
+                                <td className="py-3.5 px-4 text-right">
+                                  {isUnassigned ? (
+                                    <button
+                                      onClick={() => {
+                                        toast(`Navigating to Faculty Directory to assign teacher for ${slot.learningArea.name} at ${slot.school.name}...`, 'info')
+                                        navigate('/portal/staff')
+                                      }}
+                                      className="px-3 py-1.5 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 text-white text-xs font-black shadow-xs hover:brightness-105 transition-all inline-flex items-center gap-1 cursor-pointer active:scale-95"
+                                    >
+                                      <span>Assign Teacher</span>
+                                      <ArrowRight size={13} />
+                                    </button>
+                                  ) : (
+                                    <span className="text-[11px] font-extrabold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                                      ✓ Covered
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : selectedGradeId === 'all' ? (
               /* MASTER LEARNING AREAS CATALOG VIEW */
               <div className="space-y-4">
                 {/* Search & Status Filter Bar */}

@@ -103,7 +103,7 @@ export function Step1TeacherInfo({ data, autoFocusLA = false, onNext }: Props) {
     }
   }
 
-  // Load grades when school changes
+  // Load grades and refresh teacher suggestions when school changes
   useEffect(() => {
     if (!watchSchoolId) {
       setGrades([])
@@ -111,8 +111,11 @@ export function Step1TeacherInfo({ data, autoFocusLA = false, onNext }: Props) {
       setValue('grade_level_id', '')
       setValue('learning_area_id', '')
       setSelectedSchoolType('')
+      fetchTeacherNameSuggestions().then(setTeacherSuggestions)
       return
     }
+    fetchTeacherNameSuggestions(watchSchoolId).then(setTeacherSuggestions)
+
     const school = schools.find(s => s.id === watchSchoolId)
     if (!school) return
     setSelectedSchoolType(school.school_type)

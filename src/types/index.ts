@@ -9,7 +9,7 @@ export type SubmissionStatus = 'submitted' | 'reviewed' | 'returned' | 'finalize
 export type CompetencyCategory = 'most_learned' | 'least_mastered' | 'most_difficult_to_teach';
 export type AdminRole = 'admin' | 'superadmin' | 'teacher' | 'school_head' | 'psds' | 'ao_2';
 export type UserRole = AdminRole;
-export type TeacherCategory = 'kindergarten' | 'grade_1_6';
+export type TeacherCategory = 'kindergarten' | 'grade_1_6' | 'jhs' | 'shs' | 'subject_teacher';
 
 // ---- MASTER DATA ----
 
@@ -44,6 +44,18 @@ export interface LearningAreaGrade {
   id: string;
   learning_area_id: string;
   grade_level_id: string;
+}
+
+export interface Section {
+  id: string;
+  name: string;
+  school_id: string;
+  grade_level_id: string;
+  track_strand?: string | null;
+  adviser_name?: string | null;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface SchoolYear {
@@ -94,6 +106,8 @@ export interface AdminProfile {
   teacher_category?: TeacherCategory;
   assigned_school_ids?: string[];
   assigned_grade_ids?: string[];
+  assigned_subject_ids?: string[];
+  assigned_grade_subject_ids?: Record<string, string[]>;
   school_sessions?: Record<string, 'am' | 'pm' | 'full_day'> | null;
   working_hours_preset?: 'option_1' | 'option_2' | null;
   district_name?: string;
@@ -324,6 +338,7 @@ export interface DashboardStats {
 
 export interface SubmissionFilters {
   search: string;
+  teacher_name?: string;
   school_year_id: string;
   term_id: string;
   school_id: string;

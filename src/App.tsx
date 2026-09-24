@@ -6,6 +6,8 @@ import { ProtectedRoute } from '@/features/auth/ProtectedRoute'
 import { LandingPage } from '@/pages/public/LandingPage'
 import { SubmissionPage } from '@/pages/public/SubmissionPage'
 import { TeacherSubmissionsPage } from '@/pages/public/TeacherSubmissionsPage'
+import { SchoolSubmissionsPage } from '@/pages/public/SchoolSubmissionsPage'
+import { PublicOrgChartPage } from '@/pages/public/PublicOrgChartPage'
 
 // School Connect Portal pages
 import { SchoolConnectHubPage } from '@/pages/portal/SchoolConnectHubPage'
@@ -28,6 +30,7 @@ import { ReportsPage } from '@/pages/admin/ReportsPage'
 import { SchoolsPage } from '@/pages/admin/SchoolsPage'
 import { LearningAreasPage } from '@/pages/admin/LearningAreasPage'
 import { SchoolYearsPage, TermsPage } from '@/pages/admin/SchoolYearsPage'
+import { SectionsPage } from '@/pages/admin/SectionsPage'
 import { AdministratorsPage } from '@/pages/admin/AdministratorsPage'
 import { AuditLogPage } from '@/pages/admin/AuditLogPage'
 import { TermcatSettingsPage } from '@/pages/admin/SettingsPage'
@@ -89,9 +92,11 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
-            {/* Public Teacher Submission Form & Record Pages */}
+            {/* Public Teacher & School Submission Form & Record Pages */}
             <Route path="/submit" element={<SubmissionPage />} />
             <Route path="/teacher-submissions" element={<TeacherSubmissionsPage />} />
+            <Route path="/school-submissions" element={<SchoolSubmissionsPage />} />
+            <Route path="/org-chart" element={<PublicOrgChartPage />} />
 
             {/* Admin Auth */}
             <Route path="/admin/login" element={<SchoolConnectLoginPage />} />
@@ -207,6 +212,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <TermsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/sections"
+              element={
+                <ProtectedRoute>
+                  <SectionsPage />
                 </ProtectedRoute>
               }
             />

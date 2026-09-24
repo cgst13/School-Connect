@@ -1,7 +1,8 @@
 import React from 'react'
 import type { TermcatSubmission, FormType, KS1LearnerData, KS2to4LearnerData, CompetencySummary, SubmissionCompetency, InstructionalDifficulty } from '@/types'
-import { Printer } from 'lucide-react'
+import { Printer, FileSpreadsheet } from 'lucide-react'
 import { groupAndDeduplicateCompetencies } from '@/lib/competencies/grouping'
+import { exportOfficialTermcatExcel } from '@/lib/excel/officialExcelExport'
 
 interface TemplateProps {
   submission?: TermcatSubmission
@@ -150,6 +151,28 @@ export function OfficialTermcatTemplate({
     })
   }
 
+  const [exportingExcel, setExportingExcel] = React.useState(false)
+
+  const handleExportExcel = async () => {
+    try {
+      setExportingExcel(true)
+      await exportOfficialTermcatExcel({
+        submission,
+        submissions: allSubmissions,
+        formType,
+        sdoName: displaySdo,
+        epsName: displayEps,
+        learningAreaName: displayLearningArea,
+        termName: displayTerm,
+        schoolYearName: displaySchoolYear,
+      })
+    } catch (err) {
+      console.error('Failed to export Official Excel:', err)
+    } finally {
+      setExportingExcel(false)
+    }
+  }
+
   return (
     <div className="bg-white text-black p-4 sm:p-6 rounded-xl border border-slate-300 shadow-md font-sans text-xs space-y-4 print:p-0 print:border-none print:shadow-none print:text-[10px]">
       {/* Print Controls (Screen Only) */}
@@ -162,6 +185,14 @@ export function OfficialTermcatTemplate({
             </span>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleExportExcel}
+              disabled={exportingExcel}
+              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            >
+              <FileSpreadsheet size={15} />
+              <span>{exportingExcel ? 'Exporting Excel...' : 'Export to Excel (.xlsx)'}</span>
+            </button>
             <button
               onClick={triggerSafePrint}
               className="px-4 py-2 rounded-xl bg-[#8B72F4] hover:bg-[#795CEE] text-white text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
@@ -524,24 +555,45 @@ export function OfficialTermcatTemplate({
           )}
         </div>
 
-        {/* Bottom Signatures Section - Hardcoded Blank Signatories */}
-        <div className="pt-8 grid grid-cols-3 gap-6 text-center text-xs print:text-[9px] print:pt-2 print:gap-4">
-          <div>
-            <p className="text-slate-600 mb-8 print:mb-3">Prepared by:</p>
-            <div className="border-b border-black font-bold uppercase pb-0.5 min-h-[20px] print:min-h-[14px]">{displayEps || <>&nbsp;</>}</div>
-            <p className="text-[10px] print:text-[8px] text-slate-500 mt-1 uppercase">Education Program Supervisor</p>
+        {/* Bottom Signatures Section - Vertical Stacked Layout */}
+        <div className="pt-8 space-y-6 text-xs print:text-[10px] print:pt-4 print:space-y-4 max-w-md">
+          {/* Prepared by */}
+          <div className="grid grid-cols-12 items-end gap-2">
+            <div className="col-span-4 font-bold text-slate-900 self-start pt-1">Prepared by:</div>
+            <div className="col-span-8 space-y-0.5 text-center">
+              <div className="border-b border-black font-bold uppercase pb-0.5 min-h-[20px] print:min-h-[16px] text-slate-900">
+                {displayEps || <>&nbsp;</>}
+              </div>
+              <p className="italic text-[11px] print:text-[9px] text-slate-800 font-medium">
+                Education Program Supervisor
+              </p>
+            </div>
           </div>
 
-          <div>
-            <p className="text-slate-600 mb-8 print:mb-3">Checked:</p>
-            <div className="border-b border-black font-bold uppercase pb-0.5 min-h-[20px] print:min-h-[14px]">&nbsp;</div>
-            <p className="text-[10px] print:text-[8px] text-slate-500 mt-1 uppercase">Chief Education Supervisor</p>
+          {/* Noted */}
+          <div className="grid grid-cols-12 items-end gap-2">
+            <div className="col-span-4 font-bold text-slate-900 self-start pt-1">Noted:</div>
+            <div className="col-span-8 space-y-0.5 text-center">
+              <div className="border-b border-black font-bold uppercase pb-0.5 min-h-[20px] print:min-h-[16px]">
+                &nbsp;
+              </div>
+              <p className="italic text-[11px] print:text-[9px] text-slate-800 font-medium">
+                Chief Education Supervisor
+              </p>
+            </div>
           </div>
 
-          <div>
-            <p className="text-slate-600 mb-8 print:mb-3">Approved by:</p>
-            <div className="border-b border-black font-bold uppercase pb-0.5 min-h-[20px] print:min-h-[14px]">ROGER F. CAPA, CESO VI</div>
-            <p className="text-[10px] print:text-[8px] text-slate-500 mt-1 uppercase">Schools Division Superintendent</p>
+          {/* Approved by */}
+          <div className="grid grid-cols-12 items-end gap-2">
+            <div className="col-span-4 font-bold text-slate-900 self-start pt-1">Approved by:</div>
+            <div className="col-span-8 space-y-0.5 text-center">
+              <div className="border-b border-black font-bold uppercase pb-0.5 min-h-[20px] print:min-h-[16px] text-slate-900">
+                ROGER F. CAPA, CESO VI
+              </div>
+              <p className="italic text-[11px] print:text-[9px] text-slate-800 font-medium">
+                Schools Division Superintendent
+              </p>
+            </div>
           </div>
         </div>
       </div>

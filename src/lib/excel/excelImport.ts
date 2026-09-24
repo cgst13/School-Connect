@@ -1,4 +1,4 @@
-import type { LearningArea } from '@/types'
+import type { LearningArea, GradeLevel } from '@/types'
 
 async function getExcelJS() {
   const ExcelJS = await import('exceljs')
@@ -7,8 +7,11 @@ async function getExcelJS() {
 
 export interface ParsedSubjectRow {
   rowIndex: number
-  learningAreaRaw: string
+  labelRaw: string
+  learningAreaRaw?: string
   learningAreaId: string | null
+  gradeLevelRaw?: string
+  gradeLevelId: string | null
   formType: 'ks1' | 'ks2to4'
   totalLearners: number
   // KS1 performance levels
@@ -122,6 +125,28 @@ export async function getExcelSheetNames(arrayBuffer: ArrayBuffer): Promise<stri
   return workbook.worksheets.map(ws => ws.name)
 }
 
+function matchGradeLevel(rawStr: string, allGrades: GradeLevel[]): GradeLevel | null {
+  if (!rawStr || !allGrades || allGrades.length === 0) return null
+  const lower = rawStr.trim().toLowerCase()
+
+  let found = allGrades.find(g => g.name.trim().toLowerCase() === lower)
+  if (found) return found
+
+  found = allGrades.find(
+    g => lower.includes(g.name.trim().toLowerCase()) || g.name.trim().toLowerCase().includes(lower)
+  )
+  if (found) return found
+
+  const numMatch = lower.match(/\b\d+\b/)
+  if (numMatch) {
+    const num = parseInt(numMatch[0], 10)
+    found = allGrades.find(g => g.grade_number === num)
+    if (found) return found
+  }
+
+  return null
+}
+
 /**
  * Robustly parse subject submission blocks from a chosen worksheet tab.
  * Automatically detects whether the sheet is Key Stage 1 (KS1: Cols A–O)
@@ -130,7 +155,9 @@ export async function getExcelSheetNames(arrayBuffer: ArrayBuffer): Promise<stri
 export async function parseSubjectImportExcel(
   arrayBuffer: ArrayBuffer,
   learningAreas: LearningArea[],
-  targetSheetName?: string
+  grades: GradeLevel[] = [],
+  targetSheetName?: string,
+  mode: 'per_grade' | 'per_learning_area' = 'per_grade'
 ): Promise<ParsedSubjectRow[]> {
   const ExcelJS = await getExcelJS()
   const workbook = new ExcelJS.Workbook()
@@ -195,7 +222,7 @@ export async function parseSubjectImportExcel(
       const val = getCellValueAsString(cell).toLowerCase()
       rowTextCombined += ' ' + val
 
-      if (val.includes('learning area') || val.includes('subject') || val.includes('asignatura')) {
+      if (val.includes('learning area') || val.includes('subject') || val.includes('grade') || val.includes('asignatura')) {
         tempCols.learningArea = colNumber
       } else if (val.includes('mps') || val.includes('mean')) {
         tempCols.mps = colNumber
@@ -238,6 +265,7 @@ export async function parseSubjectImportExcel(
     if (
       rowTextCombined.includes('learning area') ||
       rowTextCombined.includes('subject') ||
+      rowTextCombined.includes('grade') ||
       rowTextCombined.includes('mps') ||
       rowTextCombined.includes('advancing') ||
       rowTextCombined.includes('competencies')
@@ -257,7 +285,7 @@ export async function parseSubjectImportExcel(
   }
 
   const nonSubjectTitles = [
-    'learning area', 'subject', 'total number of learners', 'mps', 'intended competencies',
+    'learning area', 'subject', 'grade level', 'grade', 'total number of learners', 'mps', 'intended competencies',
     'termcat', 'key stage', 'generated', 'reference', 'reasons', 'factors', 'status', 'teacher'
   ]
 
@@ -309,7 +337,7 @@ export async function parseSubjectImportExcel(
       }
       currentBlock = {
         firstRowIndex: rowNumber,
-        learningAreaRaw: rawVal || (currentBlock ? (currentBlock as any).learningAreaRaw : 'Unknown Subject'),
+        learningAreaRaw: rawVal || (currentBlock ? (currentBlock as any).learningAreaRaw : 'Unknown Item'),
         formType: detectedFormType,
         totalLearners: getCellValueAsNumber(row.getCell(colMap.learners)),
         advancing: colMap.advancing ? getCellValueAsNumber(row.getCell(colMap.advancing)) : 0,
@@ -385,16 +413,32 @@ export async function parseSubjectImportExcel(
   const rows: ParsedSubjectRow[] = blocks.map(b => {
     const raw = b.learningAreaRaw.trim()
     const lowerRaw = raw.toLowerCase()
-
-    const match =
-      learningAreas.find(la => la.name.trim().toLowerCase() === lowerRaw) ||
-      learningAreas.find(
-        la => lowerRaw.includes(la.name.trim().toLowerCase()) || la.name.trim().toLowerCase().includes(lowerRaw)
-      )
-
     const errors: string[] = []
-    if (!match) {
-      errors.push(`Learning Area "${raw}" not recognized. Please select from dropdown.`)
+
+    let learningAreaId: string | null = null
+    let gradeLevelId: string | null = null
+    let finalFormType = b.formType
+
+    if (mode === 'per_learning_area') {
+      const matchGrade = matchGradeLevel(raw, grades)
+      if (matchGrade) {
+        gradeLevelId = matchGrade.id
+        finalFormType = matchGrade.grade_number <= 3 ? 'ks1' : 'ks2to4'
+      } else {
+        errors.push(`Grade Level "${raw}" not recognized. Please select from dropdown.`)
+      }
+    } else {
+      const match =
+        learningAreas.find(la => la.name.trim().toLowerCase() === lowerRaw) ||
+        learningAreas.find(
+          la => lowerRaw.includes(la.name.trim().toLowerCase()) || la.name.trim().toLowerCase().includes(lowerRaw)
+        )
+
+      if (match) {
+        learningAreaId = match.id
+      } else {
+        errors.push(`Learning Area "${raw}" not recognized. Please select from dropdown.`)
+      }
     }
 
     const formattedFactors = b.instructionalFactors
@@ -407,9 +451,12 @@ export async function parseSubjectImportExcel(
 
     return {
       rowIndex: b.firstRowIndex,
-      learningAreaRaw: raw,
-      learningAreaId: match ? match.id : null,
-      formType: b.formType,
+      labelRaw: raw,
+      learningAreaRaw: mode === 'per_grade' ? raw : undefined,
+      learningAreaId,
+      gradeLevelRaw: mode === 'per_learning_area' ? raw : undefined,
+      gradeLevelId,
+      formType: finalFormType,
       totalLearners: b.totalLearners,
       advancing: b.advancing,
       benchmarking: b.benchmarking,
@@ -437,11 +484,13 @@ export async function parseSubjectImportExcel(
  * - Sheet 1: Key Stage 1 (KS1: Cols A–O)
  * - Sheet 2: Key Stages 2-4 (KS2-4: Cols A–K)
  */
-export async function downloadImportTemplate() {
+export async function downloadImportTemplate(mode: 'per_grade' | 'per_learning_area' = 'per_grade') {
   const ExcelJS = await getExcelJS()
   const wb = new ExcelJS.Workbook()
   wb.creator = 'TERMCAT System'
   wb.created = new Date()
+
+  const firstColTitle = mode === 'per_grade' ? 'Learning Area' : 'Grade Level'
 
   // ==========================================
   // SHEET 1: Key Stage 1 (KS1: Grades 1–3)
@@ -449,7 +498,7 @@ export async function downloadImportTemplate() {
   const ws1 = wb.addWorksheet('Key Stage 1 (KS1)')
 
   const ks1Headers = [
-    'Learning Area',
+    firstColTitle,
     'Total Number of Learners',
     'Number of Learners Reaching the "Advancing" (Namumukod-tangi) Level',
     'Number of Learners Reaching the "Benchmarking" (Naipamalas) Level',
@@ -472,7 +521,7 @@ export async function downloadImportTemplate() {
   ks1HeaderRow.alignment = { wrapText: true, vertical: 'middle', horizontal: 'center' }
 
   const ks1Fills = [
-    { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFE2EFDA' } }, // A: Learning Area
+    { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFE2EFDA' } }, // A: Learning Area / Grade Level
     { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFE2EFDA' } }, // B: Total Learners
     { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FF81C784' } }, // C: Advancing
     { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFF1C40F' } }, // D: Benchmarking
@@ -501,21 +550,21 @@ export async function downloadImportTemplate() {
   }
 
   ws1.columns = [
-    { width: 18 }, // A: Learning Area
-    { width: 14 }, // B: Total Learners
-    { width: 16 }, // C: Advancing
-    { width: 16 }, // D: Benchmarking
-    { width: 16 }, // E: Connecting
-    { width: 16 }, // F: Developing
-    { width: 16 }, // G: Emerging
-    { width: 16 }, // H: Intended
-    { width: 14 }, // I: Taught
-    { width: 14 }, // J: Not Taught
-    { width: 25 }, // K: Reasons Untaught
-    { width: 45 }, // L: Top 5 Most Learned
-    { width: 45 }, // M: Top 5 Least Mastered
-    { width: 45 }, // N: Top 5 Most Difficult
-    { width: 35 }, // O: Factors
+    { width: 18 },
+    { width: 14 },
+    { width: 16 },
+    { width: 16 },
+    { width: 16 },
+    { width: 16 },
+    { width: 16 },
+    { width: 16 },
+    { width: 14 },
+    { width: 14 },
+    { width: 25 },
+    { width: 45 },
+    { width: 45 },
+    { width: 45 },
+    { width: 35 },
   ]
 
   const addKS1Block = (
@@ -584,24 +633,15 @@ export async function downloadImportTemplate() {
     })
   }
 
-  // =========================================================
-  // ADD SAMPLE SUBJECT BLOCKS FOR SHEET 1: Key Stage 1 (KS1)
-  // =========================================================
+  // Sample Block Labels based on import mode
+  const ks1Block1Name = mode === 'per_grade' ? 'Mathematics' : 'Grade 1'
+  const ks1Block2Name = mode === 'per_grade' ? 'English' : 'Grade 2'
+  const ks1Block3Name = mode === 'per_grade' ? 'Makabansa' : 'Grade 3'
 
-  // Block 1: Mathematics (Grade 1–3)
   addKS1Block(
     2,
-    'Mathematics',
-    32,
-    6,
-    14,
-    8,
-    3,
-    1,
-    15,
-    15,
-    0,
-    '',
+    ks1Block1Name,
+    32, 6, 14, 8, 3, 1, 15, 15, 0, '',
     [
       '1. Reads and writes numbers up to 100 in symbols and in words',
       '2. Visualizes and gives the place value and value of a digit in one- to two-digit numbers',
@@ -632,19 +672,10 @@ export async function downloadImportTemplate() {
     ]
   )
 
-  // Block 2: English / Literacy (Grade 1–3)
   addKS1Block(
     7,
-    'English',
-    32,
-    5,
-    12,
-    9,
-    4,
-    2,
-    14,
-    12,
-    2,
+    ks1Block2Name,
+    32, 5, 12, 9, 4, 2, 14, 12, 2,
     'Suspension of classes due to typhoon disruption and weather advisories.',
     [
       '1. Recognizes rhyming words in nursery rhymes, poems, and chants listened to',
@@ -676,20 +707,10 @@ export async function downloadImportTemplate() {
     ]
   )
 
-  // Block 3: Makabansa / Araling Panlipunan (Grade 1–3)
   addKS1Block(
     12,
-    'Makabansa',
-    32,
-    8,
-    16,
-    6,
-    2,
-    0,
-    10,
-    10,
-    0,
-    '',
+    ks1Block3Name,
+    32, 8, 16, 6, 2, 0, 10, 10, 0, '',
     [
       '1. Nailalarawan ang sariling paaralan, kinaroroonan, at mga bahagi nito',
       '2. Natutukoy ang mga alituntunin at tungkulin ng bawat kasapi ng pamilya at paaralan',
@@ -726,7 +747,7 @@ export async function downloadImportTemplate() {
   const ws2 = wb.addWorksheet('Key Stages 2-4 (KS2-4)')
 
   const ks24Headers = [
-    'Learning Area',
+    firstColTitle,
     'Total Number of Learners',
     'MPS',
     'Total Number of Intended Competencies',
@@ -834,20 +855,14 @@ export async function downloadImportTemplate() {
     })
   }
 
-  // =========================================================
-  // ADD SAMPLE SUBJECT BLOCKS FOR SHEET 2: Key Stages 2-4 (KS2-4)
-  // =========================================================
+  const ks24Block1Name = mode === 'per_grade' ? 'Filipino' : 'Grade 4'
+  const ks24Block2Name = mode === 'per_grade' ? 'Science' : 'Grade 7'
+  const ks24Block3Name = mode === 'per_grade' ? 'Mathematics' : 'Grade 10'
 
-  // Block 1: Filipino (Grade 5 / Key Stage 2)
   addKS24Block(
     2,
-    'Filipino',
-    38,
-    86.45,
-    20,
-    20,
-    0,
-    '',
+    ks24Block1Name,
+    38, 86.45, 20, 20, 0, '',
     [
       "1. Nasasagot ang mga tanong sa nabasa o napakinggang kuwento, tekstong pang-impormasyon, at balita",
       "2. Nagagamit nang wasto ang mga pangngalan at panghalip sa pagtalakay tungkol sa sarili at ibang tao",
@@ -878,15 +893,10 @@ export async function downloadImportTemplate() {
     ]
   )
 
-  // Block 2: Science (Grade 6 / Key Stage 2)
   addKS24Block(
     7,
-    'Science',
-    38,
-    82.10,
-    18,
-    17,
-    1,
+    ks24Block2Name,
+    38, 82.10, 18, 17, 1,
     'Interruption of regular classes due to regional athletic meets and school-wide activities.',
     [
       '1. Describe the appearance and uses of uniform and non-uniform mixtures',
@@ -918,16 +928,10 @@ export async function downloadImportTemplate() {
     ]
   )
 
-  // Block 3: Mathematics (Grade 8 / Key Stage 3)
   addKS24Block(
     12,
-    'Mathematics',
-    45,
-    79.50,
-    22,
-    22,
-    0,
-    '',
+    ks24Block3Name,
+    45, 79.50, 22, 22, 0, '',
     [
       '1. Factors completely different types of polynomials (common monomial factor, difference of two squares)',
       '2. Illustrates linear equations in two variables and finds the slope of a line given two points',
@@ -963,7 +967,7 @@ export async function downloadImportTemplate() {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `TERMCAT_Subject_Import_Template.xlsx`
+  a.download = mode === 'per_learning_area' ? 'TERMCAT_Import_Template_Per_Learning_Area.xlsx' : 'TERMCAT_Import_Template_Per_Grade.xlsx'
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)

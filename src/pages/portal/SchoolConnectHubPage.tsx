@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { DepEdPageLoader } from '@/components/ui/DepEdSpinner'
+
 import {
   Grid,
   Users,
@@ -37,7 +37,11 @@ import {
   School as SchoolIcon,
   Briefcase,
   UserCheck,
-  AlertTriangle
+  AlertTriangle,
+  Bookmark,
+  Layers,
+  Network,
+  ExternalLink
 } from 'lucide-react'
 import { useAuth } from '@/features/auth/useAuth'
 import { useToast } from '@/hooks/useToast'
@@ -1231,67 +1235,58 @@ export function SchoolConnectHubPage() {
               </div>
 
               {/* Systems Grid */}
-              {loadingData ? (
-                <div className="py-12 bg-white/80 rounded-[32px] border border-white">
-                  <DepEdPageLoader
-                    label="Loading School Connect Portal Hub..."
-                    subtitle="Fetching District Announcements, Tasks, and Calendar Events"
-                  />
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                  {filteredSystems.map((sys) => {
-                    const Icon = sys.icon
-                    const isActive = sys.enabled
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {filteredSystems.map((sys) => {
+                  const Icon = sys.icon
+                  const isActive = sys.enabled
 
-                    return (
-                      <div
-                        key={sys.id}
-                        onClick={() => handleLaunchSystem(sys)}
-                        className={`p-5 rounded-[28px] transition-all duration-300 flex items-center justify-between gap-4 group ${
+                  return (
+                    <div
+                      key={sys.id}
+                      onClick={() => handleLaunchSystem(sys)}
+                      className={`p-5 rounded-[28px] transition-all duration-300 flex items-center justify-between gap-4 group ${
+                        isActive
+                          ? 'bg-white shadow-[0_10px_25px_rgba(185,170,210,0.15)] border border-white/90 hover:shadow-lg hover:-translate-y-1 cursor-pointer'
+                          : 'bg-[#FAF5F0]/60 opacity-60 cursor-not-allowed border border-transparent'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border border-white ${
                           isActive
-                            ? 'bg-white shadow-[0_10px_25px_rgba(185,170,210,0.15)] border border-white/90 hover:shadow-lg hover:-translate-y-1 cursor-pointer'
-                            : 'bg-[#FAF5F0]/60 opacity-60 cursor-not-allowed border border-transparent'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3.5 min-w-0">
-                          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border border-white ${
-                            isActive
-                              ? 'bg-gradient-to-tr from-[#A88BEB] to-[#8B72F4] text-white shadow-md'
-                              : 'bg-slate-200 text-slate-400'
-                          }`}>
-                            <Icon className="w-6 h-6" />
-                          </div>
-
-                          <div className="min-w-0">
-                            <h4 className="text-sm font-black text-[#2D2638] truncate font-display group-hover:text-[#8B72F4] transition-colors">
-                              {sys.name}
-                            </h4>
-                            <p className="text-[11px] text-[#7A7289] truncate font-medium mt-0.5">
-                              {sys.description}
-                            </p>
-                          </div>
+                            ? 'bg-gradient-to-tr from-[#A88BEB] to-[#8B72F4] text-white shadow-md'
+                            : 'bg-slate-200 text-slate-400'
+                        }`}>
+                          <Icon className="w-6 h-6" />
                         </div>
 
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <span className={`text-[10px] font-extrabold px-3 py-1 rounded-full whitespace-nowrap ${
-                            isActive
-                              ? 'clay-badge-purple'
-                              : 'bg-slate-100 text-slate-500 border border-slate-200'
-                          }`}>
-                            {sys.badgeText || (isActive ? 'Active' : 'Soon')}
-                          </span>
-                          {isActive ? (
-                            <ChevronRight className="w-4 h-4 text-[#A39BAF] group-hover:text-[#8B72F4] transition-transform group-hover:translate-x-1" />
-                          ) : (
-                            <Lock className="w-3.5 h-3.5 text-[#A39BAF]" />
-                          )}
+                        <div className="min-w-0">
+                          <h4 className="text-sm font-black text-[#2D2638] truncate font-display group-hover:text-[#8B72F4] transition-colors">
+                            {sys.name}
+                          </h4>
+                          <p className="text-[11px] text-[#7A7289] truncate font-medium mt-0.5">
+                            {sys.description}
+                          </p>
                         </div>
                       </div>
-                    )
-                  })}
-                </div>
-              )}
+
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className={`text-[10px] font-extrabold px-3 py-1 rounded-full whitespace-nowrap ${
+                          isActive
+                            ? 'clay-badge-purple'
+                            : 'bg-slate-100 text-slate-500 border border-slate-200'
+                        }`}>
+                          {sys.badgeText || (isActive ? 'Active' : 'Soon')}
+                        </span>
+                        {isActive ? (
+                          <ChevronRight className="w-4 h-4 text-[#A39BAF] group-hover:text-[#8B72F4] transition-transform group-hover:translate-x-1" />
+                        ) : (
+                          <Lock className="w-3.5 h-3.5 text-[#A39BAF]" />
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
 
             {/* Global Governance & Master Data Section (Above Announcements & Events) */}
@@ -1351,24 +1346,24 @@ export function SchoolConnectHubPage() {
                         <Calendar className="w-5 h-5" />
                       </div>
                       <div className="min-w-0">
-                        <h4 className="text-xs font-black text-[#2D2638] group-hover:text-[#2563EB] truncate transition-colors">School Years</h4>
-                        <p className="text-[10px] text-[#7A7289] truncate font-semibold mt-0.5">Academic calendar years</p>
+                        <h4 className="text-xs font-black text-[#2D2638] group-hover:text-[#2563EB] truncate transition-colors">School Years & Terms</h4>
+                        <p className="text-[10px] text-[#7A7289] truncate font-semibold mt-0.5">Academic calendar & evaluation quarters</p>
                       </div>
                     </div>
                     <ChevronRight className="w-4 h-4 text-[#A39BAF] group-hover:text-[#2563EB] transition-transform group-hover:translate-x-1 flex-shrink-0" />
                   </Link>
 
                   <Link
-                    to="/admin/terms"
+                    to="/admin/sections"
                     className="p-4.5 rounded-[24px] bg-white/90 shadow-[0_8px_20px_rgba(185,170,210,0.12)] border-2 border-white hover:shadow-lg hover:-translate-y-0.5 transition-all flex items-center justify-between gap-3 group"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#FDE047] to-[#FACC15] text-[#713F12] flex items-center justify-center shrink-0 shadow-md border border-white">
-                        <Clock className="w-5 h-5" />
+                        <Bookmark className="w-5 h-5" />
                       </div>
                       <div className="min-w-0">
-                        <h4 className="text-xs font-black text-[#2D2638] group-hover:text-[#B45309] truncate transition-colors">Terms & Quarters</h4>
-                        <p className="text-[10px] text-[#7A7289] truncate font-semibold mt-0.5">Active evaluation terms</p>
+                        <h4 className="text-xs font-black text-[#2D2638] group-hover:text-[#B45309] truncate transition-colors">School Sections</h4>
+                        <p className="text-[10px] text-[#7A7289] truncate font-semibold mt-0.5">Manage sections per school & grade</p>
                       </div>
                     </div>
                     <ChevronRight className="w-4 h-4 text-[#A39BAF] group-hover:text-[#B45309] transition-transform group-hover:translate-x-1 flex-shrink-0" />
@@ -1397,6 +1392,30 @@ export function SchoolConnectHubPage() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Public View Org Chart Menu Item (Opens in New Tab) */}
+                  <a
+                    href="#/org-chart"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      window.open('/org-chart', '_blank')
+                    }}
+                    className="p-4.5 rounded-[24px] bg-white/90 shadow-[0_8px_20px_rgba(185,170,210,0.12)] border-2 border-white hover:shadow-lg hover:-translate-y-0.5 transition-all flex items-center justify-between gap-3 group cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#A88BEB] to-[#8B72F4] text-white flex items-center justify-center shrink-0 shadow-md border border-white">
+                        <Network className="w-5 h-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <h4 className="text-xs font-black text-[#2D2638] group-hover:text-[#8B72F4] truncate transition-colors">Org Chart</h4>
+                          <span className="px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 text-[9px] font-black border border-emerald-200">Public</span>
+                        </div>
+                        <p className="text-[10px] text-[#7A7289] truncate font-semibold mt-0.5">Faculty & staff ranking chart</p>
+                      </div>
+                    </div>
+                    <ExternalLink className="w-4 h-4 text-[#A39BAF] group-hover:text-[#8B72F4] transition-transform group-hover:translate-x-1 flex-shrink-0" />
+                  </a>
+
                   {isAdminUser ? (
                     <Link
                       to="/portal/staff"

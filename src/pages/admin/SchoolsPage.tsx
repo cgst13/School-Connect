@@ -120,8 +120,8 @@ function SchoolModal({ isOpen, school, onSave, onClose, isLoading }: SchoolModal
                 setOfferedGrades(newType === 'elementary' ? [0, 1, 2, 3, 4, 5, 6] : [7, 8, 9, 10, 11, 12])
               }}
             >
-              <option value="elementary">Elementary School</option>
-              <option value="secondary">Secondary School (High School / Senior High)</option>
+              <option value="elementary">Elementary (ES)</option>
+              <option value="secondary">Secondary (HS / High School)</option>
             </select>
           </div>
 
@@ -306,7 +306,7 @@ export function SchoolsPage() {
               <GraduationCap size={20} />
             </div>
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">Elementary</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">ES (Elementary)</span>
               <p className="text-lg font-black text-[#1F2937]">{elementaryCount}</p>
             </div>
           </div>
@@ -316,7 +316,7 @@ export function SchoolsPage() {
               <GraduationCap size={20} />
             </div>
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">Secondary</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">HS (High School)</span>
               <p className="text-lg font-black text-[#1F2937]">{secondaryCount}</p>
             </div>
           </div>
@@ -364,7 +364,7 @@ export function SchoolsPage() {
                   : 'bg-[#F8FAFC] text-[#64748B] hover:bg-[#EBF8FF]'
               }`}
             >
-              Elementary ({elementaryCount})
+              ES ({elementaryCount})
             </button>
             <button
               onClick={() => setSelectedTypeFilter('secondary')}
@@ -374,7 +374,7 @@ export function SchoolsPage() {
                   : 'bg-[#F8FAFC] text-[#64748B] hover:bg-[#F3E8FF]'
               }`}
             >
-              Secondary ({secondaryCount})
+              HS ({secondaryCount})
             </button>
           </div>
         </div>
@@ -424,11 +424,11 @@ export function SchoolsPage() {
                           <td className="py-4 px-6">
                             {school.school_type === 'elementary' ? (
                               <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-sky-100 text-sky-800 border border-sky-200">
-                                Elementary
+                                ES
                               </span>
                             ) : (
                               <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
-                                Secondary
+                                HS
                               </span>
                             )}
                           </td>

@@ -6,6 +6,7 @@ import type {
   LearningAreaGrade,
   SchoolYear,
   Term,
+  Section,
   LearningCompetency,
   TermcatSubmission,
   FullSubmissionFormData,
@@ -216,6 +217,7 @@ export async function fetchSubmissions(filters: Partial<SubmissionFilters> = {})
 }> {
   const {
     search,
+    teacher_name,
     school_year_id,
     term_id,
     school_id,
@@ -249,6 +251,7 @@ export async function fetchSubmissions(filters: Partial<SubmissionFilters> = {})
     )
 
   if (search) query = query.ilike('teacher_name', `%${search}%`)
+  if (teacher_name) query = query.ilike('teacher_name', `%${teacher_name}%`)
   if (school_year_id) query = query.eq('school_year_id', school_year_id)
   if (term_id) query = query.eq('term_id', term_id)
   if (school_id) {
@@ -283,6 +286,22 @@ export async function fetchSubmissions(filters: Partial<SubmissionFilters> = {})
   if (error) throw error
 
   return { data: (data || []) as TermcatSubmission[], count: count || 0 }
+}
+
+export async function fetchSubmitterTeacherNames(): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('termcat_submissions')
+    .select('teacher_name')
+    .not('teacher_name', 'is', null)
+
+  if (error || !data) return []
+  const names = new Set<string>()
+  data.forEach(item => {
+    if (item.teacher_name && item.teacher_name.trim()) {
+      names.add(item.teacher_name.trim())
+    }
+  })
+  return Array.from(names).sort((a, b) => a.localeCompare(b))
 }
 
 export async function fetchSubmissionById(id: string): Promise<TermcatSubmission | null> {
@@ -353,6 +372,30 @@ export async function fetchSubmissionsByTeacher(teacherName: string): Promise<Te
       instructional_difficulty:termcat_instructional_difficulty(*)
     `)
     .ilike('teacher_name', teacherName.trim())
+    .order('submitted_at', { ascending: false })
+
+  if (error) throw error
+  return data || []
+}
+
+export async function fetchSubmissionsBySchool(schoolId: string): Promise<TermcatSubmission[]> {
+  if (!schoolId || !schoolId.trim()) return []
+  const { data, error } = await supabase
+    .from('termcat_submissions')
+    .select(`
+      *,
+      school:sc_schools(*),
+      grade_level:sc_grade_levels(*),
+      learning_area:sc_learning_areas(*),
+      school_year:sc_school_years(*),
+      term:sc_terms(*),
+      ks1_learner_data:termcat_ks1_learner_data(*),
+      ks2to4_learner_data:termcat_ks2to4_learner_data(*),
+      competency_summary:termcat_competency_summary(*),
+      submission_competencies:termcat_submission_competencies(*),
+      instructional_difficulty:termcat_instructional_difficulty(*)
+    `)
+    .eq('school_id', schoolId.trim())
     .order('submitted_at', { ascending: false })
 
   if (error) throw error
@@ -824,8 +867,10 @@ const isTableMissingError = (err: any, tableName: string) => {
 const isColumnMissingError = (err: any) => {
   if (!err) return false
   const msg = (err.message || '').toLowerCase()
-  if (err.code === 'PGRST204' && msg.includes('column')) return true
-  if (msg.includes('column') && (msg.includes('does not exist') || msg.includes('schema cache'))) return true
+  const code = (err.code || '').toUpperCase()
+  if (code === 'PGRST204' || code === '42703' || code === 'PGRST200') return true
+  if (msg.includes('column') && (msg.includes('does not exist') || msg.includes('schema cache') || msg.includes('could not find'))) return true
+  if (err.status === 400 && (msg.includes('column') || msg.includes('schema cache') || msg.includes('could not find'))) return true
   return false
 }
 
@@ -863,7 +908,15 @@ export async function execWithRetry<T>(fn: () => Promise<T>, retries = 2, delayM
   }
 }
 
-export async function fetchSchools(activeOnly = true): Promise<School[]> {
+let cachedSchoolsStore: { data: School[]; timestamp: number } | null = null
+let cachedGradesStore: { data: GradeLevel[]; timestamp: number } | null = null
+let cachedLAStore: { data: LearningArea[]; timestamp: number } | null = null
+let cachedLAGStore: { data: LearningAreaGrade[]; timestamp: number } | null = null
+
+export async function fetchSchools(activeOnly = true, forceRefresh = false): Promise<School[]> {
+  if (!forceRefresh && cachedSchoolsStore && (Date.now() - cachedSchoolsStore.timestamp < 300000)) {
+    return activeOnly ? cachedSchoolsStore.data.filter(s => s.is_active) : cachedSchoolsStore.data
+  }
   return execWithRetry(async () => {
     let query = supabase.from('sc_schools').select('*').order('school_type').order('name')
     if (activeOnly) query = query.eq('is_active', true)
@@ -878,11 +931,19 @@ export async function fetchSchools(activeOnly = true): Promise<School[]> {
     }
 
     if (error) throw error
-    return data || []
+    const result = data || []
+    if (!activeOnly) {
+      cachedSchoolsStore = { data: result, timestamp: Date.now() }
+    }
+    return result
   })
 }
 
-export async function fetchGradeLevels(schoolType?: string): Promise<GradeLevel[]> {
+export async function fetchGradeLevels(schoolType?: string, forceRefresh = false): Promise<GradeLevel[]> {
+  if (!forceRefresh && cachedGradesStore && (Date.now() - cachedGradesStore.timestamp < 300000)) {
+    const list = cachedGradesStore.data
+    return schoolType ? list.filter(g => g.school_type === schoolType) : list
+  }
   return execWithRetry(async () => {
     let query = supabase.from('sc_grade_levels').select('*').eq('is_active', true).order('grade_number')
     if (schoolType) query = query.eq('school_type', schoolType)
@@ -897,11 +958,18 @@ export async function fetchGradeLevels(schoolType?: string): Promise<GradeLevel[
     }
 
     if (error) throw error
-    return data || []
+    const result = data || []
+    if (!schoolType) {
+      cachedGradesStore = { data: result, timestamp: Date.now() }
+    }
+    return result
   })
 }
 
-export async function fetchLearningAreas(activeOnly = true): Promise<LearningArea[]> {
+export async function fetchLearningAreas(activeOnly = true, forceRefresh = false): Promise<LearningArea[]> {
+  if (!forceRefresh && cachedLAStore && (Date.now() - cachedLAStore.timestamp < 300000)) {
+    return activeOnly ? cachedLAStore.data.filter(la => la.is_active) : cachedLAStore.data
+  }
   return execWithRetry(async () => {
     let query = supabase.from('sc_learning_areas').select('*').order('name')
     if (activeOnly) query = query.eq('is_active', true)
@@ -916,11 +984,18 @@ export async function fetchLearningAreas(activeOnly = true): Promise<LearningAre
     }
 
     if (error) throw error
-    return data || []
+    const result = data || []
+    if (!activeOnly) {
+      cachedLAStore = { data: result, timestamp: Date.now() }
+    }
+    return result
   })
 }
 
-export async function fetchLearningAreaGrades(): Promise<LearningAreaGrade[]> {
+export async function fetchLearningAreaGrades(forceRefresh = false): Promise<LearningAreaGrade[]> {
+  if (!forceRefresh && cachedLAGStore && (Date.now() - cachedLAGStore.timestamp < 300000)) {
+    return cachedLAGStore.data
+  }
   return execWithRetry(async () => {
     let { data, error } = await supabase.from('sc_learning_area_grades').select('*')
     if (isTableMissingError(error, 'sc_learning_area_grades')) {
@@ -929,7 +1004,9 @@ export async function fetchLearningAreaGrades(): Promise<LearningAreaGrade[]> {
       error = res.error
     }
     if (error) throw error
-    return data || []
+    const result = data || []
+    cachedLAGStore = { data: result, timestamp: Date.now() }
+    return result
   })
 }
 
@@ -1007,23 +1084,37 @@ export async function fetchAdminProfile(userId: string): Promise<AdminProfile | 
   return null
 }
 
-export async function fetchAllAdmins(): Promise<AdminProfile[]> {
-  let { data, error } = await supabase
-    .from('sc_admin_profiles')
-    .select('*')
-    .order('full_name')
+let cachedAdminsStore: { data: AdminProfile[]; timestamp: number } | null = null
 
-  if (isTableMissingError(error, 'sc_admin_profiles')) {
-    const res = await supabase.from('termcat_admin_profiles').select('*').order('full_name')
-    data = res.data
-    error = res.error
+export function clearAdminProfilesCache() {
+  cachedAdminsStore = null
+}
+
+export async function fetchAllAdmins(forceRefresh = false): Promise<AdminProfile[]> {
+  if (!forceRefresh && cachedAdminsStore && (Date.now() - cachedAdminsStore.timestamp < 120000)) {
+    return cachedAdminsStore.data
   }
 
-  if (error) {
-    console.error('Failed to fetch admin profiles:', error)
-    return []
-  }
-  return (data || []) as AdminProfile[]
+  return execWithRetry(async () => {
+    let { data, error } = await supabase
+      .from('sc_admin_profiles')
+      .select('*')
+      .order('full_name')
+
+    if (isTableMissingError(error, 'sc_admin_profiles')) {
+      const res = await supabase.from('termcat_admin_profiles').select('*').order('full_name')
+      data = res.data
+      error = res.error
+    }
+
+    if (error) {
+      console.error('Failed to fetch admin profiles:', error)
+      return cachedAdminsStore?.data || []
+    }
+    const result = (data || []) as AdminProfile[]
+    cachedAdminsStore = { data: result, timestamp: Date.now() }
+    return result
+  })
 }
 
 export const fetchStaffProfiles = fetchAllAdmins
@@ -1149,6 +1240,14 @@ export async function upsertStaffProfile(profile: Partial<AdminProfile>): Promis
     ? profile.assigned_grade_ids
     : (existing?.assigned_grade_ids || [])
 
+  const assignedSubjectIds = profile.assigned_subject_ids !== undefined
+    ? profile.assigned_subject_ids
+    : (existing?.assigned_subject_ids || [])
+
+  const assignedGradeSubjectIds = profile.assigned_grade_subject_ids !== undefined
+    ? profile.assigned_grade_subject_ids
+    : (existing?.assigned_grade_subject_ids || {})
+
   const teacherCategory = profile.teacher_category !== undefined
     ? profile.teacher_category
     : existing?.teacher_category
@@ -1176,6 +1275,8 @@ export async function upsertStaffProfile(profile: Partial<AdminProfile>): Promis
     teacher_category: teacherCategory,
     assigned_school_ids: assignedSchoolIds,
     assigned_grade_ids: assignedGradeIds,
+    assigned_subject_ids: assignedSubjectIds,
+    assigned_grade_subject_ids: assignedGradeSubjectIds,
     school_sessions: schoolSessions,
     working_hours_preset: workingHoursPreset,
     district_name: districtName,
@@ -1184,6 +1285,8 @@ export async function upsertStaffProfile(profile: Partial<AdminProfile>): Promis
   }
 
   const fullPayload = cleanPayload(newProfile)
+
+  clearAdminProfilesCache()
 
   // 1. Primary Attempt: sc_admin_profiles with full payload
   try {
@@ -1194,29 +1297,46 @@ export async function upsertStaffProfile(profile: Partial<AdminProfile>): Promis
       .single()
     if (!error && data) return data as AdminProfile
 
-    // If column like school_sessions or last_seen_at is missing in DB schema, retry without it
+    // If schema cache/column mismatch error occurs, strip new columns and retry
     if (error && isColumnMissingError(error)) {
-      const payloadWithoutSessions = { ...fullPayload }
-      delete payloadWithoutSessions.school_sessions
-      delete payloadWithoutSessions.last_seen_at
+      const fallbackPayload = { ...fullPayload }
+      delete fallbackPayload.assigned_subject_ids
+      delete fallbackPayload.assigned_grade_subject_ids
+      delete fallbackPayload.school_sessions
+      delete fallbackPayload.working_hours_preset
+      delete fallbackPayload.last_seen_at
 
       const retry1 = await supabase
         .from('sc_admin_profiles')
-        .upsert(payloadWithoutSessions)
+        .upsert(fallbackPayload)
         .select()
         .single()
       if (!retry1.error && retry1.data) return { ...retry1.data, ...newProfile } as AdminProfile
+
+      if (retry1.error && isColumnMissingError(retry1.error)) {
+        delete fallbackPayload.teacher_category
+        delete fallbackPayload.assigned_grade_ids
+        delete fallbackPayload.assigned_school_ids
+        delete fallbackPayload.district_name
+
+        const retry1b = await supabase
+          .from('sc_admin_profiles')
+          .upsert(fallbackPayload)
+          .select()
+          .single()
+        if (!retry1b.error && retry1b.data) return { ...retry1b.data, ...newProfile } as AdminProfile
+      }
     }
   } catch {}
 
   // 2. Secondary Attempt: sc_admin_profiles with schema-safe base payload
   try {
-    const legacyRole = (newProfile.role === 'admin' || newProfile.role === 'superadmin') ? newProfile.role : 'admin'
+    const baseRole = newProfile.role || 'teacher'
     const basePayload: Record<string, any> = {
       id: newProfile.id,
       email: newProfile.email,
       full_name: newProfile.full_name,
-      role: legacyRole,
+      role: baseRole,
       is_active: newProfile.is_active,
       updated_at: newProfile.updated_at,
     }
@@ -1266,6 +1386,7 @@ export async function upsertStaffProfile(profile: Partial<AdminProfile>): Promis
 }
 
 export async function deleteStaffProfile(staffId: string): Promise<void> {
+  clearAdminProfilesCache()
   // Nullify foreign key references in termcat_submissions & sc_audit_log to avoid 409 FK conflict
   try {
     await Promise.all([
@@ -2416,5 +2537,108 @@ export async function importBudgetOfWorkToSupabase(
 export async function clearBudgetOfWorkSupabase(): Promise<void> {
   const { error } = await supabase.from('sc_budget_of_work').delete().gte('grade_number', 1)
   if (error) throw error
+}
+
+// --- SECTIONS MASTER DATA QUERIES ---
+
+const LOCAL_SECTIONS_KEY = 'schoolconnect_local_sections'
+
+export async function fetchSections(schoolId?: string, gradeId?: string): Promise<Section[]> {
+  try {
+    let query = supabase.from('sc_sections').select('*').order('name', { ascending: true })
+    if (schoolId && schoolId !== 'all') query = query.eq('school_id', schoolId)
+    if (gradeId && gradeId !== 'all') query = query.eq('grade_level_id', gradeId)
+
+    const { data, error } = await query
+    if (error) {
+      if (error.code === '42P01' || error.message?.includes('relation "sc_sections" does not exist')) {
+        console.warn('Table sc_sections does not exist in Supabase yet. Using local cache fallback.')
+        const raw = localStorage.getItem(LOCAL_SECTIONS_KEY)
+        let list: Section[] = raw ? JSON.parse(raw) : []
+        if (schoolId && schoolId !== 'all') list = list.filter(s => s.school_id === schoolId)
+        if (gradeId && gradeId !== 'all') list = list.filter(s => s.grade_level_id === gradeId)
+        return list
+      }
+      throw error
+    }
+    return (data || []) as Section[]
+  } catch (err) {
+    console.warn('Fallback fetching sections from local cache due to error:', err)
+    const raw = localStorage.getItem(LOCAL_SECTIONS_KEY)
+    let list: Section[] = raw ? JSON.parse(raw) : []
+    if (schoolId && schoolId !== 'all') list = list.filter(s => s.school_id === schoolId)
+    if (gradeId && gradeId !== 'all') list = list.filter(s => s.grade_level_id === gradeId)
+    return list
+  }
+}
+
+export async function upsertSection(payload: Partial<Section>): Promise<Section> {
+  const sectionData: Partial<Section> = {
+    ...payload,
+    id: payload.id || crypto.randomUUID(),
+    updated_at: new Date().toISOString(),
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('sc_sections')
+      .upsert(sectionData)
+      .select('*')
+      .single()
+
+    if (error) {
+      if (error.code === '42P01' || error.message?.includes('relation "sc_sections" does not exist')) {
+        console.warn('Table sc_sections does not exist in Supabase yet. Saving to local cache.')
+        const raw = localStorage.getItem(LOCAL_SECTIONS_KEY)
+        const list: Section[] = raw ? JSON.parse(raw) : []
+        const existingIdx = list.findIndex(s => s.id === sectionData.id)
+        if (existingIdx >= 0) {
+          list[existingIdx] = { ...list[existingIdx], ...sectionData } as Section
+        } else {
+          list.push({ ...sectionData, created_at: new Date().toISOString() } as Section)
+        }
+        localStorage.setItem(LOCAL_SECTIONS_KEY, JSON.stringify(list))
+        return (sectionData as Section)
+      }
+      throw error
+    }
+    return data as Section
+  } catch (err) {
+    console.warn('Saving section to local cache due to Supabase error:', err)
+    const raw = localStorage.getItem(LOCAL_SECTIONS_KEY)
+    const list: Section[] = raw ? JSON.parse(raw) : []
+    const existingIdx = list.findIndex(s => s.id === sectionData.id)
+    if (existingIdx >= 0) {
+      list[existingIdx] = { ...list[existingIdx], ...sectionData } as Section
+    } else {
+      list.push({ ...sectionData, created_at: new Date().toISOString() } as Section)
+    }
+    localStorage.setItem(LOCAL_SECTIONS_KEY, JSON.stringify(list))
+    return (sectionData as Section)
+  }
+}
+
+export async function deleteSection(sectionId: string): Promise<void> {
+  try {
+    const { error } = await supabase.from('sc_sections').delete().eq('id', sectionId)
+    if (error) {
+      if (error.code === '42P01' || error.message?.includes('relation "sc_sections" does not exist')) {
+        const raw = localStorage.getItem(LOCAL_SECTIONS_KEY)
+        if (raw) {
+          const list: Section[] = JSON.parse(raw)
+          localStorage.setItem(LOCAL_SECTIONS_KEY, JSON.stringify(list.filter(s => s.id !== sectionId)))
+        }
+        return
+      }
+      throw error
+    }
+  } catch (err) {
+    console.warn('Deleting section from local cache:', err)
+    const raw = localStorage.getItem(LOCAL_SECTIONS_KEY)
+    if (raw) {
+      const list: Section[] = JSON.parse(raw)
+      localStorage.setItem(LOCAL_SECTIONS_KEY, JSON.stringify(list.filter(s => s.id !== sectionId)))
+    }
+  }
 }
 

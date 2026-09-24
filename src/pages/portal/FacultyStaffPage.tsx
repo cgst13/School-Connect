@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { SchoolConnectLayout } from '@/components/layouts/SchoolConnectLayout'
 import { DepEdSpinner } from '@/components/ui/DepEdSpinner'
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog'
@@ -30,14 +30,17 @@ import {
   Network,
   Crown,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   Globe,
-  Clock
+  Clock,
+  BookOpen,
+  CheckSquare
 } from 'lucide-react'
-import { fetchSchools, fetchGradeLevels, fetchAllAdmins, upsertStaffProfile, deleteStaffProfile, insertAuditLog } from '@/lib/supabase/queries'
+import { fetchSchools, fetchGradeLevels, fetchLearningAreas, fetchLearningAreaGrades, fetchAllAdmins, upsertStaffProfile, deleteStaffProfile, insertAuditLog } from '@/lib/supabase/queries'
 import { useAuth } from '@/features/auth/useAuth'
 import { useToast } from '@/hooks/useToast'
-import type { School, GradeLevel, AdminProfile, UserRole, TeacherCategory } from '@/types'
+import type { School, GradeLevel, LearningArea, LearningAreaGrade, AdminProfile, UserRole, TeacherCategory } from '@/types'
 import { format } from 'date-fns'
 import { captureGenieOrigin, useGenieModal } from '@/utils/genieAnimation'
 
@@ -48,6 +51,10 @@ export function FacultyStaffPage() {
   const [staffList, setStaffList] = useState<AdminProfile[]>([])
   const [schools, setSchools] = useState<School[]>([])
   const [grades, setGrades] = useState<GradeLevel[]>([])
+  const [learningAreas, setLearningAreas] = useState<LearningArea[]>([])
+  const [learningAreaGrades, setLearningAreaGrades] = useState<LearningAreaGrade[]>([])
+  const [assignedSubjectIds, setAssignedSubjectIds] = useState<string[]>([])
+  const [assignedGradeSubjectIds, setAssignedGradeSubjectIds] = useState<Record<string, string[]>>({})
   const [loading, setLoading] = useState(true)
 
   // Filter & Search & Org Chart Sidebar states
@@ -57,6 +64,24 @@ export function FacultyStaffPage() {
   const [onlineStatusFilter, setOnlineStatusFilter] = useState<'all' | 'online' | 'offline'>('all')
   const [expandedSchoolIds, setExpandedSchoolIds] = useState<Record<string, boolean>>({})
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({})
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState<number>(1)
+  const [itemsPerPage, setItemsPerPage] = useState<number>(10)
+
+  // Reset page to 1 when filters or items per page change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, selectedRoleFilter, selectedSchoolFilter, onlineStatusFilter, itemsPerPage])
+
+  // Detail Modal State (row click)
+  const [selectedStaffDetail, setSelectedStaffDetail] = useState<AdminProfile | null>(null)
+  const {
+    shouldRender: shouldRenderDetailModal,
+    triggerClose: closeDetailModal,
+    containerClass: detailModalContainerClass,
+    backdropClass: detailModalBackdropClass
+  } = useGenieModal(!!selectedStaffDetail, () => setSelectedStaffDetail(null))
 
   // Modal State for Add / Edit
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -89,17 +114,23 @@ export function FacultyStaffPage() {
   const [aoScope, setAoScope] = useState<'district' | 'school' | 'both'>('school')
   const [isActive, setIsActive] = useState(true)
 
-  const loadData = async () => {
-    setLoading(true)
+  const loadData = async (forceRefresh = false) => {
+    if (!staffList.length) {
+      setLoading(true)
+    }
     try {
-      const [sList, schList, gList] = await Promise.all([
-        fetchAllAdmins(),
-        fetchSchools(true),
-        fetchGradeLevels(),
+      const [sList, schList, gList, laList, lagList] = await Promise.all([
+        fetchAllAdmins(forceRefresh),
+        fetchSchools(true, forceRefresh),
+        fetchGradeLevels(undefined, forceRefresh),
+        fetchLearningAreas(false, forceRefresh),
+        fetchLearningAreaGrades(forceRefresh),
       ])
       setStaffList(sList)
       setSchools(schList)
       setGrades(gList)
+      setLearningAreas(laList)
+      setLearningAreaGrades(lagList)
     } catch (err) {
       console.error('Failed to load faculty & staff data:', err)
       toast('Failed to load staff list.', 'error')
@@ -133,6 +164,8 @@ export function FacultyStaffPage() {
     setTeacherCategory('grade_1_6')
     setAssignedSchoolIds([])
     setAssignedGradeIds([])
+    setAssignedSubjectIds([])
+    setAssignedGradeSubjectIds({})
     setSchoolSessions({})
     setWorkingHoursPreset('option_1')
     setAoScope('school')
@@ -164,6 +197,8 @@ export function FacultyStaffPage() {
     setTeacherCategory(staff.teacher_category || 'grade_1_6')
     setAssignedSchoolIds(staff.assigned_school_ids || [])
     setAssignedGradeIds(staff.assigned_grade_ids || [])
+    setAssignedSubjectIds(staff.assigned_subject_ids || [])
+    setAssignedGradeSubjectIds(staff.assigned_grade_subject_ids || {})
     setSchoolSessions(staff.school_sessions || {})
     setWorkingHoursPreset(staff.working_hours_preset || 'option_1')
     setIsActive(staff.is_active)
@@ -196,9 +231,118 @@ export function FacultyStaffPage() {
 
   // Toggle grade checkbox
   const toggleGradeSelection = (gradeId: string) => {
-    setAssignedGradeIds(prev =>
-      prev.includes(gradeId) ? prev.filter(id => id !== gradeId) : [...prev, gradeId]
+    setAssignedGradeIds(prev => {
+      const isRemoving = prev.includes(gradeId)
+      const nextGrades = isRemoving ? prev.filter(id => id !== gradeId) : [...prev, gradeId]
+
+      if (isRemoving) {
+        setAssignedGradeSubjectIds(prevSubj => {
+          const copy = { ...prevSubj }
+          delete copy[gradeId]
+          const allAssigned = new Set<string>()
+          Object.values(copy).forEach(ids => ids.forEach(id => allAssigned.add(id)))
+          setAssignedSubjectIds(Array.from(allAssigned))
+          return copy
+        })
+      }
+      return nextGrades
+    })
+  }
+
+  const getLearningAreasForGrade = (gradeId: string) => {
+    const mappedIds = new Set(
+      learningAreaGrades
+        .filter(lag => lag.grade_level_id === gradeId)
+        .map(lag => lag.learning_area_id)
     )
+    if (mappedIds.size > 0) {
+      return learningAreas.filter(la => mappedIds.has(la.id))
+    }
+    return learningAreas
+  }
+
+  // Check if specific subject for a grade at a school is already assigned to another teacher
+  const getOtherTeacherAssignedToSubject = (schoolId: string, gradeId: string, subjectId: string) => {
+    if (!schoolId || !gradeId || !subjectId) return null
+
+    return staffList.find(s => {
+      if (editingStaff && s.id === editingStaff.id) return false
+      if (s.role !== 'teacher') return false
+      if (s.is_active === false) return false
+
+      const isSchoolMatch = s.assigned_school_ids?.includes(schoolId)
+      if (!isSchoolMatch) return false
+
+      const isGradeMatch = s.assigned_grade_ids?.includes(gradeId)
+      if (!isGradeMatch) return false
+
+      if (s.assigned_grade_subject_ids && s.assigned_grade_subject_ids[gradeId]) {
+        return s.assigned_grade_subject_ids[gradeId].includes(subjectId)
+      }
+
+      return s.assigned_subject_ids?.includes(subjectId)
+    }) || null
+  }
+
+  const toggleSubjectForGrade = (gradeId: string, subjectId: string) => {
+    const currentSchoolId = assignedSchoolIds[0]
+    if (currentSchoolId) {
+      const otherTeacher = getOtherTeacherAssignedToSubject(currentSchoolId, gradeId, subjectId)
+      if (otherTeacher) {
+        toast(`This subject is already assigned to ${otherTeacher.full_name} for this grade level.`, 'warning')
+        return
+      }
+    }
+
+    setAssignedGradeSubjectIds(prev => {
+      const current = prev[gradeId] || []
+      const updatedForGrade = current.includes(subjectId)
+        ? current.filter(id => id !== subjectId)
+        : [...current, subjectId]
+      
+      const nextGradeSubjectMap = {
+        ...prev,
+        [gradeId]: updatedForGrade,
+      }
+
+      const allAssigned = new Set<string>()
+      Object.values(nextGradeSubjectMap).forEach(ids => {
+        ids.forEach(id => allAssigned.add(id))
+      })
+      setAssignedSubjectIds(Array.from(allAssigned))
+
+      return nextGradeSubjectMap
+    })
+  }
+
+  const toggleAllSubjectsForGrade = (gradeId: string, availableLAs: LearningArea[]) => {
+    const currentSchoolId = assignedSchoolIds[0]
+    const assignableLAs = availableLAs.filter(la => {
+      if (!currentSchoolId) return true
+      const otherTeacher = getOtherTeacherAssignedToSubject(currentSchoolId, gradeId, la.id)
+      return !otherTeacher
+    })
+
+    setAssignedGradeSubjectIds(prev => {
+      const current = prev[gradeId] || []
+      const assignableIds = assignableLAs.map(la => la.id)
+      const allSelected = assignableIds.length > 0 && assignableIds.every(id => current.includes(id))
+
+      const updatedForGrade = allSelected ? [] : Array.from(new Set([...current, ...assignableIds]))
+
+      const nextGradeSubjectMap = {
+        ...prev,
+        [gradeId]: updatedForGrade,
+      }
+
+      const allAssigned = new Set<string>()
+      Object.values(nextGradeSubjectMap).forEach(ids => {
+        ids.forEach(id => allAssigned.add(id))
+      })
+      setAssignedSubjectIds(Array.from(allAssigned))
+
+      return nextGradeSubjectMap
+    })
   }
 
   // Toggle password visibility
@@ -248,14 +392,15 @@ export function FacultyStaffPage() {
       return
     }
 
-    if (role === 'teacher' && teacherCategory === 'kindergarten' && assignedSchoolIds.length === 0) {
-      toast('Please select at least one school for the Kindergarten teacher.', 'warning')
-      return
-    }
-
-    if (role === 'teacher' && teacherCategory === 'grade_1_6' && assignedGradeIds.length === 0) {
-      toast('Please select at least one grade level for the Grade 1-6 teacher.', 'warning')
-      return
+    if (role === 'teacher') {
+      if (assignedSchoolIds.length === 0) {
+        toast('Please select a school for the teacher first.', 'warning')
+        return
+      }
+      if (teacherCategory !== 'kindergarten' && assignedGradeIds.length === 0) {
+        toast('Please select at least one grade level for the teacher.', 'warning')
+        return
+      }
     }
 
     if (role === 'ao_2') {
@@ -300,7 +445,9 @@ export function FacultyStaffPage() {
         avatar_url: avatarUrl.trim() || undefined,
         teacher_category: role === 'teacher' ? teacherCategory : undefined,
         assigned_school_ids: finalSchoolIds,
-        assigned_grade_ids: role === 'teacher' && teacherCategory === 'grade_1_6' ? assignedGradeIds : [],
+        assigned_grade_ids: role === 'teacher' && teacherCategory !== 'kindergarten' ? assignedGradeIds : [],
+        assigned_subject_ids: role === 'teacher' ? assignedSubjectIds : [],
+        assigned_grade_subject_ids: role === 'teacher' ? assignedGradeSubjectIds : {},
         school_sessions: schoolSessions,
         working_hours_preset: workingHoursPreset,
         district_name: finalDistrictName,
@@ -361,46 +508,125 @@ export function FacultyStaffPage() {
     }
   }
 
-  // Helper: Determine if staff member is currently online
-  const isStaffOnline = (s: AdminProfile) => {
-    if (admin && s.id === admin.id) return true
+  // Track internet network connectivity (navigator.onLine)
+  const [isNetworkOnline, setIsNetworkOnline] = useState<boolean>(
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  )
+
+  useEffect(() => {
+    const handleOnline = () => setIsNetworkOnline(true)
+    const handleOffline = () => setIsNetworkOnline(false)
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
+  // Helper: Determine if staff member is currently online and connected to internet
+  const isStaffOnline = useCallback((s: AdminProfile) => {
+    // Must be connected to the internet
+    if (!isNetworkOnline) return false
+
+    // Account must be active
+    if (s.is_active === false) return false
+
+    // Currently logged in active user session
+    if (admin && (s.id === admin.id || (s.email && admin.email && s.email.toLowerCase() === admin.email.toLowerCase()))) {
+      return true
+    }
+
+    // Other user with active heartbeat timestamp within the last 2 minutes
     if (s.last_seen_at) {
       const diff = Date.now() - new Date(s.last_seen_at).getTime()
-      return diff < 10 * 60 * 1000
+      return diff >= 0 && diff < 2 * 60 * 1000
     }
-    // Demo mode: active administrators and recent accounts show as active online
-    return s.is_active && (s.role === 'admin' || s.role === 'superadmin' || s.role === 'psds' || s.email.includes('shelly') || s.email.includes('admin'))
-  }
 
-  const onlineCount = staffList.filter(s => isStaffOnline(s)).length
-  const offlineCount = staffList.length - onlineCount
+    return false
+  }, [admin, isNetworkOnline])
 
-  // Filtered staff list
-  const filteredStaff = staffList.filter(s => {
-    const matchesSearch =
-      s.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.email.toLowerCase().includes(searchQuery.toLowerCase())
+  const { onlineCount, offlineCount } = useMemo(() => {
+    let online = 0
+    staffList.forEach(s => {
+      if (isStaffOnline(s)) online++
+    })
+    return { onlineCount: online, offlineCount: staffList.length - online }
+  }, [staffList, isStaffOnline])
 
-    const matchesRole =
-      selectedRoleFilter === 'all' ||
-      (selectedRoleFilter === 'ao_2' &&
-        (s.role === 'ao_2' || (s.role === 'admin' && s.assigned_school_ids && s.assigned_school_ids.length > 0))) ||
-      (selectedRoleFilter === 'admin' &&
-        (s.role === 'admin' || s.role === 'superadmin' || (s.role === 'ao_2' && !!s.district_name))) ||
-      s.role === selectedRoleFilter
+  // Fast hash lookup maps
+  const schoolMap = useMemo(() => {
+    const map = new Map<string, School>()
+    schools.forEach(s => map.set(s.id, s))
+    return map
+  }, [schools])
 
-    const matchesSchool = !selectedSchoolFilter ||
-      s.role === 'psds' ||
-      s.assigned_school_ids?.includes(selectedSchoolFilter)
+  const gradeMap = useMemo(() => {
+    const map = new Map<string, GradeLevel>()
+    grades.forEach(g => map.set(g.id, g))
+    return map
+  }, [grades])
 
-    const isOnline = isStaffOnline(s)
-    const matchesOnline =
-      onlineStatusFilter === 'all' ||
-      (onlineStatusFilter === 'online' && isOnline) ||
-      (onlineStatusFilter === 'offline' && !isOnline)
+  const laMap = useMemo(() => {
+    const map = new Map<string, LearningArea>()
+    learningAreas.forEach(la => map.set(la.id, la))
+    return map
+  }, [learningAreas])
 
-    return matchesSearch && matchesRole && matchesSchool && matchesOnline
-  })
+  // Pre-computed Org Chart tree data per school
+  const schoolStaffTree = useMemo(() => {
+    return schools.map(school => {
+      const schoolStaff = staffList.filter(s => s.assigned_school_ids?.includes(school.id))
+      const schoolHeads = schoolStaff.filter(s => s.role === 'school_head')
+      const ao2s = schoolStaff.filter(s => s.role === 'ao_2')
+      const teachers = schoolStaff.filter(s => s.role === 'teacher')
+      return {
+        school,
+        schoolStaff,
+        schoolHeads,
+        ao2s,
+        teachers,
+      }
+    })
+  }, [schools, staffList])
+
+  // Memoized Filtered staff list
+  const filteredStaff = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim()
+    return staffList.filter(s => {
+      const matchesSearch = !q ||
+        s.full_name.toLowerCase().includes(q) ||
+        s.email.toLowerCase().includes(q)
+
+      const matchesRole =
+        selectedRoleFilter === 'all' ||
+        (selectedRoleFilter === 'ao_2' &&
+          (s.role === 'ao_2' || (s.role === 'admin' && s.assigned_school_ids && s.assigned_school_ids.length > 0))) ||
+        (selectedRoleFilter === 'admin' &&
+          (s.role === 'admin' || s.role === 'superadmin' || (s.role === 'ao_2' && !!s.district_name))) ||
+        s.role === selectedRoleFilter
+
+      const matchesSchool = !selectedSchoolFilter ||
+        s.role === 'psds' ||
+        s.assigned_school_ids?.includes(selectedSchoolFilter)
+
+      const isOnline = isStaffOnline(s)
+      const matchesOnline =
+        onlineStatusFilter === 'all' ||
+        (onlineStatusFilter === 'online' && isOnline) ||
+        (onlineStatusFilter === 'offline' && !isOnline)
+
+      return matchesSearch && matchesRole && matchesSchool && matchesOnline
+    })
+  }, [staffList, searchQuery, selectedRoleFilter, selectedSchoolFilter, onlineStatusFilter, isStaffOnline])
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredStaff.length / itemsPerPage) || 1
+  const safeCurrentPage = Math.min(currentPage, totalPages)
+  const startIndex = (safeCurrentPage - 1) * itemsPerPage
+  const endIndex = Math.min(startIndex + itemsPerPage, filteredStaff.length)
+  const paginatedStaff = filteredStaff.slice(startIndex, startIndex + itemsPerPage)
 
   // Role pill formatter
   const getRoleBadge = (s: AdminProfile) => {
@@ -423,9 +649,18 @@ export function FacultyStaffPage() {
       case 'school_head':
         return <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">School Head / Principal</span>
       case 'teacher':
+        const catLabel = s.teacher_category === 'kindergarten'
+          ? 'Kinder (ES)'
+          : s.teacher_category === 'jhs'
+          ? 'JHS'
+          : s.teacher_category === 'shs'
+          ? 'SHS'
+          : s.teacher_category === 'subject_teacher'
+          ? 'Subject Teacher'
+          : 'ES (G1–6)'
         return (
           <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-            {s.teacher_category === 'kindergarten' ? 'Teacher (Kindergarten)' : 'Teacher (Grade 1-6)'}
+            Teacher ({catLabel})
           </span>
         )
       default:
@@ -445,11 +680,82 @@ export function FacultyStaffPage() {
         if (sorted.length === 6 && sorted[0].grade_number === 1 && sorted[5].grade_number === 6) {
           return 'Grade 1-6'
         }
+        if (sorted.length === 4 && sorted[0].grade_number === 7 && sorted[3].grade_number === 10) {
+          return 'JHS (G7-10)'
+        }
+        if (sorted.length === 2 && sorted[0].grade_number === 11 && sorted[1].grade_number === 12) {
+          return 'SHS (G11-12)'
+        }
         return sorted.map(g => (g.grade_number ? `G${g.grade_number}` : g.name)).join(', ')
       }
     }
-    if (t.teacher_category === 'kindergarten') return 'Kinder'
+    if (t.teacher_category === 'kindergarten') return 'Kindergarten'
+    if (t.teacher_category === 'jhs') return 'JHS (G7-10)'
+    if (t.teacher_category === 'shs') return 'SHS (G11-12)'
+    if (t.teacher_category === 'subject_teacher') return 'Grade 1-12'
     return 'Grade 1-6'
+  }
+
+  // Helper: School Name to Abbreviation
+  const getSchoolAbbreviation = (schoolName: string, session?: string) => {
+    const knownMap: Record<string, string> = {
+      'San Pedro (Agbatang) Elementary School': 'SPAES',
+      'Calabasahan Elementary School': 'CES',
+      'Sampong Elementary School': 'SES',
+      'Concepcion National High School': 'CNHS',
+      'Macalacad Elementary School': 'MES',
+    }
+
+    let baseAbbrev = knownMap[schoolName]
+    if (!baseAbbrev) {
+      baseAbbrev = schoolName
+        .replace(/\(.*\)/g, '')
+        .split(' ')
+        .filter(w => w.length > 0 && !['of', 'the', 'and', 'in'].includes(w.toLowerCase()))
+        .map(w => w[0].toUpperCase())
+        .join('')
+    }
+
+    if (session === 'am') return `${baseAbbrev} (A.M.)`
+    if (session === 'pm') return `${baseAbbrev} (P.M.)`
+    return baseAbbrev
+  }
+
+  // Helper: Format Designation Title (clean title without raw internal role string)
+  const getStaffDesignation = (s: AdminProfile) => {
+    if (s.role === 'admin' || s.role === 'superadmin') {
+      return 'System Administrator'
+    }
+    if (s.role === 'psds') {
+      return 'District Supervisor (PSDS)'
+    }
+    if (s.role === 'school_head') {
+      return 'School Head / Principal'
+    }
+    if (s.role === 'ao_2') {
+      return 'Administrative Officer II'
+    }
+    if (s.role === 'teacher') {
+      switch (s.teacher_category) {
+        case 'kindergarten':
+          return 'Kindergarten Teacher'
+        case 'jhs':
+          return 'Junior HS Teacher'
+        case 'shs':
+          return 'Senior HS Teacher'
+        case 'subject_teacher':
+          return 'Subject Teacher'
+        default:
+          return 'Elementary Teacher'
+      }
+    }
+    return 'Staff Member'
+  }
+
+  const getStaffGradeSimple = (s: AdminProfile) => {
+    if (s.role !== 'teacher') return 'Administrative'
+    if (s.teacher_category === 'kindergarten') return 'Kindergarten'
+    return formatTeacherGradeBadge(s)
   }
 
   return (
@@ -476,13 +782,26 @@ export function FacultyStaffPage() {
               </p>
             </div>
 
-            <button
-              onClick={(e) => handleOpenAdd(e)}
-              className="px-6 py-3.5 rounded-full bg-white text-[#795CEE] hover:bg-[#F6EFFF] font-black text-xs shadow-md transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer active:animate-button-sparkle border border-white"
-            >
-              <Plus size={16} />
-              Add Personnel
-            </button>
+            <div className="flex items-center gap-3 shrink-0 flex-wrap">
+              <a
+                href="/org-chart"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-5 py-3.5 rounded-full bg-white/20 hover:bg-white/30 text-white font-black text-xs shadow-md transition-all flex items-center justify-center gap-2 border border-white/30 backdrop-blur-md cursor-pointer"
+                title="Open Public Org Chart in a new browser tab"
+              >
+                <Network size={16} />
+                Public Org Chart ↗
+              </a>
+
+              <button
+                onClick={(e) => handleOpenAdd(e)}
+                className="px-6 py-3.5 rounded-full bg-white text-[#795CEE] hover:bg-[#F6EFFF] font-black text-xs shadow-md transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer active:animate-button-sparkle border border-white"
+              >
+                <Plus size={16} />
+                Add Personnel
+              </button>
+            </div>
           </div>
         </div>
 
@@ -571,11 +890,7 @@ export function FacultyStaffPage() {
               </div>
 
               <div className="border-l-2 border-dashed border-[#8B72F4]/30 ml-3 pl-3 space-y-3">
-                {schools.map(school => {
-                  const schoolStaff = staffList.filter(s => s.assigned_school_ids?.includes(school.id))
-                  const schoolHeads = schoolStaff.filter(s => s.role === 'school_head')
-                  const ao2s = schoolStaff.filter(s => s.role === 'ao_2')
-                  const teachers = schoolStaff.filter(s => s.role === 'teacher')
+                {schoolStaffTree.map(({ school, schoolStaff, schoolHeads, ao2s, teachers }: any) => {
                   const isExpanded = !!expandedSchoolIds[school.id]
                   const isSelected = selectedSchoolFilter === school.id
 
@@ -613,7 +928,7 @@ export function FacultyStaffPage() {
                         <div className="border-l-2 border-[#8B72F4]/20 ml-3.5 pl-3 space-y-2 text-xs animate-fade-in">
                           {/* Rank 1: School Head / Principal */}
                           {schoolHeads.length > 0 ? (
-                            schoolHeads.map(sh => (
+                            schoolHeads.map((sh: AdminProfile) => (
                               <div key={sh.id} className="p-2 rounded-xl bg-amber-50/90 border border-amber-200/70 flex items-center gap-2.5 shadow-2xs">
                                 <img
                                   src={sh.avatar_url || '/images/clay/avatar_girl.jpg'}
@@ -638,7 +953,7 @@ export function FacultyStaffPage() {
 
                           {/* Rank 2: Administrative Officer II */}
                           {ao2s.length > 0 && (
-                            ao2s.map(ao => (
+                            ao2s.map((ao: AdminProfile) => (
                               <div key={ao.id} className="p-2 rounded-xl bg-blue-50/90 border border-blue-200/70 flex items-center gap-2.5 shadow-2xs">
                                 <img
                                   src={ao.avatar_url || '/images/clay/avatar_girl.jpg'}
@@ -669,7 +984,7 @@ export function FacultyStaffPage() {
                                 </span>
                               </div>
                               <div className="space-y-1 pt-0.5">
-                                {teachers.map(t => (
+                                {teachers.map((t: AdminProfile) => (
                                   <div key={t.id} className="flex items-center gap-2 py-0.5">
                                     <img
                                       src={t.avatar_url || '/images/clay/avatar_girl.jpg'}
@@ -726,8 +1041,9 @@ export function FacultyStaffPage() {
             )}
 
             {/* 3D Clay Filter Controls Bar */}
-            <div className="clay-card p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="relative w-full sm:w-80">
+            <div className="clay-card p-4 sm:p-5 flex flex-col md:flex-row items-center justify-between gap-3.5">
+              {/* Search Bar */}
+              <div className="relative w-full md:w-80">
                 <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#A39BAF]" />
                 <input
                   type="text"
@@ -738,68 +1054,48 @@ export function FacultyStaffPage() {
                 />
               </div>
 
-              {/* Online Presence Status Toggle */}
-              <div className="flex items-center gap-1.5 p-1 bg-[#FAF5F0] rounded-full border border-white shadow-2xs">
-                <button
-                  type="button"
-                  onClick={() => setOnlineStatusFilter('all')}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                    onlineStatusFilter === 'all'
-                      ? 'bg-white text-[#2D2638] shadow-xs'
-                      : 'text-[#7A7289] hover:text-[#2D2638]'
-                  }`}
-                >
-                  All ({staffList.length})
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setOnlineStatusFilter('online')}
-                  className={`px-3 py-1.5 rounded-full text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer ${
-                    onlineStatusFilter === 'online'
-                      ? 'bg-emerald-500 text-white shadow-xs'
-                      : 'text-emerald-700 hover:bg-emerald-50'
-                  }`}
-                >
-                  <span className={`w-2 h-2 rounded-full ${onlineStatusFilter === 'online' ? 'bg-white animate-pulse' : 'bg-emerald-500'}`} />
-                  Online ({onlineCount})
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setOnlineStatusFilter('offline')}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                    onlineStatusFilter === 'offline'
-                      ? 'bg-slate-700 text-white shadow-xs'
-                      : 'text-[#7A7289] hover:text-[#2D2638]'
-                  }`}
-                >
-                  Offline ({offlineCount})
-                </button>
-              </div>
-
-              {/* Role Filter Pills */}
-              <div className="flex items-center gap-1.5 flex-wrap w-full sm:w-auto">
-                {[
-                  { id: 'all', label: 'All Roles' },
-                  { id: 'teacher', label: 'Teachers' },
-                  { id: 'school_head', label: 'School Heads' },
-                  { id: 'psds', label: 'PSDS' },
-                  { id: 'ao_2', label: 'AO II' },
-                  { id: 'admin', label: 'System Admins' },
-                ].map(rf => (
-                  <button
-                    key={rf.id}
-                    onClick={() => setSelectedRoleFilter(rf.id)}
-                    className={`px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                      selectedRoleFilter === rf.id
-                        ? 'bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] text-white shadow-md'
-                        : 'bg-white text-[#7A7289] hover:bg-[#F6EFFF] border border-white/90 shadow-2xs'
-                    }`}
+              {/* Dropdown Filters Container */}
+              <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+                {/* Online Status Dropdown Filter */}
+                <div className="relative w-full sm:w-48">
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-[#8B72F4]">
+                    <Globe size={14} />
+                  </div>
+                  <select
+                    value={onlineStatusFilter}
+                    onChange={e => setOnlineStatusFilter(e.target.value as 'all' | 'online' | 'offline')}
+                    className="w-full pl-9 pr-8 py-2.5 rounded-full text-xs font-extrabold bg-[#FAF5F0] border border-white text-[#2D2638] focus:outline-none focus:ring-4 focus:ring-[#8B72F4]/20 focus:bg-white transition-all shadow-2xs appearance-none cursor-pointer"
                   >
-                    {rf.label}
-                  </button>
-                ))}
+                    <option value="all">All Statuses ({staffList.length})</option>
+                    <option value="online">🟢 Online ({onlineCount})</option>
+                    <option value="offline">⚪ Offline ({offlineCount})</option>
+                  </select>
+                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-[#A39BAF]">
+                    <ChevronDown size={14} />
+                  </div>
+                </div>
+
+                {/* Role Filter Dropdown */}
+                <div className="relative w-full sm:w-56">
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-[#8B72F4]">
+                    <Users size={14} />
+                  </div>
+                  <select
+                    value={selectedRoleFilter}
+                    onChange={e => setSelectedRoleFilter(e.target.value)}
+                    className="w-full pl-9 pr-8 py-2.5 rounded-full text-xs font-extrabold bg-[#FAF5F0] border border-white text-[#2D2638] focus:outline-none focus:ring-4 focus:ring-[#8B72F4]/20 focus:bg-white transition-all shadow-2xs appearance-none cursor-pointer"
+                  >
+                    <option value="all">All Roles</option>
+                    <option value="teacher">Teachers</option>
+                    <option value="school_head">School Heads</option>
+                    <option value="psds">District Supervisor (PSDS)</option>
+                    <option value="ao_2">Administrative Officer II (AO II)</option>
+                    <option value="admin">System Administrators</option>
+                  </select>
+                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-[#A39BAF]">
+                    <ChevronDown size={14} />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -822,31 +1118,32 @@ export function FacultyStaffPage() {
                     <table className="w-full text-left border-collapse">
                       <thead>
                         <tr className="bg-[#FAFBFF] border-b border-[#E8EAF0] text-[11px] font-extrabold uppercase tracking-wider text-[#64748B]">
-                          <th className="py-3.5 px-4">Staff Member</th>
+                          <th className="py-3.5 px-4 sm:px-6">Staff Member</th>
                           <th className="py-3.5 px-4">Online Status</th>
-                          <th className="py-3.5 px-4">Designation / Role</th>
-                          <th className="py-3.5 px-4">Assigned Schools</th>
-                          <th className="py-3.5 px-4">Grade / Scope</th>
-                          <th className="py-3.5 px-4">Login Password</th>
-                          <th className="py-3.5 px-4">Access Status</th>
-                          <th className="py-3.5 px-4 sm:px-6 text-right">Actions</th>
+                          <th className="py-3.5 px-4">Designation</th>
+                          <th className="py-3.5 px-4">Assigned School</th>
+                          <th className="py-3.5 px-4">Grade</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#F0F2F7]">
-                        {filteredStaff.map(s => {
-                          const assignedSchoolNames = schools
-                            .filter(sch => s.assigned_school_ids?.includes(sch.id))
-                            .map(sch => sch.name)
-
-                          const assignedGradeNames = grades
-                            .filter(g => s.assigned_grade_ids?.includes(g.id))
-                            .map(g => g.name)
+                        {paginatedStaff.map((s: AdminProfile) => {
+                          const assignedSchoolNames = s.assigned_school_ids
+                            ?.map((id: string) => schoolMap.get(id)?.name)
+                            .filter(Boolean) as string[] || []
 
                           const isCurrentSelf = s.id === admin?.id
                           const isOnline = isStaffOnline(s)
 
                           return (
-                            <tr key={s.id} className="hover:bg-[#FAFBFF] transition-colors">
+                            <tr
+                              key={s.id}
+                              onClick={(e) => {
+                                captureGenieOrigin(e)
+                                setSelectedStaffDetail(s)
+                              }}
+                              className="hover:bg-[#F6EFFF]/40 transition-colors cursor-pointer group"
+                              title="Click to view complete details of staff"
+                            >
                               <td className="py-4 px-4 sm:px-6">
                                 <div className="flex items-center gap-3">
                                   <div className="relative shrink-0">
@@ -860,13 +1157,12 @@ export function FacultyStaffPage() {
                                     )}
                                   </div>
                                   <div className="min-w-0">
-                                    <h4 className="text-xs font-bold text-[#1F2937] truncate flex items-center gap-1.5">
+                                    <h4 className="text-xs font-black text-[#1F2937] truncate flex items-center gap-1.5 group-hover:text-[#8B72F4] transition-colors">
                                       <span>{s.full_name}</span>
                                       {isCurrentSelf && (
                                         <span className="px-1.5 py-0.2 rounded-md bg-purple-100 text-purple-700 text-[9px] font-extrabold border border-purple-200">You</span>
                                       )}
                                     </h4>
-                                    <p className="text-[11px] text-[#64748B]">{s.email}</p>
                                   </div>
                                 </div>
                               </td>
@@ -875,7 +1171,7 @@ export function FacultyStaffPage() {
                                 {isOnline ? (
                                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
                                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                    Online Now
+                                    Online
                                   </span>
                                 ) : (
                                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
@@ -885,25 +1181,25 @@ export function FacultyStaffPage() {
                                 )}
                               </td>
 
-                              <td className="py-4 px-4">
-                                {getRoleBadge(s)}
+                              <td className="py-4 px-4 font-extrabold text-xs text-[#2D2638]">
+                                {getStaffDesignation(s)}
                               </td>
 
                               <td className="py-4 px-4">
                                 {s.role === 'psds' ? (
                                   <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
-                                    Concepcion District (All Schools)
+                                    All Schools
                                   </span>
                                 ) : assignedSchoolNames.length > 0 ? (
                                   <div className="flex flex-wrap gap-1 max-w-xs">
-                                    {s.assigned_school_ids?.map(schId => {
-                                      const sch = schools.find(sc => sc.id === schId)
+                                    {s.assigned_school_ids?.map((schId: string) => {
+                                      const sch = schoolMap.get(schId)
                                       if (!sch) return null
                                       const sess = s.school_sessions?.[schId]
-                                      const sessLabel = sess === 'am' ? ' (A.M.)' : sess === 'pm' ? ' (P.M.)' : ''
+                                      const abbrev = getSchoolAbbreviation(sch.name, sess)
                                       return (
-                                        <span key={schId} className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#EEF0FF] text-[#3B49B8] border border-[#BFD7FF]">
-                                          {sch.name}{sessLabel}
+                                        <span key={schId} className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-[#EEF0FF] text-[#3B49B8] border border-[#BFD7FF]">
+                                          {abbrev}
                                         </span>
                                       )
                                     })}
@@ -913,83 +1209,10 @@ export function FacultyStaffPage() {
                                 )}
                               </td>
 
-                              <td className="py-4 px-4">
-                                {s.role === 'teacher' ? (
-                                  s.teacher_category === 'kindergarten' ? (
-                                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                      Kindergarten
-                                    </span>
-                                  ) : (
-                                    <div className="text-xs text-[#1F2937]">
-                                      <span className="font-semibold">Grade 1-6</span>
-                                      {assignedGradeNames.length > 0 && (
-                                        <p className="text-[11px] text-[#64748B]">
-                                          {assignedGradeNames.join(', ')}
-                                        </p>
-                                      )}
-                                    </div>
-                                  )
-                                ) : (
-                                  <span className="text-[11px] text-[#94A3B8]">Administrative</span>
-                                )}
-                              </td>
-
-                              <td className="py-4 px-4">
-                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0] text-xs font-mono">
-                                  <Key size={12} className="text-[#94A3B8]" />
-                                  <span className="text-[#1F2937] font-semibold text-[11px]">
-                                    {visiblePasswords[s.id] ? (s.password || 'password123') : '••••••••'}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => togglePasswordVisibility(s.id)}
-                                    className="text-[#94A3B8] hover:text-[#1F2937] ml-1 transition-colors cursor-pointer"
-                                    title="Toggle password view"
-                                  >
-                                    {visiblePasswords[s.id] ? <EyeOff size={12} /> : <Eye size={12} />}
-                                  </button>
-                                </div>
-                              </td>
-
-                              <td className="py-4 px-4">
-                                <button
-                                  type="button"
-                                  onClick={() => !isCurrentSelf && handleToggleAccessStatus(s)}
-                                  disabled={isCurrentSelf}
-                                  className={`text-[11px] font-bold px-3 py-1 rounded-full border transition-all flex items-center gap-1.5 cursor-pointer ${
-                                    s.is_active
-                                      ? 'bg-[#F0FAF5] text-[#1E6B48] border-[#BFE8D5] hover:bg-[#E2F7ED]'
-                                      : 'bg-[#FFF0F5] text-[#992B54] border-[#FFCCD8] hover:bg-[#FFE5EE]'
-                                  }`}
-                                  title={isCurrentSelf ? "Current logged in account" : "Click to toggle system access status"}
-                                >
-                                  <span className={`w-2 h-2 rounded-full ${s.is_active ? 'bg-[#1E6B48] animate-pulse' : 'bg-[#992B54]'}`} />
-                                  {s.is_active ? 'Active' : 'Disabled'}
-                                </button>
-                              </td>
-
-                              <td className="py-4 px-4 sm:px-6 text-right">
-                                <div className="flex items-center justify-end gap-1.5">
-                                  <button
-                                    type="button"
-                                    onClick={(e) => handleOpenEdit(s, e)}
-                                    className="p-1.5 rounded-xl text-[#64748B] hover:text-[#6675E8] hover:bg-[#EEF0FF] border border-[#E2E8F0] transition-all cursor-pointer active:animate-button-sparkle"
-                                    title="Edit Staff Profile"
-                                  >
-                                    <Edit2 size={14} />
-                                  </button>
-
-                                  {!isCurrentSelf && (
-                                    <button
-                                      type="button"
-                                      onClick={(e) => { captureGenieOrigin(e); setStaffToDelete(s) }}
-                                      className="p-1.5 rounded-xl text-[#64748B] hover:text-[#E11D48] hover:bg-[#FFF0F5] border border-[#E2E8F0] transition-all cursor-pointer active:animate-button-sparkle"
-                                      title="Delete Personnel Profile"
-                                    >
-                                      <Trash2 size={14} />
-                                    </button>
-                                  )}
-                                </div>
+                              <td className="py-4 px-4 font-bold text-xs text-[#2D2638]">
+                                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 inline-block">
+                                  {getStaffGradeSimple(s)}
+                                </span>
                               </td>
                             </tr>
                           )
@@ -1000,11 +1223,22 @@ export function FacultyStaffPage() {
 
                   {/* Mobile View Cards */}
                   <div className="grid grid-cols-1 md:hidden divide-y divide-[#F0F2F7]">
-                    {filteredStaff.map(s => {
+                    {paginatedStaff.map(s => {
                       const isCurrentSelf = s.id === admin?.id
+                      const isOnline = isStaffOnline(s)
+                      const assignedSchoolNames = s.assigned_school_ids
+                        ?.map((id: string) => schoolMap.get(id)?.name)
+                        .filter(Boolean) as string[] || []
 
                       return (
-                        <div key={s.id} className="p-4 space-y-3">
+                        <div
+                          key={s.id}
+                          onClick={(e) => {
+                            captureGenieOrigin(e)
+                            setSelectedStaffDetail(s)
+                          }}
+                          className="p-4 space-y-2.5 hover:bg-[#F6EFFF]/40 transition-colors cursor-pointer"
+                        >
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex items-center gap-3">
                               <img
@@ -1013,54 +1247,145 @@ export function FacultyStaffPage() {
                                 className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-xs shrink-0 bg-[#F6EFFF]"
                               />
                               <div>
-                                <h3 className="text-sm font-extrabold text-slate-900">{s.full_name}</h3>
-                                <p className="text-xs text-slate-500">{s.email}</p>
+                                <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-1.5">
+                                  <span>{s.full_name}</span>
+                                  {isCurrentSelf && (
+                                    <span className="px-1.5 py-0.2 rounded-md bg-purple-100 text-purple-700 text-[9px] font-extrabold border border-purple-200">You</span>
+                                  )}
+                                </h3>
+                                <p className="text-xs font-bold text-[#8B72F4]">{getStaffDesignation(s)}</p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={() => handleOpenEdit(s)}
-                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
-                              >
-                                <Edit2 size={15} />
-                              </button>
-                              {!isCurrentSelf && (
-                                <button
-                                  onClick={() => setStaffToDelete(s)}
-                                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                                >
-                                  <Trash2 size={15} />
-                                </button>
-                              )}
-                            </div>
+
+                            {isOnline ? (
+                              <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">Online</span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-slate-100 text-slate-500 border border-slate-200 shrink-0">Offline</span>
+                            )}
                           </div>
 
-                          <div>{getRoleBadge(s)}</div>
-
-                          <div className="flex items-center justify-between text-xs pt-1">
-                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#F8FAFC] rounded-xl border border-[#E2E8F0] font-mono text-[11px]">
-                              <Key size={12} className="text-[#94A3B8]" />
-                              <span>{visiblePasswords[s.id] ? (s.password || 'password123') : '••••••••'}</span>
-                              <button type="button" onClick={() => togglePasswordVisibility(s.id)} className="text-[#94A3B8]">
-                                {visiblePasswords[s.id] ? <EyeOff size={12} /> : <Eye size={12} />}
-                              </button>
+                          <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-100">
+                            <div className="flex flex-wrap gap-1">
+                              {s.role === 'psds' ? (
+                                <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700">All Schools</span>
+                              ) : assignedSchoolNames.length > 0 ? (
+                                s.assigned_school_ids?.map((schId: string) => {
+                                  const sch = schoolMap.get(schId)
+                                  if (!sch) return null
+                                  const sess = s.school_sessions?.[schId]
+                                  return (
+                                    <span key={schId} className="text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-[#EEF0FF] text-[#3B49B8]">
+                                      {getSchoolAbbreviation(sch.name, sess)}
+                                    </span>
+                                  )
+                                })
+                              ) : (
+                                <span className="text-[10px] text-slate-400 italic">Unassigned</span>
+                              )}
                             </div>
 
-                            <button
-                              type="button"
-                              onClick={() => !isCurrentSelf && handleToggleAccessStatus(s)}
-                              disabled={isCurrentSelf}
-                              className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
-                                s.is_active ? 'bg-[#F0FAF5] text-[#1E6B48] border-[#BFE8D5]' : 'bg-[#FFF0F5] text-[#992B54] border-[#FFCCD8]'
-                              }`}
-                            >
-                              {s.is_active ? 'Active' : 'Disabled'}
-                            </button>
+                            <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                              {getStaffGradeSimple(s)}
+                            </span>
                           </div>
                         </div>
                       )
                     })}
                   </div>
+
+                  {/* 3D Soft Claymorphic Pagination Controls Bar */}
+                  {filteredStaff.length > 0 && (
+                    <div className="p-4 bg-[#FAFBFF] border-t border-[#E8EAF0] flex flex-col sm:flex-row items-center justify-between gap-4">
+                      {/* Items per page selector & Total status */}
+                      <div className="flex items-center gap-3 text-xs font-semibold text-[#64748B]">
+                        <div className="flex items-center gap-1.5">
+                          <span>Show</span>
+                          <select
+                            value={itemsPerPage}
+                            onChange={e => setItemsPerPage(Number(e.target.value))}
+                            className="px-2.5 py-1.5 rounded-xl bg-white border border-[#CBD5E1] text-[#1E293B] font-bold text-xs focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30 cursor-pointer shadow-2xs"
+                          >
+                            <option value={10}>10</option>
+                            <option value={20}>20</option>
+                            <option value={50}>50</option>
+                            <option value={100}>100</option>
+                          </select>
+                          <span>per page</span>
+                        </div>
+                        <span className="hidden sm:inline text-slate-300">|</span>
+                        <span>
+                          Showing <strong className="text-[#1E293B] font-extrabold">{filteredStaff.length > 0 ? startIndex + 1 : 0}</strong> to <strong className="text-[#1E293B] font-extrabold">{endIndex}</strong> of <strong className="text-[#1E293B] font-extrabold">{filteredStaff.length}</strong> personnel
+                        </span>
+                      </div>
+
+                      {/* Page Navigation Buttons */}
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                          disabled={safeCurrentPage <= 1}
+                          className="p-2 rounded-xl border border-[#E2E8F0] bg-white text-[#64748B] hover:text-[#8B72F4] hover:bg-[#F6EFFF] disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs flex items-center justify-center"
+                          title="Previous Page"
+                        >
+                          <ChevronLeft size={16} />
+                        </button>
+
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: totalPages }, (_, i) => i + 1)
+                            .filter(page => {
+                              if (totalPages <= 7) return true
+                              return (
+                                page === 1 ||
+                                page === totalPages ||
+                                Math.abs(page - safeCurrentPage) <= 1
+                              )
+                            })
+                            .reduce<(number | string)[]>((acc, page, index, array) => {
+                              if (index > 0 && page - (array[index - 1] as number) > 1) {
+                                acc.push('...')
+                              }
+                              acc.push(page)
+                              return acc
+                            }, [])
+                            .map((item, idx) => {
+                              if (item === '...') {
+                                return (
+                                  <span key={`ellipsis-${idx}`} className="px-2 text-xs font-bold text-[#A39BAF]">
+                                    ...
+                                  </span>
+                                )
+                              }
+                              const pageNum = item as number
+                              const isActivePage = pageNum === safeCurrentPage
+                              return (
+                                <button
+                                  key={pageNum}
+                                  type="button"
+                                  onClick={() => setCurrentPage(pageNum)}
+                                  className={`w-8 h-8 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center ${
+                                    isActivePage
+                                      ? 'bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] text-white shadow-sm scale-105'
+                                      : 'bg-white border border-[#E2E8F0] text-[#64748B] hover:bg-[#F6EFFF] hover:text-[#8B72F4]'
+                                  }`}
+                                >
+                                  {pageNum}
+                                </button>
+                              )
+                            })}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                          disabled={safeCurrentPage >= totalPages}
+                          className="p-2 rounded-xl border border-[#E2E8F0] bg-white text-[#64748B] hover:text-[#8B72F4] hover:bg-[#F6EFFF] disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs flex items-center justify-center"
+                          title="Next Page"
+                        >
+                          <ChevronRight size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -1069,8 +1394,8 @@ export function FacultyStaffPage() {
 
         {/* Add / Edit Staff Modal */}
         {shouldRenderStaffModal && (
-          <div className={`fixed inset-0 z-50 bg-[#2D2638]/40 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto ${staffModalBackdropClass}`}>
-            <div className={`bg-[#FAF5F0] rounded-[36px] max-w-xl w-full shadow-[0_25px_60px_rgba(139,114,244,0.22)] overflow-hidden border-4 border-white ${staffModalContainerClass}`}>
+          <div className={`fixed inset-0 z-50 bg-[#2D2638]/40 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 overflow-y-auto ${staffModalBackdropClass}`}>
+            <div className={`bg-[#FAF5F0] rounded-[36px] max-w-4xl w-full shadow-[0_25px_60px_rgba(139,114,244,0.3)] overflow-hidden border-4 border-white ${staffModalContainerClass}`}>
               {/* Modal Header */}
               <div className="px-7 py-5 bg-gradient-to-r from-[#A88BEB] via-[#8B72F4] to-[#795CEE] text-white flex items-center justify-between shadow-xs relative overflow-hidden">
                 <div className="flex items-center gap-2.5">
@@ -1091,7 +1416,7 @@ export function FacultyStaffPage() {
               </div>
 
               {/* Form Content */}
-              <form onSubmit={handleSaveStaff} className="p-7 space-y-5 max-h-[80vh] overflow-y-auto custom-scrollbar">
+              <form onSubmit={handleSaveStaff} className="p-7 sm:p-8 space-y-6 max-h-[85vh] overflow-y-auto custom-scrollbar">
                 {/* Profile Avatar Selection Section */}
                 <div className="p-5 rounded-[28px] bg-white/90 border-2 border-white shadow-xs space-y-3">
                   <label className="block text-xs font-black text-[#2D2638] flex items-center gap-1.5 font-display">
@@ -1212,151 +1537,341 @@ export function FacultyStaffPage() {
                 {/* ROLE SPECIFIC ASSIGNMENT RULES */}
                 {role === 'teacher' && (
                   <div className="p-5 bg-white/90 rounded-[28px] border-2 border-white shadow-xs space-y-4">
-                    <label className="block text-xs font-black text-[#2D2638] font-display">Teacher Grade Level Option</label>
-                    <div className="grid grid-cols-2 gap-2.5">
-                      <button
-                        type="button"
-                        onClick={() => setTeacherCategory('kindergarten')}
-                        className={`p-3 rounded-2xl border-2 text-xs font-extrabold transition-all cursor-pointer ${
-                          teacherCategory === 'kindergarten'
-                            ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-white shadow-xs'
-                            : 'bg-[#FAF5F0] text-[#7A7289] border-white hover:bg-[#F6EFFF]'
-                        }`}
-                      >
-                        Kindergarten (Multi-School)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setTeacherCategory('grade_1_6')}
-                        className={`p-3 rounded-2xl border-2 text-xs font-extrabold transition-all cursor-pointer ${
-                          teacherCategory === 'grade_1_6'
-                            ? 'bg-gradient-to-r from-[#8B72F4] to-[#795CEE] text-white border-white shadow-xs'
-                            : 'bg-[#FAF5F0] text-[#7A7289] border-white hover:bg-[#F6EFFF]'
-                        }`}
-                      >
-                        Grade 1-6 (Multi-Grade)
-                      </button>
-                    </div>
-
-                    {teacherCategory === 'kindergarten' && (
-                      <div className="space-y-2.5 pt-3 border-t border-[#F0E6DD]">
-                        <span className="text-xs font-black text-[#2D2638] block font-display">
-                          Assign Schools for Kindergarten (Select Multiple):
+                    {/* STEP 1: SELECT SCHOOL FIRST */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-[#2D2638] block font-display flex items-center justify-between">
+                        <span className="flex items-center gap-1.5">
+                          <Building2 size={16} className="text-[#8B72F4]" />
+                          1. Select School Assignment (Choose School First):
                         </span>
-                        <div className="max-h-44 overflow-y-auto space-y-1.5 p-3 bg-[#FAF5F0] rounded-2xl border-2 border-white custom-scrollbar">
-                          {schools.map(sch => (
-                            <label
-                              key={sch.id}
-                              className="flex items-center gap-2.5 p-2 hover:bg-white rounded-xl cursor-pointer text-xs transition-colors"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={assignedSchoolIds.includes(sch.id)}
-                                onChange={() => toggleSchoolSelection(sch.id)}
-                                className="rounded text-[#8B72F4] focus:ring-[#8B72F4]/20 w-4 h-4"
-                              />
-                              <span className="font-bold text-[#2D2638]">{sch.name}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* School Session Assignment Controls */}
-                    {assignedSchoolIds.length > 0 && (
-                      <div className="space-y-2.5 pt-3 border-t border-[#F0E6DD]">
-                        <span className="text-xs font-black text-[#2D2638] block font-display flex items-center gap-1.5">
-                          <Clock size={15} className="text-[#FA6B6B]" />
-                          Daily Session Duty per School (A.M. Morning vs P.M. Afternoon):
-                        </span>
-                        <p className="text-[11px] text-[#7A7289]">
-                          Set session schedule per school (e.g. Kindergarten teaching Morning in School 1 & Afternoon in School 2). This generates two separate monthly DTRs in the DTR System.
-                        </p>
-
-                        <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                          {assignedSchoolIds.map((schId, idx) => {
-                            const sch = schools.find(s => s.id === schId)
-                            if (!sch) return null
-                            const sessionVal = schoolSessions[schId] || (assignedSchoolIds.length > 1 && teacherCategory === 'kindergarten' ? (idx === 0 ? 'am' : 'pm') : 'full_day')
-
-                            return (
-                              <div key={schId} className="flex items-center justify-between p-2.5 rounded-2xl bg-[#FAF5F0] border-2 border-white text-xs">
-                                <span className="font-bold text-[#2D2638] truncate max-w-[55%]">
-                                  {sch.name}
-                                </span>
-                                <select
-                                  value={sessionVal}
-                                  onChange={e => {
-                                    const val = e.target.value as 'am' | 'pm' | 'full_day'
-                                    setSchoolSessions(prev => ({ ...prev, [schId]: val }))
-                                  }}
-                                  className="px-3 py-1.5 rounded-xl text-xs font-extrabold bg-white border border-slate-200 text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#FA6B6B]/20"
-                                >
-                                  <option value="am">🌅 Morning Session Only (A.M.)</option>
-                                  <option value="pm">🌆 Afternoon Session Only (P.M.)</option>
-                                  <option value="full_day">☀️ Full Day Duty (A.M. & P.M.)</option>
-                                </select>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Prescribed Working Hours Schedule Option Selector */}
-                    <div className="space-y-2 pt-3 border-t border-[#F0E6DD]">
-                      <label className="text-xs font-black text-[#2D2638] block font-display flex items-center gap-1.5">
-                        <Clock size={15} className="text-[#8B72F4]" />
-                        Prescribed Working Hours Schedule Option:
+                        {assignedSchoolIds.length > 0 && (
+                          <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                            <CheckCircle2 size={12} /> School Selected
+                          </span>
+                        )}
                       </label>
+                      
                       <select
-                        value={workingHoursPreset}
-                        onChange={e => setWorkingHoursPreset(e.target.value as 'option_1' | 'option_2')}
+                        value={assignedSchoolIds[0] || ''}
+                        onChange={e => {
+                          const schoolId = e.target.value
+                          if (schoolId) {
+                            setAssignedSchoolIds([schoolId])
+                            const selSchool = schools.find(s => s.id === schoolId)
+                            if (selSchool) {
+                              if (selSchool.school_type === 'elementary' && (teacherCategory === 'jhs' || teacherCategory === 'shs')) {
+                                setTeacherCategory('grade_1_6')
+                              } else if (selSchool.school_type === 'secondary' && (teacherCategory === 'grade_1_6' || teacherCategory === 'kindergarten')) {
+                                setTeacherCategory('jhs')
+                              }
+                            }
+                          } else {
+                            setAssignedSchoolIds([])
+                            setAssignedGradeIds([])
+                            setAssignedSubjectIds([])
+                            setAssignedGradeSubjectIds({})
+                          }
+                        }}
                         className="w-full px-4 py-2.5 text-xs rounded-2xl bg-[#FAF5F0] border-2 border-white text-[#2D2638] font-bold focus:outline-none focus:ring-4 focus:ring-[#8B72F4]/20"
                       >
-                        <option value="option_1">Option 1: 7:00 AM – 11:30 AM & 1:00 PM – 5:00 PM (Default)</option>
-                        <option value="option_2">Option 2: 8:00 AM – 12:00 PM & 1:00 PM – 5:00 PM</option>
+                        <option value="">-- Choose Assigned School --</option>
+                        {schools.map(sch => (
+                          <option key={sch.id} value={sch.id}>
+                            {sch.name} ({sch.school_type.toUpperCase()})
+                          </option>
+                        ))}
                       </select>
                     </div>
 
-                    {teacherCategory === 'grade_1_6' && (
-                      <div className="space-y-3.5 pt-3 border-t border-[#F0E6DD]">
+                    {/* IF NO SCHOOL IS SELECTED YET */}
+                    {assignedSchoolIds.length === 0 ? (
+                      <div className="p-4 rounded-2xl bg-amber-50/80 border-2 border-amber-200/60 text-amber-900 text-xs font-semibold flex items-center gap-3">
+                        <AlertCircle size={18} className="text-amber-600 shrink-0" />
                         <div>
-                          <label className="text-xs font-black text-[#2D2638] block mb-1.5 font-display">Select School:</label>
-                          <select
-                            value={assignedSchoolIds[0] || ''}
-                            onChange={e => setAssignedSchoolIds([e.target.value])}
-                            className="w-full px-4 py-2.5 text-xs rounded-2xl bg-[#FAF5F0] border-2 border-white text-[#2D2638] font-bold focus:outline-none focus:ring-4 focus:ring-[#8B72F4]/20"
-                          >
-                            <option value="">-- Choose School --</option>
-                            {schools.map(sch => (
-                              <option key={sch.id} value={sch.id}>{sch.name}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="text-xs font-black text-[#2D2638] block mb-1.5 font-display">
-                            Assign Grades (Select Multiple):
-                          </label>
-                          <div className="grid grid-cols-2 gap-2 p-3 bg-[#FAF5F0] rounded-2xl border-2 border-white max-h-40 overflow-y-auto custom-scrollbar">
-                            {grades.filter(g => g.grade_number <= 6).map(g => (
-                              <label
-                                key={g.id}
-                                className="flex items-center gap-2 p-2 hover:bg-white rounded-xl cursor-pointer text-xs transition-colors"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={assignedGradeIds.includes(g.id)}
-                                  onChange={() => toggleGradeSelection(g.id)}
-                                  className="rounded text-[#8B72F4] focus:ring-[#8B72F4]/20 w-4 h-4"
-                                />
-                                <span className="font-bold text-[#2D2638]">{g.name}</span>
-                              </label>
-                            ))}
-                          </div>
+                          <span className="font-black block font-display">Please select a school first</span>
+                          <span className="text-[11px] text-amber-800 font-medium">
+                            Choosing a school will narrow down the available grade levels and subject options specifically offered at that school.
+                          </span>
                         </div>
                       </div>
+                    ) : (
+                      <>
+                        {/* STEP 2: TEACHER GRADE LEVEL / CATEGORY OPTION */}
+                        <div className="space-y-2 pt-2 border-t border-[#F0E6DD]">
+                          <label className="block text-xs font-black text-[#2D2638] font-display">
+                            2. Teacher Level / Category Option:
+                          </label>
+                          {(() => {
+                            const currentSchool = schools.find(s => s.id === assignedSchoolIds[0])
+                            const isElem = currentSchool?.school_type === 'elementary'
+                            const isSec = currentSchool?.school_type === 'secondary'
+
+                            return (
+                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                {(!isSec) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setTeacherCategory('kindergarten')}
+                                    className={`p-2.5 rounded-2xl border-2 text-xs font-extrabold transition-all cursor-pointer ${
+                                      teacherCategory === 'kindergarten'
+                                        ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-white shadow-xs'
+                                        : 'bg-[#FAF5F0] text-[#7A7289] border-white hover:bg-[#F6EFFF]'
+                                    }`}
+                                  >
+                                    Kindergarten
+                                  </button>
+                                )}
+                                {(!isSec) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setTeacherCategory('grade_1_6')}
+                                    className={`p-2.5 rounded-2xl border-2 text-xs font-extrabold transition-all cursor-pointer ${
+                                      teacherCategory === 'grade_1_6'
+                                        ? 'bg-gradient-to-r from-[#8B72F4] to-[#795CEE] text-white border-white shadow-xs'
+                                        : 'bg-[#FAF5F0] text-[#7A7289] border-white hover:bg-[#F6EFFF]'
+                                    }`}
+                                  >
+                                    ES (G1–6)
+                                  </button>
+                                )}
+                                {(!isElem) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setTeacherCategory('jhs')}
+                                    className={`p-2.5 rounded-2xl border-2 text-xs font-extrabold transition-all cursor-pointer ${
+                                      teacherCategory === 'jhs'
+                                        ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-white shadow-xs'
+                                        : 'bg-[#FAF5F0] text-[#7A7289] border-white hover:bg-[#F6EFFF]'
+                                    }`}
+                                  >
+                                    JHS (G7–10)
+                                  </button>
+                                )}
+                                {(!isElem) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setTeacherCategory('shs')}
+                                    className={`p-2.5 rounded-2xl border-2 text-xs font-extrabold transition-all cursor-pointer ${
+                                      teacherCategory === 'shs'
+                                        ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white border-white shadow-xs'
+                                        : 'bg-[#FAF5F0] text-[#7A7289] border-white hover:bg-[#F6EFFF]'
+                                    }`}
+                                  >
+                                    SHS (G11–12)
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => setTeacherCategory('subject_teacher')}
+                                  className={`p-2.5 rounded-2xl border-2 text-xs font-extrabold transition-all cursor-pointer ${isElem || isSec ? 'col-span-1' : 'sm:col-span-2'} ${
+                                    teacherCategory === 'subject_teacher'
+                                      ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white border-white shadow-xs'
+                                      : 'bg-[#FAF5F0] text-[#7A7289] border-white hover:bg-[#F6EFFF]'
+                                  }`}
+                                >
+                                  Multi-Grade / Subject Teacher
+                                </button>
+                              </div>
+                            )
+                          })()}
+                        </div>
+
+                        {/* STEP 3: ASSIGN GRADES (IF NOT KINDERGARTEN) */}
+                        {teacherCategory !== 'kindergarten' && (
+                          <div className="space-y-3.5 pt-3 border-t border-[#F0E6DD]">
+                            <div>
+                              <label className="text-xs font-black text-[#2D2638] block mb-1.5 font-display flex items-center justify-between">
+                                <span>3. Assign Grade Levels (Select Multiple):</span>
+                                {assignedGradeIds.length > 0 && (
+                                  <span className="text-[10px] font-bold text-[#8B72F4] bg-[#F6EFFF] px-2 py-0.5 rounded-full border border-[#8B72F4]/20">
+                                    {assignedGradeIds.length} Grade(s) Selected
+                                  </span>
+                                )}
+                              </label>
+                              <div className="grid grid-cols-2 gap-2 p-3 bg-[#FAF5F0] rounded-2xl border-2 border-white max-h-48 overflow-y-auto custom-scrollbar">
+                                {grades
+                                  .filter(g => {
+                                    const currentSchool = schools.find(s => s.id === assignedSchoolIds[0])
+                                    if (currentSchool?.offered_grade_numbers && currentSchool.offered_grade_numbers.length > 0) {
+                                      if (!currentSchool.offered_grade_numbers.includes(g.grade_number)) return false
+                                    } else if (currentSchool?.school_type === 'elementary') {
+                                      if (g.grade_number > 6) return false
+                                    } else if (currentSchool?.school_type === 'secondary') {
+                                      if (g.grade_number < 7) return false
+                                    }
+
+                                    if (teacherCategory === 'grade_1_6') return g.grade_number >= 1 && g.grade_number <= 6
+                                    if (teacherCategory === 'jhs') return g.grade_number >= 7 && g.grade_number <= 10
+                                    if (teacherCategory === 'shs') return g.grade_number >= 11 && g.grade_number <= 12
+                                    return g.grade_number >= 1 && g.grade_number <= 12
+                                  })
+                                  .map(g => (
+                                    <label
+                                      key={g.id}
+                                      className="flex items-center gap-2 p-2 hover:bg-white rounded-xl cursor-pointer text-xs transition-colors"
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={assignedGradeIds.includes(g.id)}
+                                        onChange={() => toggleGradeSelection(g.id)}
+                                        className="rounded text-[#8B72F4] focus:ring-[#8B72F4]/20 w-4 h-4 cursor-pointer"
+                                      />
+                                      <span className="font-bold text-[#2D2638]">{g.name}</span>
+                                    </label>
+                                  ))}
+                              </div>
+                            </div>
+
+                            {/* STEP 4: ASSIGN SPECIFIC SUBJECTS PER GRADE LEVEL */}
+                            {assignedGradeIds.length > 0 && (
+                              <div className="space-y-3 pt-3 border-t border-[#F0E6DD]">
+                                <div className="flex items-center justify-between">
+                                  <label className="text-xs font-black text-[#2D2638] flex items-center gap-1.5 font-display">
+                                    <BookOpen size={15} className="text-[#8B72F4]" />
+                                    4. Assign Specific Subjects per Grade Level:
+                                  </label>
+                                  <span className="text-[10px] font-bold text-[#8B72F4] bg-[#F6EFFF] px-2.5 py-0.5 rounded-full border border-[#8B72F4]/20">
+                                    {assignedSubjectIds.length} Total Subject(s) Selected
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-[#7A7289]">
+                                  Select the specific subjects/learning areas assigned to this teacher for each selected grade level.
+                                </p>
+
+                                <div className="space-y-3 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
+                                  {assignedGradeIds.map(gId => {
+                                    const gradeObj = grades.find(g => g.id === gId)
+                                    if (!gradeObj) return null
+
+                                    const availableLAs = getLearningAreasForGrade(gId)
+                                    const selectedSubjectIdsForGrade = assignedGradeSubjectIds[gId] || []
+                                    const isAllSelected = availableLAs.length > 0 && availableLAs.every(la => selectedSubjectIdsForGrade.includes(la.id))
+
+                                    return (
+                                      <div key={gId} className="p-3.5 rounded-2xl bg-[#FAF5F0] border-2 border-white space-y-2.5 text-xs shadow-2xs">
+                                        <div className="flex items-center justify-between border-b border-purple-100 pb-2">
+                                          <div className="flex items-center gap-2">
+                                            <span className="font-black text-[#2D2638] text-xs">
+                                              {gradeObj.name}
+                                            </span>
+                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#F6EFFF] text-[#8B72F4] border border-[#8B72F4]/20">
+                                              {selectedSubjectIdsForGrade.length} of {availableLAs.length} subjects
+                                            </span>
+                                          </div>
+
+                                          <button
+                                            type="button"
+                                            onClick={() => toggleAllSubjectsForGrade(gId, availableLAs)}
+                                            className="text-[10px] font-bold text-[#8B72F4] hover:underline cursor-pointer"
+                                          >
+                                            {isAllSelected ? 'Deselect All' : 'Select All Subjects'}
+                                          </button>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                                          {availableLAs.map(la => {
+                                            const isSelected = selectedSubjectIdsForGrade.includes(la.id)
+                                            const otherTeacher = assignedSchoolIds[0] ? getOtherTeacherAssignedToSubject(assignedSchoolIds[0], gId, la.id) : null
+                                            const isDisabled = !!otherTeacher
+
+                                            return (
+                                              <label
+                                                key={la.id}
+                                                title={otherTeacher ? `Already assigned to ${otherTeacher.full_name}` : undefined}
+                                                className={`flex items-center justify-between gap-1.5 p-2 rounded-xl border text-[11px] font-bold transition-all ${
+                                                  isDisabled
+                                                    ? 'bg-slate-100/80 border-slate-200 text-slate-400 cursor-not-allowed opacity-80'
+                                                    : isSelected
+                                                    ? 'bg-white border-[#8B72F4] text-[#8B72F4] shadow-2xs cursor-pointer'
+                                                    : 'bg-white/60 border-transparent text-[#7A7289] hover:bg-white hover:text-[#2D2638] cursor-pointer'
+                                                }`}
+                                              >
+                                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                  <input
+                                                    type="checkbox"
+                                                    disabled={isDisabled}
+                                                    checked={isSelected}
+                                                    onChange={() => toggleSubjectForGrade(gId, la.id)}
+                                                    className="rounded text-[#8B72F4] focus:ring-[#8B72F4]/20 w-3.5 h-3.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+                                                  />
+                                                  <span className="truncate">{la.name}</span>
+                                                </div>
+
+                                                {otherTeacher && (
+                                                  <span
+                                                    className="text-[9px] font-extrabold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-full border border-amber-200 shrink-0 truncate max-w-[90px]"
+                                                    title={`Assigned to ${otherTeacher.full_name}`}
+                                                  >
+                                                    {otherTeacher.full_name.split(' ')[0]}
+                                                  </span>
+                                                )}
+                                              </label>
+                                            )
+                                          })}
+                                        </div>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Daily Session Duty & Working Hours Options */}
+                        {assignedSchoolIds.length > 0 && (
+                          <div className="space-y-3 pt-3 border-t border-[#F0E6DD]">
+                            <div className="space-y-2">
+                              <span className="text-xs font-black text-[#2D2638] block font-display flex items-center gap-1.5">
+                                <Clock size={15} className="text-[#FA6B6B]" />
+                                Daily Session Duty per School (A.M. Morning vs P.M. Afternoon):
+                              </span>
+                              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                                {assignedSchoolIds.map((schId, idx) => {
+                                  const sch = schools.find(s => s.id === schId)
+                                  if (!sch) return null
+                                  const sessionVal = schoolSessions[schId] || (assignedSchoolIds.length > 1 && teacherCategory === 'kindergarten' ? (idx === 0 ? 'am' : 'pm') : 'full_day')
+
+                                  return (
+                                    <div key={schId} className="flex items-center justify-between p-2.5 rounded-2xl bg-[#FAF5F0] border-2 border-white text-xs">
+                                      <span className="font-bold text-[#2D2638] truncate max-w-[55%]">
+                                        {sch.name}
+                                      </span>
+                                      <select
+                                        value={sessionVal}
+                                        onChange={e => {
+                                          const val = e.target.value as 'am' | 'pm' | 'full_day'
+                                          setSchoolSessions(prev => ({ ...prev, [schId]: val }))
+                                        }}
+                                        className="px-3 py-1.5 rounded-xl text-xs font-extrabold bg-white border border-slate-200 text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#FA6B6B]/20"
+                                      >
+                                        <option value="am">🌅 Morning Session Only (A.M.)</option>
+                                        <option value="pm">🌆 Afternoon Session Only (P.M.)</option>
+                                        <option value="full_day">☀️ Full Day Duty (A.M. & P.M.)</option>
+                                      </select>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </div>
+
+                            <div className="space-y-2 pt-2 border-t border-[#F0E6DD]">
+                              <label className="text-xs font-black text-[#2D2638] block font-display flex items-center gap-1.5">
+                                <Clock size={15} className="text-[#8B72F4]" />
+                                Prescribed Working Hours Schedule Option:
+                              </label>
+                              <select
+                                value={workingHoursPreset}
+                                onChange={e => setWorkingHoursPreset(e.target.value as 'option_1' | 'option_2')}
+                                className="w-full px-4 py-2.5 text-xs rounded-2xl bg-[#FAF5F0] border-2 border-white text-[#2D2638] font-bold focus:outline-none focus:ring-4 focus:ring-[#8B72F4]/20"
+                              >
+                                <option value="option_1">Option 1: 7:00 AM – 11:30 AM & 1:00 PM – 5:00 PM (Default)</option>
+                                <option value="option_2">Option 2: 8:00 AM – 12:00 PM & 1:00 PM – 5:00 PM</option>
+                              </select>
+                            </div>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
@@ -1516,6 +2031,226 @@ export function FacultyStaffPage() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Staff Details Popup Modal */}
+        {shouldRenderDetailModal && selectedStaffDetail && (
+          <div className={`fixed inset-0 z-50 bg-[#2D2638]/40 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 overflow-y-auto ${detailModalBackdropClass}`}>
+            <div className={`bg-[#FAF5F0] rounded-[36px] max-w-2xl w-full shadow-[0_25px_60px_rgba(139,114,244,0.3)] overflow-hidden border-4 border-white ${detailModalContainerClass}`}>
+              {/* Header */}
+              <div className="px-7 py-6 bg-gradient-to-r from-[#A88BEB] via-[#8B72F4] to-[#795CEE] text-white flex items-center justify-between relative overflow-hidden">
+                <div className="flex items-center gap-4">
+                  <div className="relative shrink-0">
+                    <img
+                      src={selectedStaffDetail.avatar_url || '/images/clay/avatar_girl.jpg'}
+                      alt={selectedStaffDetail.full_name}
+                      className="w-14 h-14 rounded-full object-cover border-4 border-white/90 shadow-md bg-[#F6EFFF]"
+                    />
+                    {isStaffOnline(selectedStaffDetail) && (
+                      <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-white shadow-2xs" title="Currently Online" />
+                    )}
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-black tracking-tight font-display flex items-center gap-2">
+                      <span>{selectedStaffDetail.full_name}</span>
+                      {selectedStaffDetail.id === admin?.id && (
+                        <span className="px-2 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-extrabold border border-white/30">You</span>
+                      )}
+                    </h2>
+                    <p className="text-xs text-white/90 font-medium">{selectedStaffDetail.email}</p>
+                    <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+                      <span className="px-2.5 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-black border border-white/30 backdrop-blur-xs">
+                        {getStaffDesignation(selectedStaffDetail)}
+                      </span>
+                      {isStaffOnline(selectedStaffDetail) ? (
+                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/30 text-emerald-100 text-[10px] font-black border border-emerald-300/40 backdrop-blur-xs flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          Online Now
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-white/80 text-[10px] font-bold border border-white/20">
+                          Offline
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={closeDetailModal}
+                  className="p-2 rounded-full bg-white/20 hover:bg-white/30 text-white backdrop-blur-md transition-all cursor-pointer border border-white/30 active:scale-95"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Body Content */}
+              <div className="p-7 space-y-5 max-h-[75vh] overflow-y-auto custom-scrollbar">
+                {/* Credentials & Access */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div className="p-4 rounded-2xl bg-white border-2 border-white shadow-2xs space-y-1">
+                    <span className="text-[10px] font-black text-[#A39BAF] uppercase tracking-wider block">Login Password</span>
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="font-mono text-xs font-bold text-[#2D2638]">
+                        {visiblePasswords[selectedStaffDetail.id] ? (selectedStaffDetail.password || 'password123') : '••••••••'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => togglePasswordVisibility(selectedStaffDetail.id)}
+                        className="text-[#8B72F4] hover:text-[#795CEE] text-xs font-extrabold flex items-center gap-1 cursor-pointer"
+                      >
+                        {visiblePasswords[selectedStaffDetail.id] ? <EyeOff size={13} /> : <Eye size={13} />}
+                        <span>{visiblePasswords[selectedStaffDetail.id] ? 'Hide' : 'Show'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-white border-2 border-white shadow-2xs space-y-1">
+                    <span className="text-[10px] font-black text-[#A39BAF] uppercase tracking-wider block">Access Status</span>
+                    <div className="flex items-center justify-between pt-1">
+                      <span className={`inline-flex items-center gap-1.5 text-xs font-black ${selectedStaffDetail.is_active ? 'text-emerald-700' : 'text-rose-700'}`}>
+                        <span className={`w-2 h-2 rounded-full ${selectedStaffDetail.is_active ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                        {selectedStaffDetail.is_active ? 'Active Access' : 'Disabled'}
+                      </span>
+
+                      {selectedStaffDetail.id !== admin?.id && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleToggleAccessStatus(selectedStaffDetail)
+                            setSelectedStaffDetail(prev => prev ? { ...prev, is_active: !prev.is_active } : null)
+                          }}
+                          className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-[#F6EFFF] text-[#8B72F4] hover:bg-[#8B72F4] hover:text-white transition-all border border-[#8B72F4]/20 cursor-pointer"
+                        >
+                          Toggle Status
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Assigned Schools */}
+                <div className="p-4 rounded-2xl bg-white border-2 border-white shadow-2xs space-y-2">
+                  <span className="text-[10px] font-black text-[#A39BAF] uppercase tracking-wider block flex items-center gap-1.5">
+                    <Building2 size={13} className="text-[#8B72F4]" />
+                    Assigned School(s)
+                  </span>
+
+                  {selectedStaffDetail.role === 'psds' ? (
+                    <div className="p-2.5 rounded-xl bg-indigo-50 text-indigo-900 text-xs font-bold border border-indigo-200">
+                      District Wide Access: Concepcion District (All Schools)
+                    </div>
+                  ) : selectedStaffDetail.assigned_school_ids && selectedStaffDetail.assigned_school_ids.length > 0 ? (
+                    <div className="space-y-1.5">
+                      {selectedStaffDetail.assigned_school_ids.map(schId => {
+                        const sch = schoolMap.get(schId)
+                        if (!sch) return null
+                        const sess = selectedStaffDetail.school_sessions?.[schId]
+                        const sessText = sess === 'am' ? ' (Morning Session A.M.)' : sess === 'pm' ? ' (Afternoon Session P.M.)' : ' (Full Day Duty)'
+
+                        return (
+                          <div key={schId} className="p-2.5 rounded-xl bg-[#FAF5F0] border border-[#F0E6DD] text-xs font-bold text-[#2D2638] flex items-center justify-between">
+                            <span>{sch.name}</span>
+                            <span className="text-[10px] font-extrabold text-[#8B72F4] bg-white px-2 py-0.5 rounded-md border border-[#8B72F4]/20">
+                              {getSchoolAbbreviation(sch.name)}{sessText}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-[#A39BAF] italic">No school assigned</p>
+                  )}
+                </div>
+
+                {/* Grade Level & Subject Scope Details */}
+                <div className="p-4 rounded-2xl bg-white border-2 border-white shadow-2xs space-y-2.5">
+                  <span className="text-[10px] font-black text-[#A39BAF] uppercase tracking-wider block flex items-center gap-1.5">
+                    <GraduationCap size={14} className="text-[#8B72F4]" />
+                    Grade Level & Teaching Scope
+                  </span>
+
+                  <div className="text-xs space-y-2">
+                    <div className="flex items-center justify-between p-2 rounded-xl bg-[#FAF5F0]">
+                      <span className="font-bold text-[#7A7289]">Grade Level Scope:</span>
+                      <span className="font-black text-[#2D2638] bg-white px-2.5 py-0.5 rounded-full border border-slate-200">
+                        {getStaffGradeSimple(selectedStaffDetail)}
+                      </span>
+                    </div>
+
+                    {selectedStaffDetail.role === 'teacher' && selectedStaffDetail.assigned_grade_subject_ids && Object.keys(selectedStaffDetail.assigned_grade_subject_ids).length > 0 && (
+                      <div className="space-y-1.5 pt-1">
+                        <span className="text-[11px] font-bold text-[#2D2638] block">Assigned Learning Areas per Grade:</span>
+                        <div className="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar">
+                          {selectedStaffDetail.assigned_grade_ids?.map(gId => {
+                            const gObj = gradeMap.get(gId)
+                            const subjectIds = selectedStaffDetail.assigned_grade_subject_ids?.[gId] || []
+                            if (!gObj || subjectIds.length === 0) return null
+                            const subjectNames = learningAreas
+                              .filter(la => subjectIds.includes(la.id))
+                              .map(la => la.name)
+
+                            return (
+                              <div key={gId} className="p-2 rounded-xl bg-[#FAF5F0] border border-[#F0E6DD] text-xs">
+                                <span className="font-black text-[#8B72F4] block mb-1">{gObj.name}:</span>
+                                <div className="flex flex-wrap gap-1">
+                                  {subjectNames.map((sName, idx) => (
+                                    <span key={idx} className="px-2 py-0.5 rounded-md bg-white text-[#2D2638] text-[10px] font-bold border border-slate-200">
+                                      {sName}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Modal Action Footer Buttons */}
+                <div className="flex items-center justify-between pt-4 border-t border-[#F0E6DD] gap-2">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        closeDetailModal()
+                        handleOpenEdit(selectedStaffDetail, e)
+                      }}
+                      className="px-4 py-2.5 rounded-full bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] text-white text-xs font-black shadow-xs hover:brightness-105 transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Edit2 size={13} />
+                      Edit Profile
+                    </button>
+
+                    {selectedStaffDetail.id !== admin?.id && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          captureGenieOrigin(e)
+                          closeDetailModal()
+                          setStaffToDelete(selectedStaffDetail)
+                        }}
+                        className="px-4 py-2.5 rounded-full bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-black transition-all border border-rose-200 cursor-pointer flex items-center gap-1.5"
+                      >
+                        <Trash2 size={13} />
+                        Delete Profile
+                      </button>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={closeDetailModal}
+                    className="px-5 py-2.5 rounded-full bg-white text-[#7A7289] hover:bg-[#F6EFFF] hover:text-[#2D2638] text-xs font-black transition-all border border-white shadow-2xs cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}

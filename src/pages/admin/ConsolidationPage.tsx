@@ -18,6 +18,7 @@ import {
 import { useToast } from '@/hooks/useToast'
 import { useAuth } from '@/features/auth/useAuth'
 import { generateExcelExport } from '@/lib/excel/excelExport'
+import { exportOfficialTermcatExcel, determineKsPrefix } from '@/lib/excel/officialExcelExport'
 import { OfficialTermcatTemplate } from '@/components/templates/OfficialTermcatTemplate'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { DepEdPageLoader } from '@/components/ui/DepEdSpinner'
@@ -125,11 +126,77 @@ export function ConsolidationPage() {
   // Subject-by-Grade Consolidation state
   const [bySubjSYId, setBySubjSYId] = useState('')
   const [bySubjTermId, setBySubjTermId] = useState('')
+  const [bySubjGradeId, setBySubjGradeId] = useState('all')
   const [bySubjLAId, setBySubjLAId] = useState('')
   const [bySubjSchoolFilter, setBySubjSchoolFilter] = useState('all')
   const [loadingBySubject, setLoadingBySubject] = useState(false)
   const [allSubmissionsForSubject, setAllSubmissionsForSubject] = useState<TermcatSubmission[]>([])
   const [bySubjectViewMode, setBySubjectViewMode] = useState<'official_template' | 'single_table'>('official_template')
+  const [exportingSubjectExcel, setExportingSubjectExcel] = useState(false)
+
+  // Filter Learning Areas dynamically for selected Grade Level in Consolidation by Learning Area tab
+  const bySubjAvailableLearningAreas = useMemo(() => {
+    if (learningAreaGrades.length === 0) return learningAreas
+
+    if (bySubjGradeId && bySubjGradeId !== 'all') {
+      const mappedLAIds = new Set(
+        learningAreaGrades
+          .filter(lag => lag.grade_level_id === bySubjGradeId)
+          .map(lag => lag.learning_area_id)
+      )
+      if (mappedLAIds.size > 0) {
+        return learningAreas.filter(la => mappedLAIds.has(la.id))
+      }
+    }
+
+    return learningAreas
+  }, [bySubjGradeId, learningAreaGrades, learningAreas])
+
+  // Auto-reset bySubjLAId if it's no longer valid for the newly selected grade
+  useEffect(() => {
+    if (
+      bySubjLAId &&
+      bySubjLAId !== 'all' &&
+      bySubjAvailableLearningAreas.length > 0 &&
+      !bySubjAvailableLearningAreas.some(la => la.id === bySubjLAId)
+    ) {
+      setBySubjLAId('')
+    }
+  }, [bySubjAvailableLearningAreas, bySubjLAId])
+
+  const handleExportSubjectExcel = async () => {
+    if (allSubmissionsForSubject.length === 0) {
+      toast('No subject submission data available to export.', 'warning')
+      return
+    }
+    try {
+      setExportingSubjectExcel(true)
+      const selectedGradeObj = grades.find(g => g.id === bySubjGradeId)
+      const selectedLA = learningAreas.find(l => l.id === bySubjLAId)?.name || 'Subject'
+      const selectedTerm = terms.find(t => t.id === bySubjTermId)?.name
+      const selectedSY = schoolYears.find(y => y.id === bySubjSYId)?.name
+
+      const ksPrefix = determineKsPrefix(enrichedSubmissions, undefined, selectedGradeObj?.grade_number)
+      const laClean = selectedLA.replace(/[^a-zA-Z0-9\s-]/g, '').trim().replace(/\s+/g, '_')
+
+      await exportOfficialTermcatExcel({
+        submissions: enrichedSubmissions,
+        sdoName: 'Division of Romblon',
+        epsName: 'Cristina F. Fallarme',
+        learningAreaName: selectedLA,
+        termName: selectedTerm,
+        schoolYearName: selectedSY,
+        filename: `${ksPrefix}_${laClean}`,
+        gradeNumber: selectedGradeObj?.grade_number,
+      })
+      toast('Official DepEd Excel exported successfully!', 'success')
+    } catch (err) {
+      console.error('Failed to export subject consolidation excel:', err)
+      toast('Failed to export Official Excel template.', 'error')
+    } finally {
+      setExportingSubjectExcel(false)
+    }
+  }
 
   const enrichedSubmissions = useMemo(() => {
     return allSubmissionsForSubject.map(sub => {
@@ -423,9 +490,13 @@ export function ConsolidationPage() {
       })
     }
 
-    const offeredGrades = grades
+    let offeredGrades = grades
       .filter(g => assignedGradeIds.has(g.id))
       .sort((a, b) => a.grade_number - b.grade_number)
+
+    if (bySubjGradeId && bySubjGradeId !== 'all') {
+      offeredGrades = offeredGrades.filter(g => g.id === bySubjGradeId)
+    }
 
     return offeredGrades.map(grade => {
       const gradeSubs = allSubmissionsForSubject.filter(s => s.grade_level_id === grade.id)
@@ -451,7 +522,7 @@ export function ConsolidationPage() {
         submittedSchoolsCount: submittedSchoolIds.size,
       }
     })
-  }, [bySubjLAId, bySubjSYId, bySubjTermId, bySubjSchoolFilter, learningAreaGrades, grades, allSubmissionsForSubject])
+  }, [bySubjLAId, bySubjGradeId, bySubjSYId, bySubjTermId, bySubjSchoolFilter, learningAreaGrades, grades, allSubmissionsForSubject])
 
   // Identify which expected schools have submitted and which are missing
   const { submittedSchools, missingSchools, isSpecificFilterSelected, canConsolidate } = useMemo(() => {
@@ -526,11 +597,11 @@ export function ConsolidationPage() {
       const selectedTermObj = terms.find(t => t.id === filters.term_id)
 
       const levelTitle = filters.school_level === 'elementary'
-        ? 'Elementary'
+        ? 'ES (Elementary)'
         : filters.school_level === 'junior_hs'
-        ? 'Junior High School'
+        ? 'JHS (Junior HS)'
         : filters.school_level === 'senior_hs'
-        ? 'Senior High School'
+        ? 'SHS (Senior HS)'
         : 'All Levels'
 
       const title = `Consolidated Report — ${levelTitle} (${selectedGradeObj?.name || 'Grade'}) — ${selectedLAObj?.name || 'Subject'} [${selectedSYObj?.name || ''} ${selectedTermObj?.name || ''}]`
@@ -575,13 +646,36 @@ export function ConsolidationPage() {
   }
 
   const handleExport = async () => {
-    if (!result) return
+    if (!result || result.submissions.length === 0) {
+      toast('No active consolidation dataset to export.', 'warning')
+      return
+    }
     setExporting(true)
     try {
-      await generateExcelExport(result.submissions, 'Consolidated_Data')
-      toast('Excel file generated successfully.', 'success')
-    } catch {
-      toast('Failed to generate Excel.', 'error')
+      const selectedGradeObj = grades.find(g => g.id === filters.grade_level_id)
+      const selectedLAObj = learningAreas.find(l => l.id === filters.learning_area_id)
+      const selectedLA = selectedLAObj?.name || 'Learning_Area'
+      const selectedTerm = terms.find(t => t.id === filters.term_id)?.name
+      const selectedSY = schoolYears.find(y => y.id === filters.school_year_id)?.name
+
+      const ksPrefix = determineKsPrefix(result.submissions, undefined, selectedGradeObj?.grade_number, filters.key_stage)
+      const laClean = selectedLA.replace(/[^a-zA-Z0-9\s-]/g, '').trim().replace(/\s+/g, '_')
+
+      await exportOfficialTermcatExcel({
+        submissions: result.submissions,
+        sdoName: 'Division of Romblon',
+        epsName: 'Cristina F. Fallarme',
+        learningAreaName: selectedLA,
+        termName: selectedTerm,
+        schoolYearName: selectedSY,
+        filename: `${ksPrefix}_${laClean}`,
+        gradeNumber: selectedGradeObj?.grade_number,
+        keyStage: filters.key_stage,
+      })
+      toast('Official DepEd Excel exported successfully.', 'success')
+    } catch (err) {
+      console.error(err)
+      toast('Failed to generate Official Excel.', 'error')
     } finally {
       setExporting(false)
     }
@@ -604,11 +698,11 @@ export function ConsolidationPage() {
   const selectedGrade = grades.find(g => g.id === filters.grade_level_id)?.name || 'All Grades'
 
   const levelLabel = filters.school_level === 'elementary'
-    ? 'Elementary'
+    ? 'ES (Elementary)'
     : filters.school_level === 'junior_hs'
-    ? 'Junior High School'
+    ? 'JHS (Junior HS)'
     : filters.school_level === 'senior_hs'
-    ? 'Senior High School'
+    ? 'SHS (Senior HS)'
     : 'All Levels'
 
   return (
@@ -624,7 +718,7 @@ export function ConsolidationPage() {
         <PageHeader
           badge="District Data Consolidation"
           title="Data Consolidation & Verification"
-          description="Validate 100% school submission completion across Elementary, Junior HS, and Senior HS levels before consolidating evaluation metrics into Supabase."
+          description="Validate 100% school submission completion across ES, JHS, and SHS levels before consolidating evaluation metrics into Supabase."
           actions={
             <div className="inline-flex p-1 bg-white/90 rounded-2xl border border-purple-100 shadow-2xs flex-wrap gap-1">
               <button
@@ -1560,20 +1654,51 @@ export function ConsolidationPage() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-                {/* 1. Select Learning Area */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+                {/* 1. Grade Level Filter */}
                 <div>
-                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#8B72F4] mb-1 flex items-center gap-1">
-                    <BookOpen size={13} className="text-[#8B72F4]" />
-                    <span>Target Learning Area *</span>
+                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#795CEE] mb-1 flex items-center gap-1">
+                    <GraduationCap size={13} className="text-[#795CEE]" />
+                    <span>Grade Level Scope</span>
+                  </label>
+                  <select
+                    className="w-full px-3 py-2.5 rounded-xl bg-purple-50/80 border border-purple-200 text-xs font-bold text-purple-950 focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs cursor-pointer"
+                    value={bySubjGradeId}
+                    onChange={e => setBySubjGradeId(e.target.value)}
+                  >
+                    <option value="all">All Offered Grades ({grades.length})</option>
+                    {grades.map(g => (
+                      <option key={g.id} value={g.id}>
+                        {g.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 2. Select Learning Area (Narrowed down based on selected Grade Level) */}
+                <div>
+                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#8B72F4] mb-1 flex items-center justify-between">
+                    <span className="flex items-center gap-1">
+                      <BookOpen size={13} className="text-[#8B72F4]" />
+                      <span>Target Learning Area *</span>
+                    </span>
+                    {bySubjGradeId !== 'all' && (
+                      <span className="text-[10px] text-[#8B72F4] font-bold">
+                        ({bySubjAvailableLearningAreas.length} mapped)
+                      </span>
+                    )}
                   </label>
                   <select
                     className="w-full px-3 py-2.5 rounded-xl bg-purple-50/80 border border-purple-200 text-xs font-bold text-purple-950 focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs cursor-pointer"
                     value={bySubjLAId}
                     onChange={e => setBySubjLAId(e.target.value)}
                   >
-                    <option value="">— Select Learning Area —</option>
-                    {learningAreas.map(la => (
+                    <option value="">
+                      {bySubjGradeId !== 'all'
+                        ? `— Select Learning Area (${bySubjAvailableLearningAreas.length} mapped for Grade) —`
+                        : '— Select Learning Area —'}
+                    </option>
+                    {bySubjAvailableLearningAreas.map(la => (
                       <option key={la.id} value={la.id}>
                         {la.name}
                       </option>
@@ -1581,7 +1706,7 @@ export function ConsolidationPage() {
                   </select>
                 </div>
 
-                {/* 2. School Year */}
+                {/* 3. School Year */}
                 <div>
                   <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 flex items-center gap-1">
                     <Calendar size={13} className="text-[#8B72F4]" />
@@ -1596,7 +1721,7 @@ export function ConsolidationPage() {
                   </select>
                 </div>
 
-                {/* 3. Quarter / Term */}
+                {/* 4. Quarter / Term */}
                 <div>
                   <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 flex items-center gap-1">
                     <Clock size={13} className="text-[#795CEE]" />
@@ -1611,7 +1736,7 @@ export function ConsolidationPage() {
                   </select>
                 </div>
 
-                {/* 4. School Filter */}
+                {/* 5. School Filter */}
                 <div>
                   <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 flex items-center gap-1">
                     <Building2 size={13} className="text-[#8B72F4]" />
@@ -1692,6 +1817,16 @@ export function ConsolidationPage() {
                         <span>Master Matrix Table</span>
                       </button>
                     </div>
+
+                    <button
+                      onClick={handleExportSubjectExcel}
+                      disabled={exportingSubjectExcel}
+                      className="px-3.5 py-2 text-xs font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-all shadow-2xs inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                      title="Export official DepEd TERMCAT Excel template matching official layout, paper size, and formatting"
+                    >
+                      <FileSpreadsheet size={14} />
+                      <span>{exportingSubjectExcel ? 'Exporting...' : 'Export to Excel (.xlsx)'}</span>
+                    </button>
 
                     <button
                       onClick={() => window.print()}

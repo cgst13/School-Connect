@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
-import type { School, GradeLevel, LearningArea, LearningAreaGrade, SchoolYear, Term, TermcatSubmission, FormType } from '@/types'
+import type { School, GradeLevel, LearningArea, LearningAreaGrade, SchoolYear, Term, TermcatSubmission, FormType, AdminProfile } from '@/types'
 import {
   parseSubjectImportExcel,
   getExcelSheetNames,
   downloadImportTemplate,
   type ParsedSubjectRow
 } from '@/lib/excel/excelImport'
-import { createSubmission, generateReferenceNumber, insertAuditLog, checkDuplicateSubmission, fetchLearningAreaGrades } from '@/lib/supabase/queries'
+import { createSubmission, generateReferenceNumber, insertAuditLog, checkDuplicateSubmission, fetchLearningAreaGrades, fetchAllAdmins } from '@/lib/supabase/queries'
 import { useAuth } from '@/features/auth/useAuth'
 import { useToast } from '@/hooks/useToast'
 import { OfficialTermcatTemplate } from '@/components/templates/OfficialTermcatTemplate'
@@ -19,7 +19,7 @@ import {
 } from '@/lib/supabase/suggestions'
 import {
   X, Upload, Download, FileSpreadsheet, CheckCircle2, AlertTriangle, RefreshCw,
-  User, Building2, GraduationCap, Calendar, Clock, AlertCircle, Layers, Eye, Printer, Sparkles, Lock, Loader2
+  User, Building2, GraduationCap, Calendar, Clock, Layers, Eye, Printer, Sparkles, Lock, BookOpen, Users
 } from 'lucide-react'
 import { useGenieModal } from '@/utils/genieAnimation'
 
@@ -47,14 +47,23 @@ export function ImportSubmissionsModal({
   const { admin } = useAuth()
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { shouldRender, triggerClose, containerClass, backdropClass } = useGenieModal(isOpen, onClose)
+  const { triggerClose, containerClass, backdropClass } = useGenieModal(isOpen, onClose)
+
+  // Import Mode state ('per_grade' | 'per_learning_area')
+  const [importMode, setImportMode] = useState<'per_grade' | 'per_learning_area'>('per_grade')
 
   // Tagging parameters
   const [teacherName, setTeacherName] = useState('')
   const [schoolId, setSchoolId] = useState('')
   const [gradeLevelId, setGradeLevelId] = useState('')
+  const [learningAreaId, setLearningAreaId] = useState('')
   const [schoolYearId, setSchoolYearId] = useState('')
   const [termId, setTermId] = useState('')
+
+  // Teacher Tagging Mode for Option 1 (per_grade): 'all_same' vs 'per_subject'
+  const [teacherTaggingMode, setTeacherTaggingMode] = useState<'all_same' | 'per_subject'>('all_same')
+  const [perSubjectTeachers, setPerSubjectTeachers] = useState<Record<string, string>>({})
+  const [staffList, setStaffList] = useState<AdminProfile[]>([])
 
   // Suggestion & Auto-select state
   const [teacherSuggestions, setTeacherSuggestions] = useState<string[]>([])
@@ -62,14 +71,13 @@ export function ImportSubmissionsModal({
 
   // File & parsing state
   const [fileName, setFileName] = useState<string | null>(null)
-  const [isExportingPdf, setIsExportingPdf] = useState(false)
   const [fileBuffer, setFileBuffer] = useState<ArrayBuffer | null>(null)
   const [sheetNames, setSheetNames] = useState<string[]>([])
   const [selectedSheet, setSelectedSheet] = useState<string>('')
   const [parsedRows, setParsedRows] = useState<ParsedSubjectRow[]>([])
   const [duplicateMap, setDuplicateMap] = useState<Record<number, boolean>>({})
   const [isParsing, setIsParsing] = useState(false)
-  const [parseError, setParseError] = useState<string | null>(null)
+  const [, setParseError] = useState<string | null>(null)
   const [isImporting, setIsImporting] = useState(false)
   const [importProgress, setImportProgress] = useState(0)
 
@@ -77,7 +85,7 @@ export function ImportSubmissionsModal({
   const [showOfficialPreview, setShowOfficialPreview] = useState(false)
   const [learningAreaGrades, setLearningAreaGrades] = useState<LearningAreaGrade[]>([])
 
-  // Set default values & load teacher suggestions when modal opens
+  // Set default values & load teacher suggestions and staff directory when modal opens
   useEffect(() => {
     if (isOpen) {
       const activeSY = schoolYears.find(sy => sy.is_active)
@@ -86,12 +94,30 @@ export function ImportSubmissionsModal({
       const defaultTerm = terms.find(t => t.is_default || t.is_active)
       if (defaultTerm && !termId) setTermId(defaultTerm.id)
 
-      fetchTeacherNameSuggestions().then(setTeacherSuggestions)
+      fetchTeacherNameSuggestions().then(localSugg => {
+        fetchAllAdmins().then(admins => {
+          setStaffList(admins)
+          const staffNames = admins.map(a => a.full_name).filter(Boolean)
+          const combined = Array.from(new Set([...localSugg, ...staffNames]))
+          setTeacherSuggestions(combined)
+        })
+      })
       fetchLearningAreaGrades().then(setLearningAreaGrades)
     }
   }, [isOpen, schoolYears, terms, schoolYearId, termId])
 
-  // Filter learning areas assigned to the selected grade level only
+  const handleModeChange = (newMode: 'per_grade' | 'per_learning_area') => {
+    if (newMode === importMode) return
+    setImportMode(newMode)
+    setParsedRows([])
+    setFileName(null)
+    setFileBuffer(null)
+    setSheetNames([])
+    setSelectedSheet('')
+    setDuplicateMap({})
+  }
+
+  // Filter learning areas assigned to the selected grade level only (for per_grade mode)
   const availableLearningAreas = useMemo(() => {
     if (!gradeLevelId || learningAreaGrades.length === 0) return learningAreas
     const mappedLAIds = new Set(
@@ -105,7 +131,9 @@ export function ImportSubmissionsModal({
     return learningAreas
   }, [gradeLevelId, learningAreaGrades, learningAreas])
 
-  const isTaggingComplete = Boolean(schoolId && gradeLevelId)
+  const isTaggingComplete = importMode === 'per_grade'
+    ? Boolean(schoolId && gradeLevelId)
+    : Boolean(schoolId && learningAreaId)
 
   // Auto-select school when teacher name is typed or selected from suggestions
   const handleTeacherNameSelect = async (name: string) => {
@@ -119,6 +147,66 @@ export function ImportSubmissionsModal({
       const school = schools.find(s => s.id === prevSchoolId)
       if (school) setAutoSelectedSchoolName(school.name)
     }
+  }
+
+  // Find default assigned teacher for a specific school + grade + subject from Faculty Directory
+  const getAssignedTeacherForSubject = (sId: string, gId: string, laId: string): AdminProfile | null => {
+    if (!sId || !gId || !laId || staffList.length === 0) return null
+    const activeTeachers = staffList.filter(s => s.role === 'teacher' && s.is_active !== false)
+    return activeTeachers.find(t => {
+      if (t.assigned_school_ids?.length && !t.assigned_school_ids.includes(sId)) return false
+      if (t.assigned_grade_ids?.length && !t.assigned_grade_ids.includes(gId)) return false
+
+      if (t.assigned_grade_subject_ids && t.assigned_grade_subject_ids[gId]) {
+        return t.assigned_grade_subject_ids[gId].includes(laId)
+      }
+      return t.assigned_subject_ids?.includes(laId)
+    }) || null
+  }
+
+  // Auto-populate default teachers for each learning area in per_subject mode
+  useEffect(() => {
+    if (importMode === 'per_grade' && schoolId && gradeLevelId && availableLearningAreas.length > 0 && staffList.length > 0) {
+      setPerSubjectTeachers(prev => {
+        const next = { ...prev }
+        availableLearningAreas.forEach(la => {
+          if (next[la.id] === undefined || next[la.id] === '') {
+            const defaultTeacher = getAssignedTeacherForSubject(schoolId, gradeLevelId, la.id)
+            if (defaultTeacher) {
+              next[la.id] = defaultTeacher.full_name
+            }
+          }
+        })
+        return next
+      })
+    }
+  }, [importMode, schoolId, gradeLevelId, availableLearningAreas, staffList])
+
+  const handleAutoFillDefaultTeachers = () => {
+    const newMap: Record<string, string> = {}
+    availableLearningAreas.forEach(la => {
+      const defaultTeacher = getAssignedTeacherForSubject(schoolId, gradeLevelId, la.id)
+      if (defaultTeacher) {
+        newMap[la.id] = defaultTeacher.full_name
+      } else if (teacherName.trim()) {
+        newMap[la.id] = teacherName.trim()
+      }
+    })
+    setPerSubjectTeachers(newMap)
+    toast('Auto-filled assigned teachers from Faculty Directory.', 'success')
+  }
+
+  const handleApplyTeacherToAllSubjects = () => {
+    if (!teacherName.trim()) {
+      toast('Please enter a Teacher\'s Name in the main input first.', 'warning')
+      return
+    }
+    const newMap: Record<string, string> = {}
+    availableLearningAreas.forEach(la => {
+      newMap[la.id] = teacherName.trim()
+    })
+    setPerSubjectTeachers(newMap)
+    toast(`Applied "${teacherName.trim()}" to all learning areas.`, 'success')
   }
 
   // Construct transient TermcatSubmissions for Official Template Preview
@@ -141,6 +229,13 @@ export function ImportSubmissionsModal({
       key_stage: 'ks2' as const,
       is_active: true,
     }
+    const selectedLA = learningAreas.find(la => la.id === learningAreaId) || {
+      id: 'la-preview',
+      name: 'Learning Area (Pending Selection)',
+      is_active: true,
+      created_at: '',
+      updated_at: '',
+    }
     const selectedSY = schoolYears.find(sy => sy.id === schoolYearId) || {
       id: 'sy-preview',
       name: 'School Year',
@@ -156,16 +251,34 @@ export function ImportSubmissionsModal({
     }
 
     return parsedRows.map((row, idx) => {
-      const matchedLA = learningAreas.find(la => la.id === row.learningAreaId) || {
-        id: `temp-${idx}`,
-        name: row.learningAreaRaw,
-        is_active: true,
-        created_at: '',
-        updated_at: '',
+      let currentGrade = selectedGrade
+      let currentLA = selectedLA
+
+      if (importMode === 'per_grade') {
+        currentLA = learningAreas.find(la => la.id === row.learningAreaId) || {
+          id: `temp-${idx}`,
+          name: row.labelRaw || row.learningAreaRaw || 'Subject',
+          is_active: true,
+          created_at: '',
+          updated_at: '',
+        }
+      } else {
+        currentGrade = grades.find(g => g.id === row.gradeLevelId) || {
+          id: `temp-g-${idx}`,
+          name: row.labelRaw || row.gradeLevelRaw || 'Grade Level',
+          grade_number: 5,
+          school_type: 'secondary' as const,
+          key_stage: 'ks2' as const,
+          is_active: true,
+        }
       }
 
-      const isKS1 = row.formType === 'ks1' || selectedGrade.grade_number <= 3
+      const isKS1 = row.formType === 'ks1' || currentGrade.grade_number <= 3
       const formType: FormType = isKS1 ? 'ks1' : 'ks2to4'
+
+      const effectiveTeacher = importMode === 'per_grade' && teacherTaggingMode === 'per_subject' && currentLA.id && perSubjectTeachers[currentLA.id]
+        ? perSubjectTeachers[currentLA.id].trim()
+        : teacherName.trim()
 
       const competencies: any[] = [
         ...row.mostLearned.map((txt, i) => ({ id: `ml-${idx}-${i}`, category: 'most_learned', rank: i + 1, competency_text: txt })),
@@ -176,13 +289,13 @@ export function ImportSubmissionsModal({
       return {
         id: `preview-${row.rowIndex}`,
         reference_number: `PREVIEW-${idx + 1}`,
-        teacher_name: teacherName.trim() || 'Teacher Name (Pending)',
+        teacher_name: effectiveTeacher || 'Teacher Name (Pending)',
         school_id: selectedSchool.id,
-        grade_level_id: selectedGrade.id,
-        learning_area_id: matchedLA.id,
+        grade_level_id: currentGrade.id,
+        learning_area_id: currentLA.id,
         school_year_id: selectedSY.id,
         term_id: selectedTerm.id,
-        key_stage: selectedGrade.key_stage,
+        key_stage: currentGrade.key_stage,
         form_type: formType,
         status: 'submitted',
         return_reason: null,
@@ -199,8 +312,8 @@ export function ImportSubmissionsModal({
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         school: selectedSchool,
-        grade_level: selectedGrade,
-        learning_area: matchedLA,
+        grade_level: currentGrade,
+        learning_area: currentLA,
         school_year: selectedSY,
         term: selectedTerm,
         ks1_learner_data: isKS1
@@ -228,13 +341,13 @@ export function ImportSubmissionsModal({
         },
       }
     })
-  }, [parsedRows, teacherName, schoolId, gradeLevelId, schoolYearId, termId, schools, grades, learningAreas, schoolYears, terms])
+  }, [parsedRows, teacherName, schoolId, gradeLevelId, learningAreaId, schoolYearId, termId, schools, grades, learningAreas, schoolYears, terms, importMode, teacherTaggingMode, perSubjectTeachers])
 
   if (!isOpen) return null
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!isTaggingComplete) {
-      toast('Please select both a School and Grade Level in Step 1 first.', 'warning')
+      toast(`Please select both a School and ${importMode === 'per_grade' ? 'Grade Level' : 'Learning Area'} in Step 1 first.`, 'warning')
       return
     }
     const file = e.target.files?.[0]
@@ -245,7 +358,7 @@ export function ImportSubmissionsModal({
   const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     if (!isTaggingComplete) {
-      toast('Please select both a School and Grade Level in Step 1 first.', 'warning')
+      toast(`Please select both a School and ${importMode === 'per_grade' ? 'Grade Level' : 'Learning Area'} in Step 1 first.`, 'warning')
       return
     }
     const file = e.dataTransfer.files?.[0]
@@ -255,7 +368,7 @@ export function ImportSubmissionsModal({
 
   // Grade & Template format validation
   const selectedGrade = grades.find(g => g.id === gradeLevelId)
-  const expectedFormType: 'ks1' | 'ks2to4' | null = selectedGrade
+  const expectedFormType: 'ks1' | 'ks2to4' | null = importMode === 'per_grade' && selectedGrade
     ? selectedGrade.grade_number <= 3
       ? 'ks1'
       : 'ks2to4'
@@ -264,7 +377,7 @@ export function ImportSubmissionsModal({
   const parsedFormType: 'ks1' | 'ks2to4' | null = parsedRows.length > 0 ? parsedRows[0].formType : null
 
   const isTemplateMismatch = Boolean(
-    expectedFormType && parsedFormType && expectedFormType !== parsedFormType
+    importMode === 'per_grade' && expectedFormType && parsedFormType && expectedFormType !== parsedFormType
   )
 
   const findBestSheetForGrade = (sheets: string[], expectedType: 'ks1' | 'ks2to4' | null) => {
@@ -288,7 +401,7 @@ export function ImportSubmissionsModal({
 
   const processFile = async (file: File) => {
     if (!isTaggingComplete) {
-      toast('Please select both a School and Grade Level in Step 1 first.', 'warning')
+      toast(`Please select both a School and ${importMode === 'per_grade' ? 'Grade Level' : 'Learning Area'} in Step 1 first.`, 'warning')
       return
     }
     setFileName(file.name)
@@ -351,6 +464,15 @@ export function ImportSubmissionsModal({
     }
   }
 
+  const handleLearningAreaSelect = async (laId: string) => {
+    setLearningAreaId(laId)
+    if (fileBuffer && sheetNames.length > 0) {
+      setIsParsing(true)
+      await parseSheet(fileBuffer, selectedSheet)
+      setIsParsing(false)
+    }
+  }
+
   const handleSheetChange = async (sheetName: string) => {
     setSelectedSheet(sheetName)
     if (!fileBuffer) return
@@ -363,13 +485,13 @@ export function ImportSubmissionsModal({
   const parseSheet = async (buffer: ArrayBuffer, sheetName: string, customLAs?: LearningArea[]) => {
     try {
       const targetLAs = customLAs || availableLearningAreas
-      const rows = await parseSubjectImportExcel(buffer, targetLAs, sheetName)
+      const rows = await parseSubjectImportExcel(buffer, targetLAs, grades, sheetName, importMode)
       setParsedRows(rows)
 
       if (rows.length === 0) {
-        toast(`No valid subject data rows found in worksheet "${sheetName}".`, 'info')
+        toast(`No valid data blocks found in worksheet "${sheetName}".`, 'info')
       } else {
-        toast(`Successfully parsed ${rows.length} subject block(s) from sheet "${sheetName}".`, 'success')
+        toast(`Successfully parsed ${rows.length} block(s) from sheet "${sheetName}".`, 'success')
         await checkDuplicatesForRows(rows)
       }
     } catch (err: any) {
@@ -380,19 +502,26 @@ export function ImportSubmissionsModal({
   }
 
   const checkDuplicatesForRows = async (rows: ParsedSubjectRow[]) => {
-    if (!schoolId || !gradeLevelId || !schoolYearId || !termId) return
+    if (!schoolId || !schoolYearId || !termId) return
     const dupes: Record<number, boolean> = {}
 
     for (const row of rows) {
-      if (!row.learningAreaId) continue
+      const gId = importMode === 'per_grade' ? gradeLevelId : row.gradeLevelId
+      const laId = importMode === 'per_grade' ? row.learningAreaId : learningAreaId
+      if (!gId || !laId) continue
+
+      const effectiveTeacher = importMode === 'per_grade' && teacherTaggingMode === 'per_subject' && laId && perSubjectTeachers[laId]
+        ? perSubjectTeachers[laId].trim()
+        : teacherName.trim()
+
       try {
         const isDup = await checkDuplicateSubmission(
           schoolId,
-          gradeLevelId,
-          row.learningAreaId,
+          gId,
+          laId,
           schoolYearId,
           termId,
-          teacherName.trim()
+          effectiveTeacher
         )
         dupes[row.rowIndex] = Boolean(isDup)
       } catch {
@@ -418,17 +547,35 @@ export function ImportSubmissionsModal({
     )
   }
 
+  const handleGradeLevelChange = (rowIndex: number, newGradeId: string) => {
+    setParsedRows(prev =>
+      prev.map(row => {
+        if (row.rowIndex !== rowIndex) return row
+        const newGrade = grades.find(g => g.id === newGradeId)
+        const updatedErrors = row.errors.filter(e => !e.includes('not recognized'))
+        const formType = newGrade ? (newGrade.grade_number <= 3 ? 'ks1' : 'ks2to4') : row.formType
+        return {
+          ...row,
+          gradeLevelId: newGradeId || null,
+          gradeLevelRaw: newGrade ? newGrade.name : row.gradeLevelRaw,
+          formType,
+          errors: updatedErrors,
+        }
+      })
+    )
+  }
+
   const handleImport = async () => {
-    if (!teacherName.trim()) {
-      toast('Please enter the Teacher\'s Name to tag the import.', 'error')
-      return
-    }
     if (!schoolId) {
       toast('Please select a School.', 'error')
       return
     }
-    if (!gradeLevelId) {
+    if (importMode === 'per_grade' && !gradeLevelId) {
       toast('Please select a Grade Level.', 'error')
+      return
+    }
+    if (importMode === 'per_learning_area' && !learningAreaId) {
+      toast('Please select a Learning Area.', 'error')
       return
     }
     if (!schoolYearId) {
@@ -440,14 +587,31 @@ export function ImportSubmissionsModal({
       return
     }
 
+    if (importMode === 'per_grade' && teacherTaggingMode === 'per_subject') {
+      const validRows = parsedRows.filter(r => r.learningAreaId)
+      for (const r of validRows) {
+        const tName = (perSubjectTeachers[r.learningAreaId!] || teacherName).trim()
+        if (!tName) {
+          const la = availableLearningAreas.find(a => a.id === r.learningAreaId)
+          toast(`Please assign or enter a Teacher's Name for subject "${la?.name || r.labelRaw}".`, 'error')
+          return
+        }
+      }
+    } else {
+      if (!teacherName.trim()) {
+        toast('Please enter the Teacher\'s Name to tag the import.', 'error')
+        return
+      }
+    }
+
     if (isTemplateMismatch) {
       toast(`Cannot import: The selected worksheet "${selectedSheet}" does not match the template format required for ${selectedGrade?.name}.`, 'error')
       return
     }
 
-    const validRows = parsedRows.filter(r => r.learningAreaId)
+    const validRows = parsedRows.filter(r => importMode === 'per_grade' ? r.learningAreaId : r.gradeLevelId)
     if (validRows.length === 0) {
-      toast('No valid subject rows available to import. Please ensure all subjects are mapped.', 'error')
+      toast(`No valid ${importMode === 'per_grade' ? 'subject' : 'grade level'} rows available to import. Please ensure all items are mapped.`, 'error')
       return
     }
 
@@ -459,7 +623,15 @@ export function ImportSubmissionsModal({
 
     for (let i = 0; i < validRows.length; i++) {
       const row = validRows[i]
-      const isKS1 = row.formType === 'ks1' || (selectedGrade && selectedGrade.grade_number <= 3)
+      const gId = importMode === 'per_grade' ? gradeLevelId : row.gradeLevelId!
+      const laId = importMode === 'per_grade' ? row.learningAreaId! : learningAreaId
+
+      const rowTeacherName = importMode === 'per_grade' && teacherTaggingMode === 'per_subject'
+        ? (perSubjectTeachers[laId] || teacherName).trim()
+        : teacherName.trim()
+
+      const currentGrade = grades.find(g => g.id === gId)
+      const isKS1 = row.formType === 'ks1' || (currentGrade && currentGrade.grade_number <= 3)
 
       try {
         let refNum = `TC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`
@@ -471,10 +643,10 @@ export function ImportSubmissionsModal({
 
         const formData: any = {
           teacherInfo: {
-            teacher_name: teacherName.trim(),
+            teacher_name: rowTeacherName,
             school_id: schoolId,
-            grade_level_id: gradeLevelId,
-            learning_area_id: row.learningAreaId,
+            grade_level_id: gId,
+            learning_area_id: laId,
             school_year_id: schoolYearId,
             term_id: termId,
           },
@@ -513,7 +685,7 @@ export function ImportSubmissionsModal({
         await createSubmission(formData, refNum)
         successCount++
       } catch (err: any) {
-        console.error(`Failed to import row for subject ${row.learningAreaRaw}:`, err)
+        console.error(`Failed to import row for ${row.labelRaw}:`, err)
         failCount++
       }
 
@@ -524,20 +696,28 @@ export function ImportSubmissionsModal({
       await insertAuditLog({
         admin_id: admin.id,
         admin_name: admin.full_name,
-        action: 'import_submissions_per_subject',
+        action: 'import_submissions_batch',
         entity_type: 'submission_batch',
         entity_id: undefined,
-        entity_label: `Teacher: ${teacherName}, Subjects: ${successCount}`,
-        details: { teacherName, schoolId, gradeLevelId, schoolYearId, termId, count: successCount },
+        entity_label: `Teacher(s) batch, Mode: ${importMode}, Submissions: ${successCount}`,
+        details: { teacherName, perSubjectTeachers, teacherTaggingMode, schoolId, gradeLevelId, learningAreaId, importMode, schoolYearId, termId, count: successCount },
       })
     }
 
     setIsImporting(false)
 
     if (successCount > 0) {
-      saveLocalSuggestion('teachers', teacherName)
-      saveTeacherSchoolMapping(teacherName, schoolId)
-      toast(`Successfully imported ${successCount} subject submission(s)!${failCount > 0 ? ` (${failCount} failed)` : ''}`, 'success')
+      if (teacherName.trim()) {
+        saveLocalSuggestion('teachers', teacherName.trim())
+        saveTeacherSchoolMapping(teacherName.trim(), schoolId)
+      }
+      Object.values(perSubjectTeachers).forEach(t => {
+        if (t.trim()) {
+          saveLocalSuggestion('teachers', t.trim())
+          saveTeacherSchoolMapping(t.trim(), schoolId)
+        }
+      })
+      toast(`Successfully imported ${successCount} submission(s)!${failCount > 0 ? ` (${failCount} failed)` : ''}`, 'success')
       onSuccess()
       onClose()
     } else {
@@ -545,7 +725,13 @@ export function ImportSubmissionsModal({
     }
   }
 
-  const validRowsCount = parsedRows.filter(r => r.learningAreaId).length
+  const isTeacherTaggingValid = importMode === 'per_grade'
+    ? teacherTaggingMode === 'all_same'
+      ? Boolean(teacherName.trim())
+      : availableLearningAreas.some(la => Boolean((perSubjectTeachers[la.id] || teacherName).trim()))
+    : Boolean(teacherName.trim())
+
+  const validRowsCount = parsedRows.filter(r => importMode === 'per_grade' ? r.learningAreaId : r.gradeLevelId).length
 
   return (
     <>
@@ -559,13 +745,15 @@ export function ImportSubmissionsModal({
               </div>
               <div>
                 <h2 className="text-lg sm:text-xl font-black font-display tracking-tight text-white flex items-center gap-2.5">
-                  <span>Import Submissions per Subject</span>
+                  <span>Import Submissions Excel</span>
                   <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-white/20 text-white border border-white/30">
-                    Excel Batch
+                    {importMode === 'per_grade' ? 'Per Grade Level' : 'Per Learning Area'}
                   </span>
                 </h2>
                 <p className="text-xs text-purple-100 font-medium">
-                  Upload Excel template with single or multiple learning areas. Each subject block creates its own submission.
+                  {importMode === 'per_grade'
+                    ? 'Upload Excel containing multiple Learning Areas for a single Grade Level.'
+                    : 'Upload Excel containing multiple Grade Levels for a single Learning Area.'}
                 </p>
               </div>
             </div>
@@ -580,6 +768,45 @@ export function ImportSubmissionsModal({
 
           {/* Content Body */}
           <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto bg-[#FAF5F0]">
+            {/* MODE SELECTION TABS */}
+            <div className="bg-white/90 p-2 rounded-[24px] border-2 border-white shadow-[0_6px_16px_rgba(185,170,210,0.12)] grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => handleModeChange('per_grade')}
+                className={`py-3 px-4 rounded-2xl text-xs font-black transition-all flex flex-col items-center justify-center gap-1 cursor-pointer border ${
+                  importMode === 'per_grade'
+                    ? 'bg-gradient-to-r from-[#8B72F4] to-[#795CEE] text-white shadow-md border-transparent'
+                    : 'bg-[#FAF5F0]/70 text-[#7A7289] hover:bg-purple-50 border-purple-100'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <GraduationCap size={16} />
+                  <span>Option 1: Import per Grade Level</span>
+                </div>
+                <span className={`text-[10px] font-normal ${importMode === 'per_grade' ? 'text-purple-100' : 'text-[#A39BAF]'}`}>
+                  Excel rows = Learning Areas / Subjects
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleModeChange('per_learning_area')}
+                className={`py-3 px-4 rounded-2xl text-xs font-black transition-all flex flex-col items-center justify-center gap-1 cursor-pointer border ${
+                  importMode === 'per_learning_area'
+                    ? 'bg-gradient-to-r from-[#8B72F4] to-[#795CEE] text-white shadow-md border-transparent'
+                    : 'bg-[#FAF5F0]/70 text-[#7A7289] hover:bg-purple-50 border-purple-100'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <BookOpen size={16} />
+                  <span>Option 2: Import per Learning Area</span>
+                </div>
+                <span className={`text-[10px] font-normal ${importMode === 'per_learning_area' ? 'text-purple-100' : 'text-[#A39BAF]'}`}>
+                  Excel rows = Grade Levels (Grades 1–12)
+                </span>
+              </button>
+            </div>
+
             {/* STEP 1: TAGGING PARAMETERS FORM */}
             <div className="bg-white/90 rounded-[28px] border-2 border-white p-5 shadow-[0_8px_20px_rgba(185,170,210,0.12)] space-y-4">
               <div className="flex items-center justify-between border-b border-purple-100 pb-3">
@@ -592,28 +819,9 @@ export function ImportSubmissionsModal({
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {/* Teacher Name */}
-                <div className="sm:col-span-2 lg:col-span-1">
-                  <label className="block text-xs font-bold text-[#2D2638] mb-1">
-                    Teacher's Name <span className="text-rose-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A39BAF] z-10" />
-                    <SuggestionInput
-                      id="import_teacher_name"
-                      placeholder="e.g. Maria Santos"
-                      suggestions={teacherSuggestions}
-                      value={teacherName}
-                      onChange={e => handleTeacherNameSelect(e.target.value)}
-                      onSelectSuggestion={val => handleTeacherNameSelect(val)}
-                      className="w-full pl-9 pr-3 py-2.5 rounded-2xl bg-[#FAF5F0]/70 border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40"
-                    />
-                  </div>
-                </div>
-
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* School */}
-                <div>
+                <div className="lg:col-span-1">
                   <label className="block text-xs font-bold text-[#2D2638] mb-1">
                     School <span className="text-rose-500">*</span>
                   </label>
@@ -644,31 +852,55 @@ export function ImportSubmissionsModal({
                   )}
                 </div>
 
-                {/* Grade Level */}
-                <div>
-                  <label className="block text-xs font-bold text-[#2D2638] mb-1">
-                    Grade Level <span className="text-rose-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <GraduationCap size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A39BAF] pointer-events-none" />
-                    <select
-                      required
-                      className="w-full pl-9 pr-3 py-2.5 rounded-2xl bg-[#FAF5F0]/70 border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40"
-                      value={gradeLevelId}
-                      onChange={e => handleGradeLevelSelect(e.target.value)}
-                    >
-                      <option value="">Select Grade</option>
-                      {grades.map(g => (
-                        <option key={g.id} value={g.id}>
-                          {g.name} (Key Stage {g.key_stage.toUpperCase()})
-                        </option>
-                      ))}
-                    </select>
+                {/* Conditional Field: Grade Level (for per_grade) vs Learning Area (for per_learning_area) */}
+                {importMode === 'per_grade' ? (
+                  <div className="lg:col-span-1">
+                    <label className="block text-xs font-bold text-[#2D2638] mb-1">
+                      Grade Level <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <GraduationCap size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A39BAF] pointer-events-none" />
+                      <select
+                        required
+                        className="w-full pl-9 pr-3 py-2.5 rounded-2xl bg-[#FAF5F0]/70 border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40"
+                        value={gradeLevelId}
+                        onChange={e => handleGradeLevelSelect(e.target.value)}
+                      >
+                        <option value="">Select Grade Level</option>
+                        {grades.map(g => (
+                          <option key={g.id} value={g.id}>
+                            {g.name} (Key Stage {g.key_stage.toUpperCase()})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="lg:col-span-1">
+                    <label className="block text-xs font-bold text-[#2D2638] mb-1">
+                      Learning Area / Subject <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <BookOpen size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A39BAF] pointer-events-none" />
+                      <select
+                        required
+                        className="w-full pl-9 pr-3 py-2.5 rounded-2xl bg-[#FAF5F0]/70 border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40"
+                        value={learningAreaId}
+                        onChange={e => handleLearningAreaSelect(e.target.value)}
+                      >
+                        <option value="">Select Learning Area</option>
+                        {learningAreas.map(la => (
+                          <option key={la.id} value={la.id}>
+                            {la.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
 
                 {/* School Year */}
-                <div>
+                <div className="lg:col-span-1">
                   <label className="block text-xs font-bold text-[#2D2638] mb-1">School Year</label>
                   <div className="relative">
                     <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A39BAF] pointer-events-none" />
@@ -688,7 +920,7 @@ export function ImportSubmissionsModal({
                 </div>
 
                 {/* Term / Quarter */}
-                <div>
+                <div className="lg:col-span-1">
                   <label className="block text-xs font-bold text-[#2D2638] mb-1">Term / Quarter</label>
                   <div className="relative">
                     <Clock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A39BAF] pointer-events-none" />
@@ -706,6 +938,183 @@ export function ImportSubmissionsModal({
                     </select>
                   </div>
                 </div>
+
+                {/* TEACHER TAGGING SECTION */}
+                {importMode === 'per_grade' ? (
+                  <div className="sm:col-span-2 lg:col-span-4 pt-3 border-t border-purple-100 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <label className="text-xs font-extrabold text-[#2D2638] flex items-center gap-1.5">
+                          <User size={14} className="text-[#8B72F4]" />
+                          <span>Teacher Tagging Option (Option 1: Per Grade Level)</span>
+                        </label>
+                        <p className="text-[11px] text-[#7A7289] font-medium">
+                          Choose whether to tag all subjects to a single teacher or assign each subject to its specific teacher.
+                        </p>
+                      </div>
+
+                      {/* Mode Switcher Tabs */}
+                      <div className="bg-[#FAF5F0] p-1 rounded-2xl border border-purple-100 flex items-center gap-1 self-start sm:self-auto">
+                        <button
+                          type="button"
+                          onClick={() => setTeacherTaggingMode('all_same')}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                            teacherTaggingMode === 'all_same'
+                              ? 'bg-[#8B72F4] text-white shadow-xs'
+                              : 'text-[#7A7289] hover:bg-purple-50'
+                          }`}
+                        >
+                          <User size={13} />
+                          <span>Single Teacher (All Subjects)</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setTeacherTaggingMode('per_subject')}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                            teacherTaggingMode === 'per_subject'
+                              ? 'bg-[#8B72F4] text-white shadow-xs'
+                              : 'text-[#7A7289] hover:bg-purple-50'
+                          }`}
+                        >
+                          <Users size={13} />
+                          <span>Tag Teacher per Subject</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Mode A: Single Teacher for All Subjects */}
+                    {teacherTaggingMode === 'all_same' ? (
+                      <div className="max-w-md pt-1">
+                        <label className="block text-xs font-bold text-[#2D2638] mb-1">
+                          Teacher's Name <span className="text-rose-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A39BAF] z-10" />
+                          <SuggestionInput
+                            id="import_teacher_name_single"
+                            placeholder="e.g. Maria Santos"
+                            suggestions={teacherSuggestions}
+                            value={teacherName}
+                            onChange={e => handleTeacherNameSelect(e.target.value)}
+                            onSelectSuggestion={val => handleTeacherNameSelect(val)}
+                            className="w-full pl-9 pr-3 py-2.5 rounded-2xl bg-[#FAF5F0]/70 border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40"
+                          />
+                        </div>
+                        <p className="text-[10px] text-[#7A7289] font-medium mt-1">
+                          This teacher name will be applied to all imported learning areas under {selectedGrade ? selectedGrade.name : 'this grade level'}.
+                        </p>
+                      </div>
+                    ) : (
+                      /* Mode B: Per Subject Teacher Assignment List */
+                      <div className="space-y-3 bg-[#FAF5F0]/60 p-4 rounded-2xl border border-purple-100">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <span className="text-xs font-bold text-[#2D2638] flex items-center gap-1.5">
+                            <BookOpen size={14} className="text-[#8B72F4]" />
+                            <span>Subject-to-Teacher Allocation ({availableLearningAreas.length} Subject(s) Available)</span>
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={handleAutoFillDefaultTeachers}
+                              className="px-2.5 py-1 rounded-xl bg-purple-100 text-[#8B72F4] text-[11px] font-bold hover:bg-purple-200 transition-all cursor-pointer flex items-center gap-1"
+                              title="Reset all to assigned teachers from Faculty Directory"
+                            >
+                              <Sparkles size={12} className="text-amber-500" />
+                              <span>Auto-fill Default Assigned</span>
+                            </button>
+                            {teacherName.trim() && (
+                              <button
+                                type="button"
+                                onClick={handleApplyTeacherToAllSubjects}
+                                className="px-2.5 py-1 rounded-xl bg-purple-100 text-[#8B72F4] text-[11px] font-bold hover:bg-purple-200 transition-all cursor-pointer flex items-center gap-1"
+                              >
+                                <span>Apply "{teacherName.trim()}" to All</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {!gradeLevelId ? (
+                          <p className="text-xs text-amber-700 italic bg-amber-50 p-2.5 rounded-xl border border-amber-200">
+                            Please select a Grade Level above to list subjects and their assigned default teachers.
+                          </p>
+                        ) : availableLearningAreas.length === 0 ? (
+                          <p className="text-xs text-[#7A7289] italic">No learning areas assigned to this grade level.</p>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-56 overflow-y-auto pr-1">
+                            {availableLearningAreas.map(la => {
+                              const assignedTeacher = getAssignedTeacherForSubject(schoolId, gradeLevelId, la.id)
+                              const currentVal = perSubjectTeachers[la.id] ?? (assignedTeacher ? assignedTeacher.full_name : '')
+                              const isDefaultAssigned = Boolean(assignedTeacher && currentVal === assignedTeacher.full_name)
+
+                              return (
+                                <div key={la.id} className="bg-white p-3 rounded-xl border border-purple-100 shadow-2xs space-y-1.5">
+                                  <div className="flex items-center justify-between gap-1">
+                                    <span className="text-xs font-black text-[#2D2638] truncate" title={la.name}>
+                                      {la.name}
+                                    </span>
+                                    {assignedTeacher ? (
+                                      <span className="text-[9px] font-extrabold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-200 shrink-0 flex items-center gap-0.5">
+                                        <CheckCircle2 size={10} /> Directory Match
+                                      </span>
+                                    ) : (
+                                      <span className="text-[9px] font-medium text-[#A39BAF] bg-gray-50 px-1.5 py-0.5 rounded-full shrink-0">
+                                        Unassigned
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  <div className="relative">
+                                    <User size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#A39BAF] z-10 pointer-events-none" />
+                                    <SuggestionInput
+                                      id={`la_teacher_${la.id}`}
+                                      placeholder={assignedTeacher ? `Default: ${assignedTeacher.full_name}` : "Teacher's Name"}
+                                      suggestions={teacherSuggestions}
+                                      value={currentVal}
+                                      onChange={e => {
+                                        const val = e.target.value
+                                        setPerSubjectTeachers(prev => ({ ...prev, [la.id]: val }))
+                                      }}
+                                      onSelectSuggestion={val => {
+                                        setPerSubjectTeachers(prev => ({ ...prev, [la.id]: val }))
+                                      }}
+                                      className="w-full pl-8 pr-2 py-1.5 rounded-xl bg-[#FAF5F0]/60 border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40"
+                                    />
+                                  </div>
+                                  {isDefaultAssigned && (
+                                    <p className="text-[9px] font-bold text-emerald-700 flex items-center gap-1">
+                                      <Sparkles size={9} className="text-amber-500 shrink-0" />
+                                      <span>Pre-filled assigned teacher</span>
+                                    </p>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* Option 2 (per_learning_area): Single Teacher Field */
+                  <div className="sm:col-span-2 lg:col-span-4 pt-3 border-t border-purple-100">
+                    <label className="block text-xs font-bold text-[#2D2638] mb-1">
+                      Teacher's Name <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative max-w-md">
+                      <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A39BAF] z-10" />
+                      <SuggestionInput
+                        id="import_teacher_name_option2"
+                        placeholder="e.g. Maria Santos"
+                        suggestions={teacherSuggestions}
+                        value={teacherName}
+                        onChange={e => handleTeacherNameSelect(e.target.value)}
+                        onSelectSuggestion={val => handleTeacherNameSelect(val)}
+                        className="w-full pl-9 pr-3 py-2.5 rounded-2xl bg-[#FAF5F0]/70 border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -718,11 +1127,11 @@ export function ImportSubmissionsModal({
                 </h3>
                 <button
                   type="button"
-                  onClick={() => downloadImportTemplate()}
+                  onClick={() => downloadImportTemplate(importMode)}
                   className="px-3.5 py-2 rounded-2xl bg-gradient-to-r from-[#86EFAC] to-[#34D399] text-[#065F46] text-xs font-bold shadow-xs hover:shadow-md transition-all flex items-center gap-1.5 cursor-pointer border border-white"
                 >
                   <Download size={14} />
-                  <span>Download Combined Excel Template</span>
+                  <span>Download Combined Excel Template ({importMode === 'per_grade' ? 'Per Grade Level' : 'Per Learning Area'})</span>
                 </button>
               </div>
 
@@ -732,7 +1141,7 @@ export function ImportSubmissionsModal({
                 onDrop={handleDrop}
                 onClick={() => {
                   if (!isTaggingComplete) {
-                    toast('Please select both a School and Grade Level in Step 1 first before attaching an Excel file.', 'warning')
+                    toast(`Please select both a School and ${importMode === 'per_grade' ? 'Grade Level' : 'Learning Area'} in Step 1 first before attaching an Excel file.`, 'warning')
                     return
                   }
                   fileInputRef.current?.click()
@@ -764,7 +1173,7 @@ export function ImportSubmissionsModal({
                           File Upload Blocked
                         </p>
                         <p className="text-xs text-amber-800 font-bold mt-0.5">
-                          🔒 Please select both a <span className="text-[#8B72F4] font-black underline">School</span> and <span className="text-[#8B72F4] font-black underline">Grade Level</span> in Step 1 above to enable Excel file attachment.
+                          🔒 Please select both a <span className="text-[#8B72F4] font-black underline">School</span> and <span className="text-[#8B72F4] font-black underline">{importMode === 'per_grade' ? 'Grade Level' : 'Learning Area'}</span> in Step 1 above to enable Excel file attachment.
                         </p>
                       </div>
                     </>
@@ -800,7 +1209,7 @@ export function ImportSubmissionsModal({
                     </div>
                     <div>
                       <label className="text-xs font-bold text-[#2D2638] block">Worksheet / Sheet Tab</label>
-                      <p className="text-[10px] text-[#7A7289] font-medium">Choose tab containing subject evaluation data</p>
+                      <p className="text-[10px] text-[#7A7289] font-medium">Choose tab containing evaluation data</p>
                     </div>
                   </div>
 
@@ -842,7 +1251,9 @@ export function ImportSubmissionsModal({
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-bold text-[#2D2638] flex items-center gap-2">
                       <CheckCircle2 size={15} className="text-emerald-600" />
-                      <span>Parsed Subjects ({parsedRows.length} Blocks Detected)</span>
+                      <span>
+                        Parsed Items ({parsedRows.length} {importMode === 'per_grade' ? 'Subject' : 'Grade Level'} Block(s) Detected)
+                      </span>
                     </h4>
                     <span className="text-xs font-extrabold text-[#8B72F4]">
                       {validRowsCount} of {parsedRows.length} ready to import
@@ -855,8 +1266,9 @@ export function ImportSubmissionsModal({
                         <thead className="bg-[#FAF5F0] sticky top-0 border-b border-purple-100 text-[11px] font-extrabold text-[#7A7289] uppercase tracking-wider">
                           <tr>
                             <th className="py-3 px-4">#</th>
-                            <th className="py-3 px-4">Excel Subject</th>
-                            <th className="py-3 px-4">Mapped Subject</th>
+                            <th className="py-3 px-4">{importMode === 'per_grade' ? 'Excel Subject' : 'Excel Grade Level'}</th>
+                            <th className="py-3 px-4">{importMode === 'per_grade' ? 'Mapped Subject' : 'Mapped Grade Level'}</th>
+                            {importMode === 'per_grade' && <th className="py-3 px-4">Teacher Tagged</th>}
                             <th className="py-3 px-4">Learners</th>
                             <th className="py-3 px-4">Format</th>
                             <th className="py-3 px-4">Metrics</th>
@@ -868,24 +1280,76 @@ export function ImportSubmissionsModal({
                         <tbody className="divide-y divide-purple-100">
                           {parsedRows.map((row, idx) => {
                             const isDup = duplicateMap[row.rowIndex]
+                            const isMapped = importMode === 'per_grade' ? Boolean(row.learningAreaId) : Boolean(row.gradeLevelId)
+                            const currentSubjectTeacher = importMode === 'per_grade' && teacherTaggingMode === 'per_subject' && row.learningAreaId
+                              ? (perSubjectTeachers[row.learningAreaId] ?? '')
+                              : teacherName
+
                             return (
-                              <tr key={idx} className={!row.learningAreaId ? 'bg-amber-50/50' : isDup ? 'bg-purple-50/40' : ''}>
+                              <tr key={idx} className={!isMapped ? 'bg-amber-50/50' : isDup ? 'bg-purple-50/40' : ''}>
                                 <td className="py-3 px-4 font-bold text-[#A39BAF]">{idx + 1}</td>
-                                <td className="py-3 px-4 font-bold text-[#2D2638]">{row.learningAreaRaw}</td>
+                                <td className="py-3 px-4 font-bold text-[#2D2638]">{row.labelRaw}</td>
                                 <td className="py-3 px-4">
-                                  <select
-                                    className="px-2.5 py-1.5 rounded-xl border border-purple-100 text-xs font-bold text-[#2D2638] bg-white focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40"
-                                    value={row.learningAreaId || ''}
-                                    onChange={e => handleLearningAreaChange(row.rowIndex, e.target.value)}
-                                  >
-                                    <option value="">-- Select Subject ({availableLearningAreas.length} assigned) --</option>
-                                    {availableLearningAreas.map(la => (
-                                      <option key={la.id} value={la.id}>
-                                        {la.name}
-                                      </option>
-                                    ))}
-                                  </select>
+                                  {importMode === 'per_grade' ? (
+                                    <select
+                                      className="px-2.5 py-1.5 rounded-xl border border-purple-100 text-xs font-bold text-[#2D2638] bg-white focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40"
+                                      value={row.learningAreaId || ''}
+                                      onChange={e => handleLearningAreaChange(row.rowIndex, e.target.value)}
+                                    >
+                                      <option value="">-- Select Subject ({availableLearningAreas.length} assigned) --</option>
+                                      {availableLearningAreas.map(la => (
+                                        <option key={la.id} value={la.id}>
+                                          {la.name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  ) : (
+                                    <select
+                                      className="px-2.5 py-1.5 rounded-xl border border-purple-100 text-xs font-bold text-[#2D2638] bg-white focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40"
+                                      value={row.gradeLevelId || ''}
+                                      onChange={e => handleGradeLevelChange(row.rowIndex, e.target.value)}
+                                    >
+                                      <option value="">-- Select Grade Level --</option>
+                                      {grades.map(g => (
+                                        <option key={g.id} value={g.id}>
+                                          {g.name} (Key Stage {g.key_stage.toUpperCase()})
+                                        </option>
+                                      ))}
+                                    </select>
+                                  )}
                                 </td>
+
+                                {importMode === 'per_grade' && (
+                                  <td className="py-3 px-4">
+                                    {teacherTaggingMode === 'per_subject' ? (
+                                      <div className="min-w-[150px]">
+                                        <SuggestionInput
+                                          id={`table_la_teacher_${row.rowIndex}`}
+                                          placeholder="Teacher's Name"
+                                          suggestions={teacherSuggestions}
+                                          value={currentSubjectTeacher}
+                                          onChange={e => {
+                                            if (row.learningAreaId) {
+                                              const val = e.target.value
+                                              setPerSubjectTeachers(prev => ({ ...prev, [row.learningAreaId!]: val }))
+                                            }
+                                          }}
+                                          onSelectSuggestion={val => {
+                                            if (row.learningAreaId) {
+                                              setPerSubjectTeachers(prev => ({ ...prev, [row.learningAreaId!]: val }))
+                                            }
+                                          }}
+                                          className="w-full px-2.5 py-1 rounded-xl bg-white border border-purple-100 text-xs font-semibold text-[#2D2638]"
+                                        />
+                                      </div>
+                                    ) : (
+                                      <span className="font-bold text-[#2D2638]">
+                                        {teacherName ? teacherName : <span className="text-amber-600 italic">Not set</span>}
+                                      </span>
+                                    )}
+                                  </td>
+                                )}
+
                                 <td className="py-3 px-4 font-semibold text-[#2D2638]">{row.totalLearners}</td>
                                 <td className="py-3 px-4">
                                   <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black uppercase ${row.formType === 'ks1' ? 'bg-emerald-100 text-emerald-800' : 'bg-purple-100 text-purple-800'}`}>
@@ -906,7 +1370,7 @@ export function ImportSubmissionsModal({
                                 <td className="py-3 px-4 font-medium text-[#7A7289]">{row.totalIntended}</td>
                                 <td className="py-3 px-4 font-medium text-[#7A7289]">{row.taught}</td>
                                 <td className="py-3 px-4">
-                                  {!row.learningAreaId ? (
+                                  {!isMapped ? (
                                     <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md">
                                       <AlertTriangle size={11} /> Unmapped
                                     </span>
@@ -965,7 +1429,7 @@ export function ImportSubmissionsModal({
               <button
                 type="button"
                 onClick={handleImport}
-                disabled={isImporting || validRowsCount === 0 || isTemplateMismatch || !teacherName.trim() || !schoolId || !gradeLevelId}
+                disabled={isImporting || validRowsCount === 0 || isTemplateMismatch || !isTeacherTaggingValid || !schoolId || (importMode === 'per_grade' ? !gradeLevelId : !learningAreaId)}
                 className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-[#8B72F4] via-[#795CEE] to-[#6366F1] text-white font-black text-xs shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 inline-flex items-center gap-2"
               >
                 {isImporting ? (
@@ -1000,7 +1464,7 @@ export function ImportSubmissionsModal({
                     Official TERMCAT Printable Template Preview ({previewSubmissions[0]?.form_type === 'ks1' ? 'Key Stage 1' : 'Key Stage 2–4'})
                   </h3>
                   <p className="text-xs text-purple-100 font-medium">
-                    Showing {previewSubmissions.length} subject submission(s) formatted in the official TERMCAT layout
+                    Showing {previewSubmissions.length} submission(s) formatted in the official TERMCAT layout
                   </p>
                 </div>
               </div>
@@ -1038,7 +1502,7 @@ export function ImportSubmissionsModal({
                   formType={previewSubmissions[0]?.form_type || (selectedGrade && selectedGrade.grade_number <= 3 ? 'ks1' : 'ks2to4')}
                   epsName={teacherName || 'Education Program Supervisor / Teacher'}
                   sdoName="Division of Romblon"
-                  learningAreaName={previewSubmissions.length === 1 ? previewSubmissions[0].learning_area?.name : 'Multiple Learning Areas'}
+                  learningAreaName={importMode === 'per_learning_area' ? (learningAreas.find(la => la.id === learningAreaId)?.name || 'Learning Area') : (previewSubmissions.length === 1 ? previewSubmissions[0].learning_area?.name : 'Multiple Learning Areas')}
                   termName={terms.find(t => t.id === termId)?.name || 'Term'}
                   schoolYearName={schoolYears.find(sy => sy.id === schoolYearId)?.name || 'School Year'}
                   showPrintButton={false}

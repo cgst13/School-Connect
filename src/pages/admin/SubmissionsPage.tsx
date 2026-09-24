@@ -9,7 +9,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { PageHeader } from '@/components/ui/PageHeader'
 import {
   fetchSubmissions, fetchSchools, fetchGradeLevels, fetchLearningAreas,
-  fetchSchoolYears, fetchTerms, fetchLearningAreaGrades, deleteSubmission, insertAuditLog
+  fetchSchoolYears, fetchTerms, fetchLearningAreaGrades, fetchSubmitterTeacherNames, deleteSubmission, insertAuditLog
 } from '@/lib/supabase/queries'
 import { useAuth } from '@/features/auth/useAuth'
 import { useToast } from '@/hooks/useToast'
@@ -26,6 +26,37 @@ import { format } from 'date-fns'
 import { captureGenieOrigin } from '@/utils/genieAnimation'
 
 const PAGE_SIZE = 20
+
+function isGradeOfferedBySchool(school: School, gradeNumber: number): boolean {
+  if (Array.isArray(school.offered_grade_numbers) && school.offered_grade_numbers.length > 0) {
+    return school.offered_grade_numbers.includes(gradeNumber)
+  }
+  if (school.school_type === 'elementary') return gradeNumber <= 6
+  if (school.school_type === 'secondary') return gradeNumber >= 7
+  return true
+}
+
+function getSchoolOfferedGradeNumbers(school: School): number[] {
+  if (Array.isArray(school.offered_grade_numbers) && school.offered_grade_numbers.length > 0) {
+    return school.offered_grade_numbers
+  }
+  if (school.school_type === 'elementary') return [1, 2, 3, 4, 5, 6]
+  if (school.school_type === 'secondary') return [7, 8, 9, 10, 11, 12]
+  return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+}
+
+function getGradeNumbersForLevel(level: string): number[] | null {
+  switch (level) {
+    case 'elementary': return [1, 2, 3, 4, 5, 6]
+    case 'jhs': return [7, 8, 9, 10]
+    case 'shs': return [11, 12]
+    case 'ks1': return [1, 2, 3]
+    case 'ks2': return [4, 5, 6]
+    case 'ks3': return [7, 8, 9, 10]
+    case 'ks4': return [11, 12]
+    default: return null
+  }
+}
 
 interface StatusMatrixItem {
   id: string
@@ -83,6 +114,7 @@ export function SubmissionsPage() {
   // Filters for Submissions List tab
   const [filters, setFilters] = useState<Partial<SubmissionFilters>>({
     search: '',
+    teacher_name: '',
     status: '',
     school_year_id: '',
     term_id: '',
@@ -101,35 +133,399 @@ export function SubmissionsPage() {
   const [statusSY, setStatusSY] = useState<string>('')
   const [statusTerm, setStatusTerm] = useState<string>('')
   const [statusSchoolId, setStatusSchoolId] = useState<string>('')
+  const [statusLevel, setStatusLevel] = useState<'all' | 'jhs' | 'shs' | 'elementary'>('all')
   const [statusGradeId, setStatusGradeId] = useState<string>('')
   const [statusLAId, setStatusLAId] = useState<string>('')
+  const [statusTeacherName, setStatusTeacherName] = useState<string>('')
   const [statusSearch, setStatusSearch] = useState<string>('')
   const [complianceFilter] = useState<'all' | 'missing' | 'submitted'>('all')
   const [statusSubmissions, setStatusSubmissions] = useState<TermcatSubmission[]>([])
   const [statusLoading, setStatusLoading] = useState<boolean>(false)
 
+  // Submitter teacher names from teacher_name column of termcat_submissions
+  const [submitterTeachers, setSubmitterTeachers] = useState<string[]>([])
+
   useEffect(() => {
     Promise.all([
       fetchSchools(false), fetchGradeLevels(), fetchLearningAreas(false),
-      fetchSchoolYears(false), fetchTerms(false), fetchLearningAreaGrades()
-    ]).then(([s, g, la, sy, t, lag]) => {
+      fetchSchoolYears(false), fetchTerms(false), fetchLearningAreaGrades(),
+      fetchSubmitterTeacherNames()
+    ]).then(([s, g, la, sy, t, lag, teachers]) => {
       setSchools(s)
       setGrades(g)
       setLearningAreas(la)
       setSchoolYears(sy)
       setTerms(t)
       setLearningAreaGrades(lag)
+      if (Array.isArray(teachers)) {
+        setSubmitterTeachers(teachers)
+      }
 
       const activeSY = sy.find(item => item.is_active)
       if (activeSY) setStatusSY(activeSY.id)
 
       const defaultTerm = t.find(item => item.is_default || item.is_active)
       if (defaultTerm) setStatusTerm(defaultTerm.id)
-    })
+    }).catch(() => {})
   }, [])
 
   const { admin, getPermittedSchoolIds, getPermittedSchools, hasFullAccess, isSchoolPermitted } = useAuth()
   const permittedSchools = useMemo(() => getPermittedSchools(schools), [schools, getPermittedSchools])
+
+  // Unique Teacher Options: STRICTLY teachers who submitted TERMCAT reports (from teacher_name column)
+  const availableTeacherOptions = useMemo(() => {
+    const names = new Set<string>()
+    submitterTeachers.forEach(n => { if (n && n.trim()) names.add(n.trim()) })
+    submissions.forEach(s => { if (s.teacher_name && s.teacher_name.trim()) names.add(s.teacher_name.trim()) })
+    statusSubmissions.forEach(s => { if (s.teacher_name && s.teacher_name.trim()) names.add(s.teacher_name.trim()) })
+    return Array.from(names).sort((a, b) => a.localeCompare(b))
+  }, [submitterTeachers, submissions, statusSubmissions])
+
+  // Learning Area <-> Grade mappings
+  const { gradeToLAsMap, laToGradesMap } = useMemo(() => {
+    const gradeToLAs = new Map<string, Set<string>>()
+    const laToGrades = new Map<string, Set<string>>()
+    learningAreaGrades.forEach(lag => {
+      if (!gradeToLAs.has(lag.grade_level_id)) gradeToLAs.set(lag.grade_level_id, new Set())
+      gradeToLAs.get(lag.grade_level_id)!.add(lag.learning_area_id)
+
+      if (!laToGrades.has(lag.learning_area_id)) laToGrades.set(lag.learning_area_id, new Set())
+      laToGrades.get(lag.learning_area_id)!.add(lag.grade_level_id)
+    })
+    return { gradeToLAsMap: gradeToLAs, laToGradesMap: laToGrades }
+  }, [learningAreaGrades])
+
+  // Consolidated submissions map for teacher/dropdown lookups across the system
+  const allSubmissionsForFiltering = useMemo(() => {
+    const map = new Map<string, TermcatSubmission>()
+    statusSubmissions.forEach(s => map.set(s.id, s))
+    submissions.forEach(s => map.set(s.id, s))
+    return Array.from(map.values())
+  }, [statusSubmissions, submissions])
+
+  // =========================================================================
+  // TAB 1 (Submissions List) - Dynamic Interdependent Narrowed Dropdowns
+  // =========================================================================
+
+  const filteredSchoolsForSubmissions = useMemo(() => {
+    return permittedSchools.filter(school => {
+      if (filters.school_type && school.school_type !== filters.school_type) return false
+      if (filters.grade_level_id) {
+        const selectedGrade = grades.find(g => g.id === filters.grade_level_id)
+        if (selectedGrade && !isGradeOfferedBySchool(school, selectedGrade.grade_number)) return false
+      }
+      if (filters.key_stage) {
+        const targetGradeNumbers = getGradeNumbersForLevel(filters.key_stage)
+        if (targetGradeNumbers) {
+          const schoolGrades = getSchoolOfferedGradeNumbers(school)
+          if (!schoolGrades.some(gn => targetGradeNumbers.includes(gn))) return false
+        }
+      }
+      if (filters.learning_area_id) {
+        const gradeIdsForLA = laToGradesMap.get(filters.learning_area_id)
+        if (gradeIdsForLA && gradeIdsForLA.size > 0) {
+          const schoolGrades = grades.filter(g => isGradeOfferedBySchool(school, g.grade_number))
+          if (!schoolGrades.some(g => gradeIdsForLA.has(g.id))) return false
+        }
+      }
+      if (filters.teacher_name) {
+        const tName = filters.teacher_name.trim().toLowerCase()
+        const teacherSubs = allSubmissionsForFiltering.filter(
+          s => s.teacher_name?.trim().toLowerCase() === tName
+        )
+        if (!teacherSubs.some(s => s.school_id === school.id)) return false
+      }
+      return true
+    })
+  }, [permittedSchools, filters.school_type, filters.grade_level_id, filters.key_stage, filters.learning_area_id, filters.teacher_name, grades, laToGradesMap, allSubmissionsForFiltering])
+
+  const filteredGradesForSubmissions = useMemo(() => {
+    return grades.filter(grade => {
+      if (!grade.is_active) return false
+      if (filters.school_id) {
+        const school = schools.find(s => s.id === filters.school_id)
+        if (school && !isGradeOfferedBySchool(school, grade.grade_number)) return false
+      }
+      if (filters.school_type) {
+        if (filters.school_type === 'elementary' && grade.grade_number > 6) return false
+        if (filters.school_type === 'secondary' && grade.grade_number < 7) return false
+      }
+      if (filters.key_stage) {
+        const targetGradeNumbers = getGradeNumbersForLevel(filters.key_stage)
+        if (targetGradeNumbers && !targetGradeNumbers.includes(grade.grade_number)) return false
+      }
+      if (filters.learning_area_id) {
+        const gradeIdsForLA = laToGradesMap.get(filters.learning_area_id)
+        if (gradeIdsForLA && gradeIdsForLA.size > 0 && !gradeIdsForLA.has(grade.id)) return false
+      }
+      if (filters.teacher_name) {
+        const tName = filters.teacher_name.trim().toLowerCase()
+        const teacherSubs = allSubmissionsForFiltering.filter(
+          s => s.teacher_name?.trim().toLowerCase() === tName
+        )
+        if (!teacherSubs.some(s => s.grade_level_id === grade.id)) return false
+      }
+      return true
+    })
+  }, [grades, filters.school_id, filters.school_type, filters.key_stage, filters.learning_area_id, filters.teacher_name, schools, laToGradesMap, allSubmissionsForFiltering])
+
+  const filteredLearningAreasForSubmissions = useMemo(() => {
+    return learningAreas.filter(la => {
+      if (!la.is_active) return false
+      if (filters.grade_level_id) {
+        const assignedLAs = gradeToLAsMap.get(filters.grade_level_id)
+        if (assignedLAs && assignedLAs.size > 0 && !assignedLAs.has(la.id)) return false
+      }
+      if (filters.school_id) {
+        const school = schools.find(s => s.id === filters.school_id)
+        if (school) {
+          const schoolGrades = grades.filter(g => isGradeOfferedBySchool(school, g.grade_number))
+          const allowedLAIds = new Set<string>()
+          schoolGrades.forEach(g => {
+            const las = gradeToLAsMap.get(g.id)
+            if (las) las.forEach(id => allowedLAIds.add(id))
+          })
+          if (allowedLAIds.size > 0 && !allowedLAIds.has(la.id)) return false
+        }
+      }
+      const activeLevel = filters.key_stage || (filters.school_type === 'elementary' ? 'elementary' : filters.school_type === 'secondary' ? 'jhs' : null)
+      if (activeLevel) {
+        const targetGradeNumbers = getGradeNumbersForLevel(activeLevel)
+        if (targetGradeNumbers) {
+          const targetGradeIds = grades.filter(g => targetGradeNumbers.includes(g.grade_number)).map(g => g.id)
+          const allowedLAIds = new Set<string>()
+          targetGradeIds.forEach(gid => {
+            const las = gradeToLAsMap.get(gid)
+            if (las) las.forEach(id => allowedLAIds.add(id))
+          })
+          if (allowedLAIds.size > 0 && !allowedLAIds.has(la.id)) return false
+        }
+      }
+      if (filters.teacher_name) {
+        const tName = filters.teacher_name.trim().toLowerCase()
+        const teacherSubs = allSubmissionsForFiltering.filter(
+          s => s.teacher_name?.trim().toLowerCase() === tName
+        )
+        if (!teacherSubs.some(s => s.learning_area_id === la.id)) return false
+      }
+      return true
+    })
+  }, [learningAreas, filters.grade_level_id, filters.school_id, filters.key_stage, filters.school_type, filters.teacher_name, schools, grades, gradeToLAsMap, allSubmissionsForFiltering])
+
+  const filteredTeachersForSubmissions = useMemo(() => {
+    if (!filters.school_id && !filters.grade_level_id && !filters.learning_area_id && !filters.school_year_id && !filters.term_id && !filters.school_type && !filters.key_stage) {
+      return availableTeacherOptions
+    }
+
+    const matchingSubmissions = allSubmissionsForFiltering.filter(sub => {
+      if (filters.school_id && sub.school_id !== filters.school_id) return false
+      if (filters.grade_level_id && sub.grade_level_id !== filters.grade_level_id) return false
+      if (filters.learning_area_id && sub.learning_area_id !== filters.learning_area_id) return false
+      if (filters.school_year_id && sub.school_year_id !== filters.school_year_id) return false
+      if (filters.term_id && sub.term_id !== filters.term_id) return false
+
+      if (filters.school_type) {
+        const school = schools.find(s => s.id === sub.school_id)
+        if (school && school.school_type !== filters.school_type) return false
+      }
+
+      if (filters.key_stage) {
+        const grade = grades.find(g => g.id === sub.grade_level_id)
+        const targetGradeNumbers = getGradeNumbersForLevel(filters.key_stage)
+        if (grade && targetGradeNumbers && !targetGradeNumbers.includes(grade.grade_number)) return false
+      }
+
+      return true
+    })
+
+    const teacherNames = new Set<string>()
+    matchingSubmissions.forEach(s => {
+      if (s.teacher_name && s.teacher_name.trim()) teacherNames.add(s.teacher_name.trim())
+    })
+
+    return availableTeacherOptions.filter(name => teacherNames.has(name))
+  }, [availableTeacherOptions, filters.school_id, filters.grade_level_id, filters.learning_area_id, filters.school_year_id, filters.term_id, filters.school_type, filters.key_stage, allSubmissionsForFiltering, schools, grades])
+
+  // =========================================================================
+  // TAB 2 (Status & Compliance) - Dynamic Interdependent Narrowed Dropdowns
+  // =========================================================================
+
+  const statusFilteredSchools = useMemo(() => {
+    return permittedSchools.filter(school => {
+      if (statusLevel && statusLevel !== 'all') {
+        const targetGradeNumbers = getGradeNumbersForLevel(statusLevel)
+        if (targetGradeNumbers) {
+          const schoolGrades = getSchoolOfferedGradeNumbers(school)
+          if (!schoolGrades.some(gn => targetGradeNumbers.includes(gn))) return false
+        }
+      }
+      if (statusGradeId) {
+        const selectedGrade = grades.find(g => g.id === statusGradeId)
+        if (selectedGrade && !isGradeOfferedBySchool(school, selectedGrade.grade_number)) return false
+      }
+      if (statusLAId) {
+        const gradeIdsForLA = laToGradesMap.get(statusLAId)
+        if (gradeIdsForLA && gradeIdsForLA.size > 0) {
+          const schoolGrades = grades.filter(g => isGradeOfferedBySchool(school, g.grade_number))
+          if (!schoolGrades.some(g => gradeIdsForLA.has(g.id))) return false
+        }
+      }
+      if (statusTeacherName) {
+        const tName = statusTeacherName.trim().toLowerCase()
+        const teacherSubs = statusSubmissions.filter(
+          s => s.teacher_name?.trim().toLowerCase() === tName
+        )
+        if (!teacherSubs.some(s => s.school_id === school.id)) return false
+      }
+      return true
+    })
+  }, [permittedSchools, statusLevel, statusGradeId, statusLAId, statusTeacherName, grades, laToGradesMap, statusSubmissions])
+
+  const statusFilteredGrades = useMemo(() => {
+    return grades.filter(grade => {
+      if (!grade.is_active) return false
+      if (statusLevel && statusLevel !== 'all') {
+        const targetGradeNumbers = getGradeNumbersForLevel(statusLevel)
+        if (targetGradeNumbers && !targetGradeNumbers.includes(grade.grade_number)) return false
+      }
+      if (statusSchoolId) {
+        const school = schools.find(s => s.id === statusSchoolId)
+        if (school && !isGradeOfferedBySchool(school, grade.grade_number)) return false
+      }
+      if (statusLAId) {
+        const gradeIdsForLA = laToGradesMap.get(statusLAId)
+        if (gradeIdsForLA && gradeIdsForLA.size > 0 && !gradeIdsForLA.has(grade.id)) return false
+      }
+      if (statusTeacherName) {
+        const tName = statusTeacherName.trim().toLowerCase()
+        const teacherSubs = statusSubmissions.filter(
+          s => s.teacher_name?.trim().toLowerCase() === tName
+        )
+        if (!teacherSubs.some(s => s.grade_level_id === grade.id)) return false
+      }
+      return true
+    })
+  }, [grades, statusLevel, statusSchoolId, statusLAId, statusTeacherName, schools, laToGradesMap, statusSubmissions])
+
+  const statusFilteredLAs = useMemo(() => {
+    return learningAreas.filter(la => {
+      if (!la.is_active) return false
+      if (statusGradeId) {
+        const assignedLAs = gradeToLAsMap.get(statusGradeId)
+        if (assignedLAs && assignedLAs.size > 0 && !assignedLAs.has(la.id)) return false
+      }
+      if (statusSchoolId) {
+        const school = schools.find(s => s.id === statusSchoolId)
+        if (school) {
+          const schoolGrades = grades.filter(g => isGradeOfferedBySchool(school, g.grade_number))
+          const allowedLAIds = new Set<string>()
+          schoolGrades.forEach(g => {
+            const las = gradeToLAsMap.get(g.id)
+            if (las) las.forEach(id => allowedLAIds.add(id))
+          })
+          if (allowedLAIds.size > 0 && !allowedLAIds.has(la.id)) return false
+        }
+      }
+      if (statusLevel && statusLevel !== 'all') {
+        const targetGradeNumbers = getGradeNumbersForLevel(statusLevel)
+        if (targetGradeNumbers) {
+          const targetGradeIds = grades.filter(g => targetGradeNumbers.includes(g.grade_number)).map(g => g.id)
+          const allowedLAIds = new Set<string>()
+          targetGradeIds.forEach(gid => {
+            const las = gradeToLAsMap.get(gid)
+            if (las) las.forEach(id => allowedLAIds.add(id))
+          })
+          if (allowedLAIds.size > 0 && !allowedLAIds.has(la.id)) return false
+        }
+      }
+      if (statusTeacherName) {
+        const tName = statusTeacherName.trim().toLowerCase()
+        const teacherSubs = statusSubmissions.filter(
+          s => s.teacher_name?.trim().toLowerCase() === tName
+        )
+        if (!teacherSubs.some(s => s.learning_area_id === la.id)) return false
+      }
+      return true
+    })
+  }, [learningAreas, statusGradeId, statusSchoolId, statusLevel, statusTeacherName, schools, grades, gradeToLAsMap, statusSubmissions])
+
+  const statusFilteredTeachers = useMemo(() => {
+    if (!statusSchoolId && !statusGradeId && !statusLAId && !statusSY && !statusTerm && statusLevel === 'all') {
+      return availableTeacherOptions
+    }
+
+    const matchingSubmissions = statusSubmissions.filter(sub => {
+      if (statusSchoolId && sub.school_id !== statusSchoolId) return false
+      if (statusGradeId && sub.grade_level_id !== statusGradeId) return false
+      if (statusLAId && sub.learning_area_id !== statusLAId) return false
+      if (statusSY && sub.school_year_id !== statusSY) return false
+      if (statusTerm && sub.term_id !== statusTerm) return false
+
+      if (statusLevel && statusLevel !== 'all') {
+        const grade = grades.find(g => g.id === sub.grade_level_id)
+        const targetGradeNumbers = getGradeNumbersForLevel(statusLevel)
+        if (grade && targetGradeNumbers && !targetGradeNumbers.includes(grade.grade_number)) return false
+      }
+
+      return true
+    })
+
+    const teacherNames = new Set<string>()
+    matchingSubmissions.forEach(s => {
+      if (s.teacher_name && s.teacher_name.trim()) teacherNames.add(s.teacher_name.trim())
+    })
+
+    return availableTeacherOptions.filter(name => teacherNames.has(name))
+  }, [availableTeacherOptions, statusSchoolId, statusGradeId, statusLAId, statusSY, statusTerm, statusLevel, statusSubmissions, grades])
+
+  // Reset dependent filters if currently selected value is invalid in narrowed list
+  useEffect(() => {
+    if (filters.school_id && !filteredSchoolsForSubmissions.some(s => s.id === filters.school_id)) {
+      setFilter('school_id', '')
+    }
+  }, [filteredSchoolsForSubmissions, filters.school_id])
+
+  useEffect(() => {
+    if (filters.grade_level_id && !filteredGradesForSubmissions.some(g => g.id === filters.grade_level_id)) {
+      setFilter('grade_level_id', '')
+    }
+  }, [filteredGradesForSubmissions, filters.grade_level_id])
+
+  useEffect(() => {
+    if (filters.learning_area_id && !filteredLearningAreasForSubmissions.some(la => la.id === filters.learning_area_id)) {
+      setFilter('learning_area_id', '')
+    }
+  }, [filteredLearningAreasForSubmissions, filters.learning_area_id])
+
+  useEffect(() => {
+    if (filters.teacher_name && !filteredTeachersForSubmissions.includes(filters.teacher_name)) {
+      setFilter('teacher_name', '')
+    }
+  }, [filteredTeachersForSubmissions, filters.teacher_name])
+
+  useEffect(() => {
+    if (statusSchoolId && !statusFilteredSchools.some(s => s.id === statusSchoolId)) {
+      setStatusSchoolId('')
+    }
+  }, [statusFilteredSchools, statusSchoolId])
+
+  useEffect(() => {
+    if (statusGradeId && !statusFilteredGrades.some(g => g.id === statusGradeId)) {
+      setStatusGradeId('')
+    }
+  }, [statusFilteredGrades, statusGradeId])
+
+  useEffect(() => {
+    if (statusLAId && !statusFilteredLAs.some(la => la.id === statusLAId)) {
+      setStatusLAId('')
+    }
+  }, [statusFilteredLAs, statusLAId])
+
+  useEffect(() => {
+    if (statusTeacherName && !statusFilteredTeachers.includes(statusTeacherName)) {
+      setStatusTeacherName('')
+    }
+  }, [statusFilteredTeachers, statusTeacherName])
 
   const loadSubmissions = useCallback(() => {
     setLoading(true)
@@ -172,7 +568,7 @@ export function SubmissionsPage() {
 
   const clearFilters = () => {
     setFilters({
-      search: '', status: '', school_year_id: '', term_id: '', school_id: '',
+      search: '', teacher_name: '', status: '', school_year_id: '', term_id: '', school_id: '',
       grade_level_id: '', learning_area_id: '', key_stage: '', school_type: '',
       page: 1, page_size: PAGE_SIZE, sort_by: 'submitted_at', sort_dir: 'desc',
     })
@@ -193,7 +589,7 @@ export function SubmissionsPage() {
   }
 
   const activeFilterCount = [
-    filters.status, filters.school_year_id, filters.term_id, filters.school_id,
+    filters.status, filters.teacher_name, filters.school_year_id, filters.term_id, filters.school_id,
     filters.grade_level_id, filters.learning_area_id, filters.key_stage, filters.school_type,
   ].filter(Boolean).length
 
@@ -288,6 +684,18 @@ export function SubmissionsPage() {
       if (statusSchoolId && item.school.id !== statusSchoolId) return false
       if (statusGradeId && item.gradeLevel.id !== statusGradeId) return false
       if (statusLAId && item.learningArea.id !== statusLAId) return false
+      if (statusTeacherName) {
+        const tQ = statusTeacherName.toLowerCase()
+        if (!item.submission || !item.submission.teacher_name.toLowerCase().includes(tQ)) return false
+      }
+
+      if (statusLevel === 'jhs') {
+        if (item.gradeLevel.grade_number < 7 || item.gradeLevel.grade_number > 10) return false
+      } else if (statusLevel === 'shs') {
+        if (item.gradeLevel.grade_number < 11 || item.gradeLevel.grade_number > 12) return false
+      } else if (statusLevel === 'elementary') {
+        if (item.gradeLevel.grade_number < 1 || item.gradeLevel.grade_number > 6) return false
+      }
 
       if (complianceFilter === 'missing' && item.isSubmitted) return false
       if (complianceFilter === 'submitted' && !item.isSubmitted) return false
@@ -315,7 +723,7 @@ export function SubmissionsPage() {
         totalSchools: activeSchools.length,
       }
     }
-  }, [schools, grades, learningAreas, learningAreaGrades, statusSubmissions, statusSchoolId, statusGradeId, statusLAId, statusSearch, complianceFilter])
+  }, [schools, grades, learningAreas, learningAreaGrades, statusSubmissions, statusSchoolId, statusGradeId, statusLAId, statusTeacherName, statusSearch, complianceFilter, statusLevel])
 
   // Expanded Grade Accordion State for School Filtered View
   const [expandedGrades, setExpandedGrades] = useState<Set<string>>(new Set())
@@ -576,30 +984,30 @@ export function SubmissionsPage() {
                 <div>
                   <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 block">School</label>
                   <select className="w-full px-3 py-2 rounded-xl bg-white border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs" value={filters.school_id || ''} onChange={e => setFilter('school_id', e.target.value)}>
-                    <option value="">All Schools</option>
-                    {permittedSchools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    <option value="">All Schools ({filteredSchoolsForSubmissions.length})</option>
+                    {filteredSchoolsForSubmissions.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 block">School Type</label>
                   <select className="w-full px-3 py-2 rounded-xl bg-white border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs" value={filters.school_type || ''} onChange={e => setFilter('school_type', e.target.value)}>
                     <option value="">All</option>
-                    <option value="elementary">Elementary</option>
-                    <option value="secondary">Secondary</option>
+                    <option value="elementary">ES (Elementary)</option>
+                    <option value="secondary">HS (Secondary)</option>
                   </select>
                 </div>
                 <div>
                   <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 block">Grade Level</label>
                   <select className="w-full px-3 py-2 rounded-xl bg-white border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs" value={filters.grade_level_id || ''} onChange={e => setFilter('grade_level_id', e.target.value)}>
-                    <option value="">All</option>
-                    {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                    <option value="">All Grades ({filteredGradesForSubmissions.length})</option>
+                    {filteredGradesForSubmissions.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 block">Learning Area</label>
                   <select className="w-full px-3 py-2 rounded-xl bg-white border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs" value={filters.learning_area_id || ''} onChange={e => setFilter('learning_area_id', e.target.value)}>
-                    <option value="">All</option>
-                    {learningAreas.map(la => <option key={la.id} value={la.id}>{la.name}</option>)}
+                    <option value="">All Subjects ({filteredLearningAreasForSubmissions.length})</option>
+                    {filteredLearningAreasForSubmissions.map(la => <option key={la.id} value={la.id}>{la.name}</option>)}
                   </select>
                 </div>
                 <div>
@@ -610,6 +1018,13 @@ export function SubmissionsPage() {
                     <option value="ks2">Key Stage 2</option>
                     <option value="ks3">Key Stage 3</option>
                     <option value="ks4">Key Stage 4</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 block">Teacher Name</label>
+                  <select className="w-full px-3 py-2 rounded-xl bg-white border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs" value={filters.teacher_name || ''} onChange={e => setFilter('teacher_name', e.target.value)}>
+                    <option value="">All Teachers ({filteredTeachersForSubmissions.length})</option>
+                    {filteredTeachersForSubmissions.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
                 <div>
@@ -667,7 +1082,18 @@ export function SubmissionsPage() {
                               <ExternalLink size={12} className="text-[#8B72F4] opacity-60" />
                             </a>
                           </td>
-                          <td className="py-3 px-4 max-w-[160px] text-[#7A7289] font-medium"><span className="truncate block">{sub.school?.name}</span></td>
+                          <td className="py-3 px-4 max-w-[180px]">
+                            <a
+                              href={`/school-submissions?id=${sub.school_id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[#2D2638] font-bold hover:text-[#8B72F4] transition-colors inline-flex items-center gap-1 group"
+                              title={`Click to view all data linked to ${sub.school?.name} in a new tab`}
+                            >
+                              <span className="truncate">{sub.school?.name}</span>
+                              <ExternalLink size={12} className="text-[#8B72F4] opacity-60 group-hover:opacity-100 shrink-0" />
+                            </a>
+                          </td>
                           <td className="py-3 px-4 font-semibold text-[#2D2638]">{sub.grade_level?.name}</td>
                           <td className="py-3 px-4 font-semibold text-[#2D2638]">{sub.learning_area?.name}</td>
                           <td className="py-3 px-4 font-semibold text-[#7A7289]">{sub.term?.name}</td>
@@ -790,19 +1216,36 @@ export function SubmissionsPage() {
               </div>
 
               {/* Filters grid for Status Tab */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 pt-3 border-t border-purple-100/60">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3.5 pt-3 border-t border-purple-100/60">
                 <div>
                   <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 block">Search Matrix</label>
                   <div className="relative">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A39BAF]" />
                     <input
                       type="search"
-                      placeholder="School, grade, or teacher..."
+                      placeholder="School, grade, teacher..."
                       className="w-full px-3.5 py-2 pl-8 rounded-xl bg-white border border-purple-100 text-xs font-semibold text-[#2D2638] placeholder-[#A39BAF] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs"
                       value={statusSearch}
                       onChange={e => setStatusSearch(e.target.value)}
                     />
                   </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 block">Level Category</label>
+                  <select
+                    className="w-full px-3 py-2 rounded-xl bg-white border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs cursor-pointer"
+                    value={statusLevel}
+                    onChange={e => {
+                      setStatusLevel(e.target.value as any)
+                      setStatusGradeId('')
+                    }}
+                  >
+                    <option value="all">All Levels</option>
+                    <option value="jhs">Junior HS (Grades 7–10)</option>
+                    <option value="shs">Senior HS (Grades 11–12)</option>
+                    <option value="elementary">Elementary ES (Grades 1–6)</option>
+                  </select>
                 </div>
 
                 <div>
@@ -812,8 +1255,8 @@ export function SubmissionsPage() {
                     value={statusSchoolId}
                     onChange={e => setStatusSchoolId(e.target.value)}
                   >
-                    <option value="">All Schools ({permittedSchools.length})</option>
-                    {permittedSchools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    <option value="">All Schools ({statusFilteredSchools.length})</option>
+                    {statusFilteredSchools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                 </div>
 
@@ -824,8 +1267,8 @@ export function SubmissionsPage() {
                     value={statusGradeId}
                     onChange={e => setStatusGradeId(e.target.value)}
                   >
-                    <option value="">All Grades ({grades.length})</option>
-                    {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                    <option value="">All Grades ({statusFilteredGrades.length})</option>
+                    {statusFilteredGrades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                   </select>
                 </div>
 
@@ -836,8 +1279,20 @@ export function SubmissionsPage() {
                     value={statusLAId}
                     onChange={e => setStatusLAId(e.target.value)}
                   >
-                    <option value="">All Subjects ({learningAreas.length})</option>
-                    {learningAreas.map(la => <option key={la.id} value={la.id}>{la.name}</option>)}
+                    <option value="">All Subjects ({statusFilteredLAs.length})</option>
+                    {statusFilteredLAs.map(la => <option key={la.id} value={la.id}>{la.name}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 block">Filter Teacher</label>
+                  <select
+                    className="w-full px-3 py-2 rounded-xl bg-white border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs cursor-pointer"
+                    value={statusTeacherName}
+                    onChange={e => setStatusTeacherName(e.target.value)}
+                  >
+                    <option value="">All Teachers ({statusFilteredTeachers.length})</option>
+                    {statusFilteredTeachers.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
               </div>
@@ -867,7 +1322,17 @@ export function SubmissionsPage() {
                 <div className="flex items-center justify-between px-4 py-2.5 bg-blue-50/70 border border-blue-200/80 rounded-xl text-xs">
                   <div className="flex items-center gap-2 text-blue-900 font-bold">
                     <Building2 size={16} className="text-blue-600" />
-                    <span>{schools.find(s => s.id === statusSchoolId)?.name} — Grade Level Compliance Breakdown</span>
+                    <a
+                      href={`/school-submissions?id=${statusSchoolId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-blue-700 hover:underline inline-flex items-center gap-1 text-xs font-black text-blue-900"
+                      title="Open school submissions profile in new tab"
+                    >
+                      <span>{schools.find(s => s.id === statusSchoolId)?.name}</span>
+                      <ExternalLink size={13} className="text-blue-600" />
+                    </a>
+                    <span>— Grade Level Compliance Breakdown</span>
                     <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 text-[10px] font-extrabold border border-blue-200">
                       {gradeGroups.length} Grades Listed
                     </span>
@@ -1147,9 +1612,17 @@ export function SubmissionsPage() {
                           <div>
                             <div className="flex items-center gap-2">
                               <Building2 size={16} className="text-slate-500 shrink-0" />
-                              <h3 className="text-base font-extrabold text-slate-900">
-                                {sGroup.school.name}
-                              </h3>
+                              <a
+                                href={`/school-submissions?id=${sGroup.school.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={e => e.stopPropagation()}
+                                className="text-base font-extrabold text-slate-900 hover:text-[#8B72F4] transition-colors inline-flex items-center gap-1 group"
+                                title={`Click to view all data linked to ${sGroup.school.name} in a new tab`}
+                              >
+                                <span>{sGroup.school.name}</span>
+                                <ExternalLink size={13} className="text-[#8B72F4] opacity-60 group-hover:opacity-100 shrink-0" />
+                              </a>
                               <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
                                 {sGroup.school.school_type}
                               </span>

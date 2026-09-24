@@ -17,7 +17,7 @@ import {
   fetchTerms,
   insertAuditLog
 } from '@/lib/supabase/queries'
-import { fetchCompetencySuggestions, fetchDifficultyFactorsSuggestions, fetchUntaughtReasonsSuggestions } from '@/lib/supabase/suggestions'
+import { fetchCompetencySuggestions, fetchDifficultyFactorsSuggestions, fetchUntaughtReasonsSuggestions, fetchTeacherNameSuggestions } from '@/lib/supabase/suggestions'
 import { useAuth } from '@/features/auth/useAuth'
 import { useToast } from '@/hooks/useToast'
 import type { TermcatSubmission, FullSubmissionFormData, School, GradeLevel, LearningArea, SchoolYear, Term } from '@/types'
@@ -41,6 +41,7 @@ export function SubmissionEditPage() {
   const [terms, setTerms] = useState<Term[]>([])
 
   // Suggestions
+  const [teacherSuggestions, setTeacherSuggestions] = useState<string[]>([])
   const [compSuggestions, setCompSuggestions] = useState<string[]>([])
   const [diffSuggestions, setDiffSuggestions] = useState<string[]>([])
   const [reasonsSuggestions, setReasonsSuggestions] = useState<string[]>([])
@@ -93,7 +94,8 @@ export function SubmissionEditPage() {
       fetchCompetencySuggestions(),
       fetchDifficultyFactorsSuggestions(),
       fetchUntaughtReasonsSuggestions(),
-    ]).then(([s, g, la, sy, t, cs, ds, rs]) => {
+      fetchTeacherNameSuggestions(),
+    ]).then(([s, g, la, sy, t, cs, ds, rs, ts]) => {
       setSchools(s)
       setGrades(g)
       setLearningAreas(la)
@@ -102,8 +104,16 @@ export function SubmissionEditPage() {
       setCompSuggestions(cs)
       setDiffSuggestions(ds)
       setReasonsSuggestions(rs)
+      setTeacherSuggestions(ts)
     })
   }, [])
+
+  // Fetch teacher suggestions matching selected school
+  useEffect(() => {
+    if (formData.teacherInfo.school_id) {
+      fetchTeacherNameSuggestions(formData.teacherInfo.school_id).then(setTeacherSuggestions)
+    }
+  }, [formData.teacherInfo.school_id])
 
   // Dynamic learning areas assigned to selected Grade Level
   useEffect(() => {
@@ -280,12 +290,13 @@ export function SubmissionEditPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className="form-label text-xs font-semibold">Teacher Name</label>
-                <input
-                  type="text"
+                <SuggestionInput
                   required
-                  className="form-input text-sm"
+                  placeholder="Type or select teacher name..."
+                  suggestions={teacherSuggestions}
                   value={formData.teacherInfo.teacher_name}
                   onChange={e => setFormData(p => ({ ...p, teacherInfo: { ...p.teacherInfo, teacher_name: e.target.value } }))}
+                  onSelectSuggestion={val => setFormData(p => ({ ...p, teacherInfo: { ...p.teacherInfo, teacher_name: val } }))}
                 />
               </div>
 
