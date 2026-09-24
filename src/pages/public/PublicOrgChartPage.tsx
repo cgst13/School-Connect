@@ -144,19 +144,19 @@ export function PublicOrgChartPage() {
     loadData()
   }, [])
 
-  // Auto-fit org chart to view boundaries
+  // Auto-fit org chart to full screen view boundaries
   const handleAutoFit = useCallback(() => {
     if (!canvasViewportRef.current || !treeContentRef.current) return
-    const vpWidth = canvasViewportRef.current.clientWidth - 48
-    const vpHeight = canvasViewportRef.current.clientHeight - 48
+    const vpWidth = canvasViewportRef.current.clientWidth - 32
+    const vpHeight = canvasViewportRef.current.clientHeight - 32
     const contentWidth = treeContentRef.current.scrollWidth
     const contentHeight = treeContentRef.current.scrollHeight
 
     if (contentWidth > 0 && contentHeight > 0) {
       const scaleX = vpWidth / contentWidth
       const scaleY = vpHeight / contentHeight
-      const fitScale = Math.min(scaleX, scaleY, 1)
-      const fitPct = Math.max(25, Math.min(100, Math.floor(fitScale * 100)))
+      const fitScale = Math.min(scaleX, scaleY)
+      const fitPct = Math.max(15, Math.min(120, Math.floor(fitScale * 100)))
       setZoomLevel(fitPct)
       setPan({ x: 0, y: 0 })
     }
@@ -397,7 +397,7 @@ export function PublicOrgChartPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FAF9FE] text-[#2D2638] font-sans pb-16">
+    <div className="h-screen w-screen overflow-hidden bg-[#FAF9FE] text-[#2D2638] font-sans flex flex-col">
       {/* Printable CSS Rules */}
       <style>{`
         @media print {
@@ -533,51 +533,17 @@ export function PublicOrgChartPage() {
         </div>
       </header>
 
-      {/* MAIN CONTAINER */}
-      <main className="w-full px-4 sm:px-8 pt-6 sm:pt-8 space-y-6">
-
-        {/* HIERARCHY LEGEND BAR */}
-        <div className="no-print clay-card p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 max-w-7xl mx-auto border-2 border-purple-200/80 bg-gradient-to-r from-[#F6EFFF] via-[#EEF0FF] to-[#E5E8FF]">
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-xl bg-[#8B72F4] text-[#FAF5F0]">
-              <Network size={18} />
-            </div>
-            <div>
-              <h3 className="text-xs font-black text-[#2D2638] uppercase tracking-wider font-display">
-                Official Governance Hierarchy Levels
-              </h3>
-              <p className="text-[11px] text-[#7A7289] font-medium">Strict ranking order top-to-bottom</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap text-xs font-extrabold">
-            <span className="px-3 py-1 rounded-full bg-blue-600 text-white shadow-2xs">
-              1. PSDS (District Head)
-            </span>
-            <span className="text-[#8B72F4]">&rarr;</span>
-            <span className="px-3 py-1 rounded-full bg-purple-600 text-white shadow-2xs">
-              2. School Heads / Principals
-            </span>
-            <span className="text-[#8B72F4]">&rarr;</span>
-            <span className="px-3 py-1 rounded-full bg-indigo-600 text-white shadow-2xs">
-              3. AO IIs (Admin Officers)
-            </span>
-            <span className="text-[#8B72F4]">&rarr;</span>
-            <span className="px-3 py-1 rounded-full bg-emerald-600 text-white shadow-2xs">
-              4. Teaching Faculty
-            </span>
-          </div>
-        </div>
-
+      {/* MAIN FULL SCREEN VIEWPORT CONTAINER */}
+      <main className="w-full h-[calc(100vh-64px)] relative overflow-hidden flex flex-col p-0 m-0 bg-[#FAF9FE]">
         {/* CANVAS & INTERACTIVE DRAG/ZOOM VIEWPORT */}
         {loading ? (
-          <div className="p-16">
+          <div className="p-16 flex-1 flex items-center justify-center">
             <DepEdSpinner size="lg" label="Rendering 4-Tier Organizational Hierarchy Tree..." subtitle="PSDS -> School Heads -> AO IIs -> Teachers" />
           </div>
         ) : (
-          <div className="relative w-full max-w-7xl mx-auto">
+          <div className="relative w-full h-full">
             {/* Navigation Tip Pill */}
-            <div className="no-print absolute top-3 left-4 z-20 pointer-events-none flex items-center gap-2 px-3 py-1 rounded-full bg-white/80 backdrop-blur-xs border border-purple-100 text-[11px] font-bold text-[#7A7289] shadow-xs">
+            <div className="no-print absolute top-3 left-4 z-20 pointer-events-none flex items-center gap-2 px-3 py-1 rounded-full bg-white/90 backdrop-blur-xs border border-purple-100 text-[11px] font-bold text-[#7A7289] shadow-xs">
               <Hand size={13} className="text-[#8B72F4]" />
               <span>Click & drag canvas to move &bull; Zoom in/out to explore</span>
             </div>
@@ -590,13 +556,13 @@ export function PublicOrgChartPage() {
               onPointerUp={handlePointerUp}
               onPointerCancel={handlePointerUp}
               onWheel={handleWheel}
-              className={`w-full overflow-hidden min-h-[75vh] max-h-[82vh] border-2 border-dashed border-purple-200/80 rounded-3xl bg-slate-50/60 shadow-inner select-none p-6 sm:p-10 relative flex justify-center items-start transition-cursor ${
+              className={`w-full h-full overflow-hidden select-none p-4 sm:p-8 relative flex justify-center items-start transition-cursor ${
                 isPanning ? 'cursor-grabbing' : 'cursor-grab'
               }`}
             >
               <div
                 ref={treeContentRef}
-                className="min-w-max mx-auto origin-top flex flex-col items-center transition-transform duration-75 ease-out"
+                className="min-w-max mx-auto origin-top flex flex-col items-center transition-transform duration-75 ease-out pt-2"
                 style={{
                   transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoomLevel / 100})`
                 }}
@@ -707,11 +673,6 @@ export function PublicOrgChartPage() {
         )}
       </main>
 
-      {/* FOOTER */}
-      <footer className="no-print mt-12 text-center text-xs font-medium text-[#7A7289] space-y-1">
-        <p>&copy; {new Date().getFullYear()} School Connect &bull; 4-Tier Public Organizational Chart (PSDS &rarr; School Heads &rarr; AO IIs &rarr; Teachers)</p>
-        <p className="text-[10px] text-[#A39BAF]">Department of Education &bull; Region IV-B MIMAROPA &bull; Division of Romblon</p>
-      </footer>
     </div>
   )
 }
