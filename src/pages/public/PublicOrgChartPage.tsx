@@ -1,22 +1,20 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Network,
   Search,
   Building2,
   Crown,
-  Briefcase,
-  GraduationCap,
   Printer,
   ChevronDown,
   Globe,
-  Award,
   ArrowLeft,
-  Users,
   ZoomIn,
   ZoomOut,
   RotateCcw,
-  UserCheck
+  Maximize2,
+  Move,
+  Hand
 } from 'lucide-react'
 import { fetchAllAdmins, fetchSchools, fetchGradeLevels } from '@/lib/supabase/queries'
 import { DepEdSpinner } from '@/components/ui/DepEdSpinner'
@@ -110,10 +108,18 @@ export function PublicOrgChartPage() {
   const [grades, setGrades] = useState<GradeLevel[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Search, Filter & Zoom State
+  // Search, Filter & Zoom/Pan State
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedSchoolId, setSelectedSchoolId] = useState<string>('all')
   const [zoomLevel, setZoomLevel] = useState<number>(100)
+  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
+  const [isPanning, setIsPanning] = useState(false)
+
+  // Refs for auto-fit screen calculation and panning
+  const canvasViewportRef = useRef<HTMLDivElement>(null)
+  const treeContentRef = useRef<HTMLDivElement>(null)
+  const panStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
+  const initialPanRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
 
   const loadData = async () => {
     setLoading(true)
@@ -137,6 +143,78 @@ export function PublicOrgChartPage() {
     document.title = 'Strict Hierarchy Org Chart (PSDS > School Heads > AO IIs > Teachers)'
     loadData()
   }, [])
+
+  // Auto-fit org chart to view boundaries
+  const handleAutoFit = useCallback(() => {
+    if (!canvasViewportRef.current || !treeContentRef.current) return
+    const vpWidth = canvasViewportRef.current.clientWidth - 48
+    const vpHeight = canvasViewportRef.current.clientHeight - 48
+    const contentWidth = treeContentRef.current.scrollWidth
+    const contentHeight = treeContentRef.current.scrollHeight
+
+    if (contentWidth > 0 && contentHeight > 0) {
+      const scaleX = vpWidth / contentWidth
+      const scaleY = vpHeight / contentHeight
+      const fitScale = Math.min(scaleX, scaleY, 1)
+      const fitPct = Math.max(25, Math.min(100, Math.floor(fitScale * 100)))
+      setZoomLevel(fitPct)
+      setPan({ x: 0, y: 0 })
+    }
+  }, [])
+
+  // Auto-fit whenever school filter, search query, or data finishes loading
+  useEffect(() => {
+    if (!loading) {
+      const timer = setTimeout(() => {
+        handleAutoFit()
+      }, 150)
+      return () => clearTimeout(timer)
+    }
+  }, [selectedSchoolId, searchQuery, loading, handleAutoFit])
+
+  // Handle window resize auto-fit
+  useEffect(() => {
+    const onResize = () => handleAutoFit()
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [handleAutoFit])
+
+  // Drag / Pan interaction handlers
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return
+    setIsPanning(true)
+    panStartRef.current = { x: e.clientX, y: e.clientY }
+    initialPanRef.current = { ...pan }
+    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+  }
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isPanning) return
+    const dx = e.clientX - panStartRef.current.x
+    const dy = e.clientY - panStartRef.current.y
+    setPan({
+      x: initialPanRef.current.x + dx,
+      y: initialPanRef.current.y + dy
+    })
+  }
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (isPanning) {
+      setIsPanning(false)
+      try {
+        ;(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId)
+      } catch (_) {}
+    }
+  }
+
+  // Mouse wheel zoom handler
+  const handleWheel = (e: React.WheelEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault()
+      const delta = e.deltaY < 0 ? 5 : -5
+      setZoomLevel(z => Math.max(30, Math.min(160, z + delta)))
+    }
+  }
 
   // Helper: School Name to Abbreviation
   const getSchoolAbbreviation = (schoolName: string, session?: string) => {
@@ -329,73 +407,128 @@ export function PublicOrgChartPage() {
         }
       `}</style>
 
-      {/* PUBLIC HEADER BAR */}
-      <header className="no-print sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-purple-100 px-4 sm:px-8 py-3.5 shadow-sm flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Link
-            to="/portal"
-            className="p-2.5 rounded-2xl bg-[#FAF5F0] hover:bg-[#F6EFFF] text-[#8B72F4] transition-all cursor-pointer border border-white"
-            title="Back to School Connect Portal"
-          >
-            <ArrowLeft size={18} />
-          </Link>
+      {/* PUBLIC HEADER BAR WITH INTEGRATED SEARCH & SCHOOL FILTER */}
+      <header className="no-print sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-purple-100 px-4 sm:px-8 py-3 shadow-md flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="flex items-center justify-between w-full md:w-auto gap-3">
+          <div className="flex items-center gap-3">
+            <Link
+              to="/portal"
+              className="p-2 rounded-2xl bg-[#FAF5F0] hover:bg-[#F6EFFF] text-[#8B72F4] transition-all cursor-pointer border border-white shrink-0"
+              title="Back to School Connect Portal"
+            >
+              <ArrowLeft size={18} />
+            </Link>
 
-          <img
-            src="/images/school_connect_logo.png"
-            alt="School Connect Official Logo"
-            className="h-10 sm:h-12 w-auto object-contain"
-          />
+            <img
+              src="/images/school_connect_logo.png"
+              alt="School Connect Official Logo"
+              className="h-10 sm:h-11 w-auto object-contain shrink-0"
+            />
 
-          <div className="border-l border-slate-200 pl-3">
-            <div className="flex items-center gap-2">
-              <h1 className="text-sm sm:text-base font-black text-[#2D2638] tracking-tight font-display">
-                Concepcion District 4-Tier Organizational Chart
-              </h1>
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black border border-emerald-200 flex items-center gap-1">
-                <Globe size={11} /> Public View
-              </span>
+            <div className="border-l border-slate-200 pl-3 min-w-0">
+              <div className="flex items-center gap-2">
+                <h1 className="text-sm sm:text-base font-black text-[#2D2638] tracking-tight font-display truncate">
+                  Org Chart Directory
+                </h1>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black border border-emerald-200 shrink-0 flex items-center gap-1">
+                  <Globe size={10} /> Public
+                </span>
+              </div>
+              <p className="text-[11px] text-[#7A7289] font-medium hidden lg:block truncate">
+                PSDS &rarr; School Heads &rarr; AO IIs &rarr; Teachers
+              </p>
             </div>
-            <p className="text-[11px] text-[#7A7289] font-medium hidden sm:block">
-              Hierarchy Order: <strong>PSDS &rarr; School Heads &rarr; AO IIs &rarr; Teachers</strong>
-            </p>
           </div>
         </div>
 
-        {/* Action Controls */}
-        <div className="flex items-center gap-2">
+        {/* INTEGRATED SEARCH & SCHOOL FILTER CONTROLS */}
+        <div className="flex items-center gap-3 w-full md:w-auto justify-end flex-wrap sm:flex-nowrap">
+          {/* Inset Search Input Pill */}
+          <div className="relative w-full sm:w-72">
+            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#A39BAF]" />
+            <input
+              type="text"
+              placeholder="Search personnel by name or position..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 rounded-full text-xs bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] placeholder-[#A39BAF] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30 focus:bg-white transition-all font-semibold"
+            />
+          </div>
+
+          {/* School Dropdown Filter Pill */}
+          <div className="relative w-full sm:w-72">
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-[#8B72F4]">
+              <Building2 size={15} />
+            </div>
+            <select
+              value={selectedSchoolId}
+              onChange={e => setSelectedSchoolId(e.target.value)}
+              className="w-full pl-9 pr-8 py-2 rounded-full text-xs font-extrabold bg-[#FAF5F0] border-2 border-[#8B72F4]/30 text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 focus:bg-white transition-all shadow-xs appearance-none cursor-pointer"
+            >
+              <option value="all">All District Schools ({schools.length})</option>
+              {schools.map(sch => (
+                <option key={sch.id} value={sch.id}>
+                  {sch.name} ({getSchoolAbbreviation(sch.name)})
+                </option>
+              ))}
+            </select>
+            <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-[#8B72F4]">
+              <ChevronDown size={14} />
+            </div>
+          </div>
+
           {/* Zoom Controls */}
-          <div className="hidden md:flex items-center gap-1 p-1 bg-[#FAF5F0] rounded-full border border-white shadow-2xs">
+          <div className="flex items-center gap-1 p-1 bg-[#FAF5F0] rounded-full border border-white shadow-2xs shrink-0">
             <button
-              onClick={() => setZoomLevel(z => Math.max(60, z - 10))}
+              onClick={() => setZoomLevel(z => Math.max(25, z - 10))}
               className="p-1.5 rounded-full bg-white text-[#7A7289] hover:text-[#2D2638] transition-all cursor-pointer"
               title="Zoom Out"
             >
-              <ZoomOut size={14} />
+              <ZoomOut size={13} />
             </button>
-            <span className="text-[10px] font-extrabold text-[#2D2638] px-2">{zoomLevel}%</span>
+
+            <span className="text-[10px] font-extrabold text-[#2D2638] px-1.5 min-w-[34px] text-center">
+              {zoomLevel}%
+            </span>
+
             <button
-              onClick={() => setZoomLevel(z => Math.min(140, z + 10))}
+              onClick={() => setZoomLevel(z => Math.min(160, z + 10))}
               className="p-1.5 rounded-full bg-white text-[#7A7289] hover:text-[#2D2638] transition-all cursor-pointer"
               title="Zoom In"
             >
-              <ZoomIn size={14} />
+              <ZoomIn size={13} />
             </button>
+
             <button
-              onClick={() => setZoomLevel(100)}
-              className="p-1.5 rounded-full bg-white text-[#7A7289] hover:text-[#8B72F4] transition-all cursor-pointer"
-              title="Reset Zoom"
+              onClick={handleAutoFit}
+              className="px-2 py-1 rounded-full bg-purple-100 text-[#8B72F4] hover:bg-purple-200 text-[10px] font-extrabold transition-all cursor-pointer flex items-center gap-1"
+              title="Auto Fit All Staff to Screen"
             >
-              <RotateCcw size={14} />
+              <Maximize2 size={11} />
+              <span>Auto Fit</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setZoomLevel(100)
+                setPan({ x: 0, y: 0 })
+              }}
+              className="p-1.5 rounded-full bg-white text-[#7A7289] hover:text-[#8B72F4] transition-all cursor-pointer"
+              title="Reset Zoom to 100%"
+            >
+              <RotateCcw size={13} />
             </button>
           </div>
 
+          {/* Print / PDF Button */}
           <button
             type="button"
             onClick={handlePrint}
-            className="px-4 py-2 rounded-full bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] text-white text-xs font-black shadow-md hover:brightness-105 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+            className="p-2 sm:px-4 sm:py-2 rounded-full bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] text-white text-xs font-black shadow-md hover:brightness-105 transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+            title="Print or export PDF"
           >
             <Printer size={15} />
-            <span className="hidden sm:inline">Print / PDF</span>
+            <span className="hidden sm:inline">Print</span>
           </button>
         </div>
       </header>
@@ -406,7 +539,7 @@ export function PublicOrgChartPage() {
         {/* HIERARCHY LEGEND BAR */}
         <div className="no-print clay-card p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 max-w-7xl mx-auto border-2 border-purple-200/80 bg-gradient-to-r from-[#F6EFFF] via-[#EEF0FF] to-[#E5E8FF]">
           <div className="flex items-center gap-2">
-            <div className="p-2 rounded-xl bg-[#8B72F4] text-white">
+            <div className="p-2 rounded-xl bg-[#8B72F4] text-[#FAF5F0]">
               <Network size={18} />
             </div>
             <div>
@@ -436,154 +569,139 @@ export function PublicOrgChartPage() {
           </div>
         </div>
 
-        {/* SEARCH AND SCHOOL FILTER CONTROLS BAR */}
-        <div className="no-print clay-card p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 max-w-7xl mx-auto">
-          <div className="relative w-full sm:w-80">
-            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#A39BAF]" />
-            <input
-              type="text"
-              placeholder="Search personnel by name or position..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-11 pr-4 py-2.5 rounded-full text-xs bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] placeholder-[#A39BAF] focus:outline-none focus:ring-4 focus:ring-[#8B72F4]/20 focus:bg-white transition-all font-semibold"
-            />
-          </div>
-
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            <div className="relative w-full sm:w-72">
-              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-[#8B72F4]">
-                <Building2 size={15} />
-              </div>
-              <select
-                value={selectedSchoolId}
-                onChange={e => setSelectedSchoolId(e.target.value)}
-                className="w-full pl-10 pr-8 py-2.5 rounded-full text-xs font-extrabold bg-[#FAF5F0] border border-white text-[#2D2638] focus:outline-none focus:ring-4 focus:ring-[#8B72F4]/20 focus:bg-white transition-all shadow-2xs appearance-none cursor-pointer"
-              >
-                <option value="all">All District Schools ({schools.length})</option>
-                {schools.map(sch => (
-                  <option key={sch.id} value={sch.id}>
-                    {sch.name} ({getSchoolAbbreviation(sch.name)})
-                  </option>
-                ))}
-              </select>
-              <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-[#A39BAF]">
-                <ChevronDown size={14} />
-              </div>
-            </div>
-          </div>
-        </div>
-
+        {/* CANVAS & INTERACTIVE DRAG/ZOOM VIEWPORT */}
         {loading ? (
           <div className="p-16">
             <DepEdSpinner size="lg" label="Rendering 4-Tier Organizational Hierarchy Tree..." subtitle="PSDS -> School Heads -> AO IIs -> Teachers" />
           </div>
         ) : (
-          <div className="w-full overflow-x-auto custom-scrollbar py-6">
+          <div className="relative w-full max-w-7xl mx-auto">
+            {/* Navigation Tip Pill */}
+            <div className="no-print absolute top-3 left-4 z-20 pointer-events-none flex items-center gap-2 px-3 py-1 rounded-full bg-white/80 backdrop-blur-xs border border-purple-100 text-[11px] font-bold text-[#7A7289] shadow-xs">
+              <Hand size={13} className="text-[#8B72F4]" />
+              <span>Click & drag canvas to move &bull; Zoom in/out to explore</span>
+            </div>
+
+            {/* DRAGGABLE & AUTO-FITTING VIEWPORT CONTAINER */}
             <div
-              className="min-w-max mx-auto transition-transform duration-300 origin-top flex flex-col items-center"
-              style={{ transform: `scale(${zoomLevel / 100})` }}
+              ref={canvasViewportRef}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerUp}
+              onWheel={handleWheel}
+              className={`w-full overflow-hidden min-h-[75vh] max-h-[82vh] border-2 border-dashed border-purple-200/80 rounded-3xl bg-slate-50/60 shadow-inner select-none p-6 sm:p-10 relative flex justify-center items-start transition-cursor ${
+                isPanning ? 'cursor-grabbing' : 'cursor-grab'
+              }`}
             >
-              
-              {/* LEVEL 1 (TOP ROOT): PUBLIC SCHOOLS DISTRICT SUPERVISOR (PSDS) */}
-              <div className="flex flex-col items-center">
-                <TreeNodeCard
-                  avatarUrl={districtSupervisor?.avatar_url}
-                  name={districtSupervisor?.full_name || 'Public Schools District Supervisor'}
-                  position="Public Schools District Supervisor (PSDS)"
-                  subText="Concepcion District Governance Head"
-                  levelTag="Level 1 • PSDS"
-                  isTopRoot
-                  colorTheme={rootTheme}
-                />
+              <div
+                ref={treeContentRef}
+                className="min-w-max mx-auto origin-top flex flex-col items-center transition-transform duration-75 ease-out"
+                style={{
+                  transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoomLevel / 100})`
+                }}
+              >
+                {/* LEVEL 1 (TOP ROOT): PUBLIC SCHOOLS DISTRICT SUPERVISOR (PSDS) */}
+                <div className="flex flex-col items-center">
+                  <TreeNodeCard
+                    avatarUrl={districtSupervisor?.avatar_url}
+                    name={districtSupervisor?.full_name || 'Public Schools District Supervisor'}
+                    position="Public Schools District Supervisor (PSDS)"
+                    subText="Concepcion District Governance Head"
+                    levelTag="Level 1 • PSDS"
+                    isTopRoot
+                    colorTheme={rootTheme}
+                  />
 
-                {/* Vertical Stem Connector Down from PSDS */}
-                <div className="w-0.5 h-10 bg-indigo-500" />
+                  {/* Vertical Stem Connector Down from PSDS */}
+                  <div className="w-0.5 h-10 bg-indigo-500" />
 
-                {/* LEVEL 2, 3, 4: SCHOOL BRANCHES */}
-                {schoolTree.length > 0 && (
-                  <div className="flex flex-col items-center w-full">
-                    {/* Horizontal Bar Connector spanning across schools */}
-                    <div className="relative w-full flex justify-center">
-                      <div className="h-0.5 bg-indigo-500 w-full max-w-[92%]" />
-                    </div>
+                  {/* LEVEL 2, 3, 4: SCHOOL BRANCHES */}
+                  {schoolTree.length > 0 && (
+                    <div className="flex flex-col items-center w-full">
+                      {/* Horizontal Bar Connector spanning across schools */}
+                      <div className="relative w-full flex justify-center">
+                        <div className="h-0.5 bg-indigo-500 w-full max-w-[92%]" />
+                      </div>
 
-                    {/* SCHOOL BRANCHES CONTAINER */}
-                    <div className="flex items-start justify-center gap-10 sm:gap-14 pt-0">
-                      {schoolTree.map(({ school, schoolHeads, ao2s, teachers }, idx) => {
-                        const theme = themeList[idx % themeList.length]
-                        const schoolHead = schoolHeads[0]
-                        const ao2 = ao2s[0]
+                      {/* SCHOOL BRANCHES CONTAINER */}
+                      <div className="flex items-start justify-center gap-10 sm:gap-14 pt-0">
+                        {schoolTree.map(({ school, schoolHeads, ao2s, teachers }, idx) => {
+                          const theme = themeList[idx % themeList.length]
+                          const schoolHead = schoolHeads[0]
+                          const ao2 = ao2s[0]
 
-                        return (
-                          <div key={school.id} className="flex flex-col items-center shrink-0">
-                            {/* Vertical Line Connector from PSDS Horizontal Bar */}
-                            <div className="w-0.5 h-8 bg-indigo-500" />
+                          return (
+                            <div key={school.id} className="flex flex-col items-center shrink-0">
+                              {/* Vertical Line Connector from PSDS Horizontal Bar */}
+                              <div className="w-0.5 h-8 bg-indigo-500" />
 
-                            {/* LEVEL 2 NODE: SCHOOL HEAD / PRINCIPAL */}
-                            <TreeNodeCard
-                              avatarUrl={schoolHead?.avatar_url}
-                              name={schoolHead?.full_name || `School Head (${getSchoolAbbreviation(school.name)})`}
-                              position="School Head / Principal"
-                              subText={school.name}
-                              badgeNumber={String(idx + 1).padStart(2, '0')}
-                              levelTag="Level 2 • School Head"
-                              colorTheme={theme}
-                            />
-
-                            {/* LEVEL 3 NODE: ADMINISTRATIVE OFFICER II (AO II) */}
-                            <div className="flex flex-col items-center w-full">
-                              {/* Connector from School Head to AO II */}
-                              <div className={`w-0.5 h-8 ${theme.lineColor}`} />
-
+                              {/* LEVEL 2 NODE: SCHOOL HEAD / PRINCIPAL */}
                               <TreeNodeCard
-                                avatarUrl={ao2?.avatar_url}
-                                name={ao2?.full_name || `AO II (${getSchoolAbbreviation(school.name)})`}
-                                position="Administrative Officer II (AO II)"
+                                avatarUrl={schoolHead?.avatar_url}
+                                name={schoolHead?.full_name || `School Head (${getSchoolAbbreviation(school.name)})`}
+                                position="School Head / Principal"
                                 subText={school.name}
-                                levelTag="Level 3 • AO II"
+                                badgeNumber={String(idx + 1).padStart(2, '0')}
+                                levelTag="Level 2 • School Head"
                                 colorTheme={theme}
                               />
 
-                              {/* LEVEL 4 BRANCH: TEACHERS & FACULTY */}
-                              {teachers.length > 0 && (
-                                <div className="flex flex-col items-center w-full">
-                                  {/* Connector from AO II down to Teachers */}
-                                  <div className={`w-0.5 h-8 ${theme.lineColor}`} />
+                              {/* LEVEL 3 NODE: ADMINISTRATIVE OFFICER II (AO II) */}
+                              <div className="flex flex-col items-center w-full">
+                                {/* Connector from School Head to AO II */}
+                                <div className={`w-0.5 h-8 ${theme.lineColor}`} />
 
-                                  {/* Horizontal Branch Bar for Teachers */}
-                                  {teachers.length > 1 && (
-                                    <div className="w-full flex justify-center">
-                                      <div className={`h-0.5 ${theme.lineColor} w-full max-w-[85%]`} />
-                                    </div>
-                                  )}
+                                <TreeNodeCard
+                                  avatarUrl={ao2?.avatar_url}
+                                  name={ao2?.full_name || `AO II (${getSchoolAbbreviation(school.name)})`}
+                                  position="Administrative Officer II (AO II)"
+                                  subText={school.name}
+                                  levelTag="Level 3 • AO II"
+                                  colorTheme={theme}
+                                />
 
-                                  {/* Teachers Nodes Grid */}
-                                  <div className="flex items-start justify-center gap-4 pt-0 flex-wrap max-w-sm sm:max-w-md">
-                                    {teachers.map(t => (
-                                      <div key={t.id} className="flex flex-col items-center">
-                                        {teachers.length > 1 && <div className={`w-0.5 h-6 ${theme.lineColor}`} />}
-                                        <TreeNodeCard
-                                          avatarUrl={t.avatar_url}
-                                          name={t.full_name}
-                                          position={getStaffDesignation(t)}
-                                          subText={formatTeacherGradeBadge(t)}
-                                          levelTag="Level 4 • Teacher"
-                                          colorTheme={theme}
-                                        />
+                                {/* LEVEL 4 BRANCH: TEACHERS & FACULTY */}
+                                {teachers.length > 0 && (
+                                  <div className="flex flex-col items-center w-full">
+                                    {/* Connector from AO II down to Teachers */}
+                                    <div className={`w-0.5 h-8 ${theme.lineColor}`} />
+
+                                    {/* Horizontal Branch Bar for Teachers */}
+                                    {teachers.length > 1 && (
+                                      <div className="w-full flex justify-center">
+                                        <div className={`h-0.5 ${theme.lineColor} w-full max-w-[85%]`} />
                                       </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
+                                    )}
 
+                                    {/* Teachers Nodes Grid */}
+                                    <div className="flex items-start justify-center gap-4 pt-0 flex-wrap max-w-sm sm:max-w-md">
+                                      {teachers.map(t => (
+                                        <div key={t.id} className="flex flex-col items-center">
+                                          {teachers.length > 1 && <div className={`w-0.5 h-6 ${theme.lineColor}`} />}
+                                          <TreeNodeCard
+                                            avatarUrl={t.avatar_url}
+                                            name={t.full_name}
+                                            position={getStaffDesignation(t)}
+                                            subText={formatTeacherGradeBadge(t)}
+                                            levelTag="Level 4 • Teacher"
+                                            colorTheme={theme}
+                                          />
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+              </div>
             </div>
           </div>
         )}
