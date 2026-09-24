@@ -244,6 +244,7 @@ export function SchoolConnectHubPage() {
   // --- EVENT MODAL STATES ---
   const [isEventModalOpen, setIsEventModalOpen] = useState(false)
   const [editingEvent, setEditingEvent] = useState<PortalEvent | null>(null)
+  const [viewingEvent, setViewingEvent] = useState<PortalEvent | null>(null)
   const [eventForm, setEventForm] = useState({
     title: '',
     date: '',
@@ -252,6 +253,104 @@ export function SchoolConnectHubPage() {
     category: 'Meeting',
     description: ''
   })
+
+  // --- RICH FORMATTED DESCRIPTION PARSER ---
+  const parseInlineMarkdown = (text: string) => {
+    if (!text) return text
+    const parts = text.split(/(\*\*.*?\*\*|\*.*?\*|__.*?__| _.*?_)/g)
+    return parts.map((part, i) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={i} className="font-black text-[#2D2638]">{part.slice(2, -2)}</strong>
+      }
+      if (part.startsWith('__') && part.endsWith('__')) {
+        return <strong key={i} className="font-black text-[#2D2638]">{part.slice(2, -2)}</strong>
+      }
+      if (part.startsWith('*') && part.endsWith('*')) {
+        return <em key={i} className="italic text-blue-900 font-semibold">{part.slice(1, -1)}</em>
+      }
+      if (part.startsWith('_') && part.endsWith('_')) {
+        return <em key={i} className="italic text-blue-900 font-semibold">{part.slice(1, -1)}</em>
+      }
+      return part
+    })
+  }
+
+  const renderFormattedEventDescription = (description?: string) => {
+    if (!description || !description.trim()) {
+      return <p className="text-xs text-[#7A7289] italic">No description details provided for this event.</p>
+    }
+
+    let raw = description.trim()
+    if (!raw.includes('\n')) {
+      raw = raw
+        .replace(/\s*(Where\s*:|Theme\s*:|Venue\s*:|Food\s*:?|Note\s*:|Schedule\s*:)/gi, '\n$1')
+        .replace(/\s*\*\s*/g, '\n* ')
+        .replace(/\s+([A-Za-z]{2,5}\s*-)/g, '\n$1')
+        .trim()
+    }
+
+    const lines = raw.split('\n').map(l => l.trim()).filter(l => l.length > 0)
+
+    return (
+      <div className="space-y-2.5 text-xs leading-relaxed text-[#2D2638]">
+        {lines.map((line, idx) => {
+          const kvMatch = line.match(/^(Where|Theme|Venue|Location|Date|Organizers?|Note|Food|Details)\s*:\s*(.*)$/i)
+          if (kvMatch) {
+            const key = kvMatch[1].toUpperCase()
+            const val = kvMatch[2]
+            return (
+              <div key={idx} className="p-3 rounded-xl bg-blue-50/80 border border-blue-100 flex flex-wrap items-center gap-2 shadow-2xs">
+                <span className="px-2 py-0.5 rounded-lg bg-blue-600 text-white font-black text-[10px] uppercase tracking-wider">
+                  {key}
+                </span>
+                <span className="font-bold text-[#2D2638] text-xs">{parseInlineMarkdown(val)}</span>
+              </div>
+            )
+          }
+
+          const schoolMatch = line.match(/^([A-Za-z]{2,5})\s*-\s*(.*)$/)
+          if (schoolMatch) {
+            const code = schoolMatch[1].toUpperCase()
+            const item = schoolMatch[2]
+            return (
+              <div key={idx} className="flex items-center gap-2.5 p-2.5 rounded-xl bg-purple-50/70 border border-purple-100">
+                <span className="px-2 py-0.5 rounded-md bg-[#8B72F4] text-white font-black text-[10px] shrink-0">
+                  {code}
+                </span>
+                <span className="font-semibold text-[#2D2638] text-xs">{parseInlineMarkdown(item)}</span>
+              </div>
+            )
+          }
+
+          if (line.startsWith('*') || line.startsWith('-') || line.startsWith('•')) {
+            const cleanText = line.replace(/^[\*\-•]\s*/, '')
+            return (
+              <div key={idx} className="flex items-start gap-2.5 pl-2 py-1">
+                <span className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 shrink-0" />
+                <span className="font-semibold text-[#2D2638]">{parseInlineMarkdown(cleanText)}</span>
+              </div>
+            )
+          }
+
+          if (line.endsWith(':')) {
+            return (
+              <h5 key={idx} className="font-black text-xs text-[#2D2638] uppercase tracking-wider pt-2 border-b border-purple-100 pb-1 flex items-center gap-1.5">
+                <span className="w-1.5 h-3 bg-blue-500 rounded-full" />
+                {line}
+              </h5>
+            )
+          }
+
+          return (
+            <p key={idx} className="font-medium text-[#4A405A] leading-relaxed">
+              {parseInlineMarkdown(line)}
+            </p>
+          )
+        })}
+      </div>
+    )
+  }
+
 
   // --- ARCHIVE CONFIRMATION DIALOG STATE ---
   const [archiveDialog, setArchiveDialog] = useState<{
@@ -1767,9 +1866,13 @@ export function SchoolConnectHubPage() {
                       const canManageEvt = canManageItem(evt.createdBy)
 
                       return (
-                        <div key={evt.id} className={`p-4 rounded-2xl border-2 space-y-2 relative group ${
-                          evt.isArchived ? 'bg-slate-50 border-slate-200 opacity-75' : 'bg-white border-white shadow-2xs'
-                        }`}>
+                        <div
+                          key={evt.id}
+                          onClick={() => setViewingEvent(evt)}
+                          className={`p-4 rounded-2xl border-2 space-y-2.5 relative group cursor-pointer transition-all hover:shadow-md hover:border-blue-300 ${
+                            evt.isArchived ? 'bg-slate-50 border-slate-200 opacity-75' : 'bg-white border-white shadow-2xs'
+                          }`}
+                        >
                           <div className="flex items-center justify-between gap-2">
                             <span className="inline-block px-2.5 py-0.5 rounded-full text-[9px] font-black bg-blue-50 text-blue-700 border border-blue-200">
                               {evt.category}
@@ -1777,23 +1880,29 @@ export function SchoolConnectHubPage() {
                             
                             {/* Event Controls */}
                             {canManageEvt && (
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
                                 {!evt.isArchived && (
                                   <>
                                     <button
-                                      onClick={() => handleOpenEventModal(evt)}
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleOpenEventModal(evt)
+                                      }}
                                       className="p-1 rounded-lg text-[#7A7289] hover:text-[#3B82F6] hover:bg-blue-50 transition-all cursor-pointer"
                                       title="Edit Event"
                                     >
                                       <Pencil size={12} />
                                     </button>
                                     <button
-                                      onClick={() => setArchiveDialog({
-                                        isOpen: true,
-                                        type: 'event',
-                                        id: evt.id,
-                                        title: evt.title
-                                      })}
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        setArchiveDialog({
+                                          isOpen: true,
+                                          type: 'event',
+                                          id: evt.id,
+                                          title: evt.title
+                                        })
+                                      }}
                                       className="p-1 rounded-lg text-[#7A7289] hover:text-amber-600 hover:bg-amber-50 transition-all cursor-pointer"
                                       title="Archive Event"
                                     >
@@ -1803,7 +1912,10 @@ export function SchoolConnectHubPage() {
                                 )}
                                 {evt.isArchived && (
                                   <button
-                                    onClick={() => handleUnarchiveItem('event', evt.id)}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleUnarchiveItem('event', evt.id)
+                                    }}
                                     className="p-1 rounded-lg text-[#7A7289] hover:text-emerald-600 hover:bg-emerald-50 transition-all cursor-pointer"
                                     title="Restore / Unarchive Event"
                                   >
@@ -1814,10 +1926,14 @@ export function SchoolConnectHubPage() {
                             )}
                           </div>
 
-                          <h4 className="text-xs font-black text-[#2D2638] leading-snug">{evt.title}</h4>
-                          {evt.description && (
-                            <p className="text-[11px] text-[#7A7289] leading-relaxed font-medium">{evt.description}</p>
-                          )}
+                          <div className="flex items-center justify-between gap-2">
+                            <h4 className="text-xs font-black text-[#2D2638] leading-snug group-hover:text-blue-600 transition-colors">
+                              {evt.title}
+                            </h4>
+                            <span className="text-[10px] font-black text-blue-500 shrink-0 flex items-center gap-0.5">
+                              Details &rarr;
+                            </span>
+                          </div>
 
                           <div className="pt-2 border-t border-[#FAF5F0] space-y-1 text-[10px] text-[#7A7289] font-medium">
                             <div className="flex items-center gap-1.5 text-blue-800 font-bold">
@@ -2561,13 +2677,49 @@ export function SchoolConnectHubPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[#2D2638] mb-1">Description (Optional)</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-[#2D2638]">Program Description & Notes</label>
+                  <span className="text-[10px] text-[#7A7289]">Supports headers (Where:), tags (AES-) & bullets (*)</span>
+                </div>
+                
+                {/* Helper Format Buttons */}
+                <div className="flex items-center gap-1 mb-2 flex-wrap text-[10px]">
+                  <button
+                    type="button"
+                    onClick={() => setEventForm(prev => ({ ...prev, description: prev.description + (prev.description ? '\n' : '') + 'Where: ' }))}
+                    className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 font-extrabold border border-blue-200 hover:bg-blue-100"
+                  >
+                    + Where:
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEventForm(prev => ({ ...prev, description: prev.description + (prev.description ? '\n' : '') + 'Theme: ' }))}
+                    className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 font-extrabold border border-purple-200 hover:bg-purple-100"
+                  >
+                    + Theme:
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEventForm(prev => ({ ...prev, description: prev.description + (prev.description ? '\n' : '') + '* ' }))}
+                    className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-extrabold border border-slate-200 hover:bg-slate-200"
+                  >
+                    + Bullet (*)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEventForm(prev => ({ ...prev, description: prev.description + (prev.description ? '\n' : '') + 'AES- ' }))}
+                    className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 font-extrabold border border-indigo-200 hover:bg-indigo-100"
+                  >
+                    + School (AES-)
+                  </button>
+                </div>
+
                 <textarea
-                  rows={2}
-                  placeholder="Additional event info or instructions..."
+                  rows={5}
+                  placeholder="Where: Venue Location&#10;Theme: Event Theme&#10;* Prepare items per school&#10;Food:&#10;AES- Lumpia/ Adobo&#10;BES- Buko Salad"
                   value={eventForm.description}
                   onChange={e => setEventForm({ ...eventForm, description: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-2xl bg-white border border-blue-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#3B82F6]/40"
+                  className="w-full px-4 py-2.5 rounded-2xl bg-white border border-blue-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#3B82F6]/40 leading-relaxed font-mono"
                 />
               </div>
 
@@ -2915,6 +3067,102 @@ export function SchoolConnectHubPage() {
         onCancel={() => setCompleteConfirmDialog({ isOpen: false, taskId: '', taskTitle: '', willComplete: true })}
       />
 
+      {/* Event Details Modal */}
+      {viewingEvent && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fade-in"
+          onClick={() => setViewingEvent(null)}
+        >
+          <div
+            className="w-full max-w-lg bg-[#FAF5F0] rounded-[32px] border-4 border-white shadow-2xl p-6 space-y-5 max-h-[90vh] overflow-y-auto animate-scale-up font-sans"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-blue-100 pb-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="p-3 rounded-2xl bg-gradient-to-tr from-[#3B82F6] to-[#60A5FA] text-white shadow-md shrink-0">
+                  <CalendarDays size={22} />
+                </div>
+                <div className="min-w-0">
+                  <span className="inline-block px-2.5 py-0.5 rounded-full text-[9px] font-black bg-blue-100 text-blue-800 border border-blue-200 mb-1">
+                    {viewingEvent.category} &bull; {viewingEvent.isArchived ? 'Archived' : 'Active'}
+                  </span>
+                  <h3 className="text-base font-black text-[#2D2638] font-display leading-tight truncate">
+                    {viewingEvent.title}
+                  </h3>
+                </div>
+              </div>
+              <button
+                onClick={() => setViewingEvent(null)}
+                className="p-1.5 rounded-xl text-[#7A7289] hover:bg-white hover:text-[#2D2638] transition-all cursor-pointer shrink-0"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Event Summary Details Card */}
+            <div className="p-4 rounded-2xl bg-white border border-blue-100 shadow-2xs space-y-2.5 text-xs">
+              <div className="flex items-center gap-2 text-blue-900 font-extrabold">
+                <Calendar size={14} className="text-blue-500 shrink-0" />
+                <span>Date: {formatDateForDisplay(viewingEvent.date)}</span>
+              </div>
+
+              <div className="flex items-center gap-2 text-blue-900 font-extrabold">
+                <Clock size={14} className="text-blue-500 shrink-0" />
+                <span>Time: {viewingEvent.time}</span>
+              </div>
+
+              <div className="flex items-center gap-2 text-[#2D2638] font-bold">
+                <MapPin size={14} className="text-rose-500 shrink-0" />
+                <span>Venue: {viewingEvent.venue}</span>
+              </div>
+            </div>
+
+            {/* Formatted Event Description */}
+            <div className="space-y-2">
+              <h4 className="text-xs font-black text-[#2D2638] uppercase tracking-wider font-display flex items-center gap-1.5">
+                <ScrollText size={14} className="text-blue-500" />
+                <span>Event Details & Program Instructions</span>
+              </h4>
+
+              <div className="p-4 rounded-2xl bg-white border border-blue-100 shadow-2xs max-h-72 overflow-y-auto custom-scrollbar">
+                {renderFormattedEventDescription(viewingEvent.description)}
+              </div>
+            </div>
+
+            {/* Footer Controls */}
+            <div className="flex items-center justify-between pt-3 border-t border-blue-100">
+              {canManageItem(viewingEvent.createdBy) ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const evt = viewingEvent
+                      setViewingEvent(null)
+                      handleOpenEventModal(evt)
+                    }}
+                    className="px-4 py-2 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 text-xs font-black hover:bg-blue-100 transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Pencil size={13} />
+                    <span>Edit Details</span>
+                  </button>
+                </div>
+              ) : (
+                <span className="text-[11px] font-semibold text-[#7A7289]">School Connect Event</span>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setViewingEvent(null)}
+                className="px-5 py-2 rounded-xl bg-gradient-to-r from-[#3B82F6] to-[#60A5FA] text-white text-xs font-black shadow-md hover:brightness-105 transition-all cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Logout Confirmation Dialog */}
       <ConfirmationDialog
         isOpen={showLogoutConfirm}
@@ -2929,3 +3177,6 @@ export function SchoolConnectHubPage() {
     </div>
   )
 }
+
+
+
