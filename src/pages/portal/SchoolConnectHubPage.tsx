@@ -3070,98 +3070,121 @@ export function SchoolConnectHubPage() {
       {/* Event Details Modal */}
       {viewingEvent && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/45 backdrop-blur-md animate-fade-in"
           onClick={() => setViewingEvent(null)}
         >
           <div
-            className="w-full max-w-lg bg-[#FAF5F0] rounded-[32px] border-4 border-white shadow-2xl p-6 space-y-5 max-h-[90vh] overflow-y-auto animate-scale-up font-sans"
+            className="w-full max-w-3xl bg-[#FAF5F0] rounded-[36px] border-4 border-white shadow-[0_25px_70px_-15px_rgba(59,130,246,0.3)] p-6 sm:p-8 space-y-6 max-h-[92vh] overflow-y-auto animate-scale-up font-sans"
             onClick={e => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-blue-100 pb-4">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="p-3 rounded-2xl bg-gradient-to-tr from-[#3B82F6] to-[#60A5FA] text-white shadow-md shrink-0">
-                  <CalendarDays size={22} />
+            <div className="flex items-start justify-between border-b-2 border-blue-100 pb-5 gap-4">
+              <div className="flex items-center gap-3.5 min-w-0">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#3B82F6] via-[#60A5FA] to-[#93C5FD] text-white flex items-center justify-center border-2 border-white shadow-md shrink-0">
+                  <CalendarDays size={28} />
                 </div>
                 <div className="min-w-0">
-                  <span className="inline-block px-2.5 py-0.5 rounded-full text-[9px] font-black bg-blue-100 text-blue-800 border border-blue-200 mb-1">
-                    {viewingEvent.category} &bull; {viewingEvent.isArchived ? 'Archived' : 'Active'}
-                  </span>
-                  <h3 className="text-base font-black text-[#2D2638] font-display leading-tight truncate">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className="px-3 py-0.5 rounded-full text-xs font-black bg-blue-100 text-blue-800 border border-blue-200">
+                      {viewingEvent.category}
+                    </span>
+                    <span className={`px-3 py-0.5 rounded-full text-xs font-extrabold border ${
+                      viewingEvent.isArchived ? 'bg-slate-100 text-slate-700 border-slate-200' : 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                    }`}>
+                      {viewingEvent.isArchived ? 'Archived' : 'Active Schedule'}
+                    </span>
+                  </div>
+                  <h3 className="text-xl sm:text-2xl font-black text-[#2D2638] font-display leading-tight">
                     {viewingEvent.title}
                   </h3>
                 </div>
               </div>
               <button
                 onClick={() => setViewingEvent(null)}
-                className="p-1.5 rounded-xl text-[#7A7289] hover:bg-white hover:text-[#2D2638] transition-all cursor-pointer shrink-0"
+                className="w-10 h-10 rounded-2xl bg-white/80 border border-blue-100 text-[#7A7289] hover:text-[#2D2638] hover:bg-white flex items-center justify-center font-bold text-xl shadow-sm transition-all cursor-pointer shrink-0"
               >
-                <X size={18} />
+                &times;
               </button>
             </div>
 
-            {/* Event Summary Details Card */}
-            <div className="p-4 rounded-2xl bg-white border border-blue-100 shadow-2xs space-y-2.5 text-xs">
-              <div className="flex items-center gap-2 text-blue-900 font-extrabold">
-                <Calendar size={14} className="text-blue-500 shrink-0" />
-                <span>Date: {formatDateForDisplay(viewingEvent.date)}</span>
+            {/* Event Summary Details Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="p-4 rounded-2xl bg-white border border-blue-100 shadow-2xs space-y-1">
+                <div className="flex items-center gap-1.5 text-blue-600 text-[11px] font-black uppercase tracking-wider">
+                  <Calendar size={14} />
+                  <span>Event Date</span>
+                </div>
+                <p className="text-sm font-black text-[#2D2638]">
+                  {formatDateForDisplay(viewingEvent.date)}
+                </p>
               </div>
 
-              <div className="flex items-center gap-2 text-blue-900 font-extrabold">
-                <Clock size={14} className="text-blue-500 shrink-0" />
-                <span>Time: {viewingEvent.time}</span>
+              <div className="p-4 rounded-2xl bg-white border border-blue-100 shadow-2xs space-y-1">
+                <div className="flex items-center gap-1.5 text-blue-600 text-[11px] font-black uppercase tracking-wider">
+                  <Clock size={14} />
+                  <span>Time Schedule</span>
+                </div>
+                <p className="text-sm font-black text-[#2D2638]">
+                  {viewingEvent.time}
+                </p>
               </div>
 
-              <div className="flex items-center gap-2 text-[#2D2638] font-bold">
-                <MapPin size={14} className="text-rose-500 shrink-0" />
-                <span>Venue: {viewingEvent.venue}</span>
+              <div className="p-4 rounded-2xl bg-white border border-blue-100 shadow-2xs space-y-1">
+                <div className="flex items-center gap-1.5 text-rose-600 text-[11px] font-black uppercase tracking-wider">
+                  <MapPin size={14} />
+                  <span>Location / Venue</span>
+                </div>
+                <p className="text-sm font-black text-[#2D2638] truncate" title={viewingEvent.venue}>
+                  {viewingEvent.venue}
+                </p>
               </div>
             </div>
 
             {/* Formatted Event Description */}
-            <div className="space-y-2">
-              <h4 className="text-xs font-black text-[#2D2638] uppercase tracking-wider font-display flex items-center gap-1.5">
-                <ScrollText size={14} className="text-blue-500" />
-                <span>Event Details & Program Instructions</span>
-              </h4>
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs sm:text-sm font-black text-[#2D2638] uppercase tracking-wider font-display flex items-center gap-2">
+                  <ScrollText size={16} className="text-blue-500" />
+                  <span>Event Details & Program Instructions</span>
+                </h4>
+              </div>
 
-              <div className="p-4 rounded-2xl bg-white border border-blue-100 shadow-2xs max-h-72 overflow-y-auto custom-scrollbar">
+              <div className="p-5 sm:p-6 rounded-3xl bg-white border-2 border-blue-100/80 shadow-2xs max-h-[55vh] overflow-y-auto custom-scrollbar">
                 {renderFormattedEventDescription(viewingEvent.description)}
               </div>
             </div>
 
             {/* Footer Controls */}
-            <div className="flex items-center justify-between pt-3 border-t border-blue-100">
+            <div className="flex items-center justify-between pt-4 border-t-2 border-blue-100 gap-3">
               {canManageItem(viewingEvent.createdBy) ? (
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const evt = viewingEvent
-                      setViewingEvent(null)
-                      handleOpenEventModal(evt)
-                    }}
-                    className="px-4 py-2 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 text-xs font-black hover:bg-blue-100 transition-all flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Pencil size={13} />
-                    <span>Edit Details</span>
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const evt = viewingEvent
+                    setViewingEvent(null)
+                    handleOpenEventModal(evt)
+                  }}
+                  className="px-5 py-2.5 rounded-2xl bg-blue-50 text-blue-700 border border-blue-200 text-xs sm:text-sm font-black hover:bg-blue-100 transition-all flex items-center gap-2 cursor-pointer shadow-xs"
+                >
+                  <Pencil size={15} />
+                  <span>Edit Event Details</span>
+                </button>
               ) : (
-                <span className="text-[11px] font-semibold text-[#7A7289]">School Connect Event</span>
+                <span className="text-xs font-bold text-[#7A7289]">School Connect Official Event</span>
               )}
 
               <button
                 type="button"
                 onClick={() => setViewingEvent(null)}
-                className="px-5 py-2 rounded-xl bg-gradient-to-r from-[#3B82F6] to-[#60A5FA] text-white text-xs font-black shadow-md hover:brightness-105 transition-all cursor-pointer"
+                className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-[#3B82F6] to-[#60A5FA] text-white text-xs sm:text-sm font-black shadow-md hover:brightness-105 transition-all cursor-pointer"
               >
-                Close
+                Close Window
               </button>
             </div>
           </div>
         </div>
       )}
+
 
       {/* Logout Confirmation Dialog */}
       <ConfirmationDialog
