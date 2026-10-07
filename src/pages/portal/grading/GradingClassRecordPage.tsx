@@ -460,7 +460,7 @@ export function GradingClassRecordPage() {
 
   return (
     <SchoolConnectLayout systemTitle="e-Class Record & Grading Portal" navGroups={gradingNavGroups}>
-      <div className="space-y-6 max-w-[1600px] mx-auto pb-16">
+      <div className="space-y-6 w-full pb-16">
         
         {/* Page Header */}
         <PageHeader

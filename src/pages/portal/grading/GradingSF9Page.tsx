@@ -201,7 +201,7 @@ export function GradingSF9Page() {
 
   return (
     <SchoolConnectLayout systemTitle="e-Class Record & Grading Portal" navGroups={gradingNavGroups}>
-      <div className="space-y-6 max-w-[1400px] mx-auto pb-16">
+      <div className="space-y-6 w-full pb-16">
         
         {/* Header */}
         <PageHeader
