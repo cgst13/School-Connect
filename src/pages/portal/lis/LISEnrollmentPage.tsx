@@ -12,6 +12,7 @@ import {
   Sparkles
 } from 'lucide-react'
 import { fetchLearners, fetchSections, fetchSchools, fetchGradeLevels, bulkUpdateLearnerSection } from '@/lib/supabase/queries'
+import { isGradeMatch } from '@/utils/gradeUtils'
 import { useAuth } from '@/features/auth/useAuth'
 import { useToast } from '@/hooks/useToast'
 import { useLISRealtimeSync } from '@/hooks/useLISRealtimeSync'
@@ -74,14 +75,7 @@ export function LISEnrollmentPage() {
 
       const matchesSchool = selectedSchoolId === 'all' || l.school_id === selectedSchoolId
 
-      const activeGradeObj = gradeLevels.find(g => g.id === selectedGradeId)
-      const matchesGrade =
-        selectedGradeId === 'all' ||
-        l.grade_level_id === selectedGradeId ||
-        (activeGradeObj && (
-          (l.grade_level_name && l.grade_level_name.toLowerCase() === activeGradeObj.name.toLowerCase()) ||
-          (activeGradeObj.grade_number === 0 && l.grade_level_name && (l.grade_level_name.toLowerCase().includes('kinder') || l.grade_level_name === 'K'))
-        ))
+      const matchesGrade = isGradeMatch(l, selectedGradeId, gradeLevels)
 
       return matchesSearch && matchesSchool && matchesGrade
     })

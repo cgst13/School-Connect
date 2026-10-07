@@ -13,6 +13,7 @@ import {
   fetchLearnerGradesByFilters,
 } from '@/lib/supabase/queries'
 import { getDepEdProficiencyLevel } from '@/utils/gradingCalculator'
+import { isGradeMatch } from '@/utils/gradeUtils'
 import type { School, GradeLevel, Section, LearningArea, Learner, LearnerGrade } from '@/types'
 import {
   BarChart3,
@@ -112,10 +113,10 @@ export function GradingSummaryPage() {
   const filteredSections = useMemo(() => {
     return sections.filter(s => {
       const matchSchool = !selectedSchoolId || s.school_id === selectedSchoolId
-      const matchGrade = !selectedGradeId || s.grade_level_id === selectedGradeId
+      const matchGrade = isGradeMatch(s, selectedGradeId, gradeLevels)
       return matchSchool && matchGrade
     })
-  }, [sections, selectedSchoolId, selectedGradeId])
+  }, [sections, selectedSchoolId, selectedGradeId, gradeLevels])
 
   useEffect(() => {
     if (filteredSections.length > 0 && (!selectedSectionId || !filteredSections.some(s => s.id === selectedSectionId))) {
@@ -127,11 +128,11 @@ export function GradingSummaryPage() {
   const sectionLearners = useMemo(() => {
     return learners.filter(l => {
       const matchSchool = !selectedSchoolId || l.school_id === selectedSchoolId
-      const matchGrade = !selectedGradeId || l.grade_level_id === selectedGradeId
+      const matchGrade = isGradeMatch(l, selectedGradeId, gradeLevels)
       const matchSec = !selectedSectionId || l.section_id === selectedSectionId
       return matchSchool && matchGrade && matchSec
     }).sort((a, b) => (a.last_name || '').localeCompare(b.last_name || ''))
-  }, [learners, selectedSchoolId, selectedGradeId, selectedSectionId])
+  }, [learners, selectedSchoolId, selectedGradeId, selectedSectionId, gradeLevels])
 
   // Compute student subject ratings from Supabase / localStorage (NO fake default ratings!)
   const studentMasterRatings = useMemo(() => {

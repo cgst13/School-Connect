@@ -14,6 +14,7 @@ import {
 } from '@/lib/supabase/queries'
 import { getDepEdProficiencyLevel } from '@/utils/gradingCalculator'
 import { getLearnerQRValue } from '@/utils/qrCodeGenerator'
+import { isGradeMatch } from '@/utils/gradeUtils'
 import { QRCodeSVG } from 'qrcode.react'
 import type { School, GradeLevel, Section, LearningArea, Learner, LearnerGrade } from '@/types'
 import {
@@ -89,13 +90,12 @@ export function GradingSF9Page() {
   }, [permittedSchools, selectedSchoolId])
 
   const filteredSections = useMemo(() => {
-    const permittedGradeIds = permittedGradeLevels.map(g => g.id)
     return sections.filter(s => {
       const matchSchool = !selectedSchoolId || s.school_id === selectedSchoolId
-      const matchGrade = !selectedGradeId ? permittedGradeIds.includes(s.grade_level_id) : s.grade_level_id === selectedGradeId
+      const matchGrade = isGradeMatch(s, selectedGradeId, gradeLevels)
       return matchSchool && matchGrade
     })
-  }, [sections, selectedSchoolId, selectedGradeId, permittedGradeLevels])
+  }, [sections, selectedSchoolId, selectedGradeId, gradeLevels])
 
   useEffect(() => {
     if (filteredSections.length > 0 && (!selectedSectionId || !filteredSections.some(s => s.id === selectedSectionId))) {
@@ -106,11 +106,11 @@ export function GradingSF9Page() {
   const sectionLearners = useMemo(() => {
     return learners.filter(l => {
       const matchSchool = !selectedSchoolId || l.school_id === selectedSchoolId
-      const matchGrade = !selectedGradeId || l.grade_level_id === selectedGradeId
+      const matchGrade = isGradeMatch(l, selectedGradeId, gradeLevels)
       const matchSec = !selectedSectionId || l.section_id === selectedSectionId
       return matchSchool && matchGrade && matchSec
     }).sort((a, b) => (a.last_name || '').localeCompare(b.last_name || ''))
-  }, [learners, selectedSchoolId, selectedGradeId, selectedSectionId])
+  }, [learners, selectedSchoolId, selectedGradeId, selectedSectionId, gradeLevels])
 
   useEffect(() => {
     if (sectionLearners.length > 0 && (!selectedLearnerId || !sectionLearners.some(l => l.id === selectedLearnerId))) {

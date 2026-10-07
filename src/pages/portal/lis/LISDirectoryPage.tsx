@@ -48,6 +48,7 @@ import { useLISRealtimeSync } from '@/hooks/useLISRealtimeSync'
 import { ImportResultModal } from '@/components/lis/ImportResultModal'
 import { SchoolIDCardModal } from '@/components/lis/SchoolIDCardModal'
 import { generateLearnerQRCode } from '@/utils/qrCodeGenerator'
+import { isGradeMatch, isKindergartenGrade } from '@/utils/gradeUtils'
 import { useAuth } from '@/features/auth/useAuth'
 import { useToast } from '@/hooks/useToast'
 import { captureGenieOrigin, useGenieModal } from '@/utils/genieAnimation'
@@ -479,8 +480,18 @@ export function LISDirectoryPage() {
           if (admin.assigned_school_ids && admin.assigned_school_ids.length > 0 && l.school_id) {
             if (!admin.assigned_school_ids.includes(l.school_id)) return false
           }
-          if (admin.assigned_grade_ids && admin.assigned_grade_ids.length > 0 && l.grade_level_id) {
-            if (!admin.assigned_grade_ids.includes(l.grade_level_id)) return false
+          if (admin.teacher_category === 'kindergarten') {
+            const isLKinder = isKindergartenGrade(l.grade_level_name) || isKindergartenGrade(l.section_name)
+            if (!isLKinder && admin.assigned_grade_ids && admin.assigned_grade_ids.length > 0 && l.grade_level_id && !admin.assigned_grade_ids.includes(l.grade_level_id)) {
+              return false
+            }
+          } else if (admin.assigned_grade_ids && admin.assigned_grade_ids.length > 0) {
+            const matchesAssignedGrade = admin.assigned_grade_ids.some(gid => {
+              if (l.grade_level_id === gid) return true
+              const gObj = gradeLevels.find(g => g.id === gid)
+              return gObj && l.grade_level_name && gObj.name.toLowerCase() === l.grade_level_name.toLowerCase()
+            })
+            if (!matchesAssignedGrade) return false
           }
         } else if (admin.role === 'school_head' || (admin.role === 'ao_2' && !admin.district_name)) {
           if (admin.assigned_school_ids && admin.assigned_school_ids.length > 0 && l.school_id) {
@@ -502,15 +513,7 @@ export function LISDirectoryPage() {
             : true)
         : (l.school_id === selectedSchoolId || (selectedSchoolObj && l.school_name && l.school_name.toLowerCase() === selectedSchoolObj.name.toLowerCase()))
 
-
-      const activeGradeObj = gradeLevels.find(g => g.id === selectedGradeId)
-      const matchesGrade =
-        selectedGradeId === 'all' ||
-        l.grade_level_id === selectedGradeId ||
-        (activeGradeObj && (
-          (l.grade_level_name && l.grade_level_name.toLowerCase() === activeGradeObj.name.toLowerCase()) ||
-          (activeGradeObj.grade_number === 0 && l.grade_level_name && (l.grade_level_name.toLowerCase().includes('kinder') || l.grade_level_name === 'K'))
-        ))
+      const matchesGrade = isGradeMatch(l, selectedGradeId, gradeLevels)
       const matchesSection = selectedSectionId === 'all' || l.section_id === selectedSectionId
       const matchesStatus = selectedStatus === 'all' || l.status === selectedStatus
       const matchesSex = selectedSex === 'all' || l.sex === selectedSex

@@ -22,6 +22,7 @@ import {
   fetchSchools
 } from '@/lib/supabase/queries'
 import { exportOfficialSF1Excel, calculateAge } from '@/utils/sf1Parser'
+import { isGradeMatch } from '@/utils/gradeUtils'
 import { useAuth } from '@/features/auth/useAuth'
 import { useToast } from '@/hooks/useToast'
 import { useLISRealtimeSync } from '@/hooks/useLISRealtimeSync'
@@ -136,13 +137,7 @@ export function LISSF1Page() {
 
       const matchesSchool = selectedSchoolId === 'all' || l.school_id === selectedSchoolId
 
-      const matchesGrade =
-        selectedGradeId === 'all' ||
-        l.grade_level_id === selectedGradeId ||
-        (activeGradeObj && (
-          (l.grade_level_name && l.grade_level_name.toLowerCase() === activeGradeObj.name.toLowerCase()) ||
-          (activeGradeObj.grade_number === 0 && l.grade_level_name && (l.grade_level_name.toLowerCase().includes('kinder') || l.grade_level_name === 'K'))
-        ))
+      const matchesGrade = isGradeMatch(l, selectedGradeId, gradeLevels)
 
       const matchesSection =
         selectedSectionId === 'all' ||

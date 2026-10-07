@@ -17,6 +17,7 @@ import {
   UserCheck
 } from 'lucide-react'
 import { fetchLearners, fetchGradeLevels, fetchSchools } from '@/lib/supabase/queries'
+import { isGradeMatch } from '@/utils/gradeUtils'
 import { useAuth } from '@/features/auth/useAuth'
 import { useToast } from '@/hooks/useToast'
 import { useLISRealtimeSync } from '@/hooks/useLISRealtimeSync'
@@ -83,14 +84,7 @@ export function LISSF2Page() {
         ? (permittedSchools.length > 0 ? permittedSchools.some(ps => ps.id === l.school_id || (l.school_name && ps.name.toLowerCase() === l.school_name.toLowerCase())) : true)
         : (l.school_id === selectedSchoolId || (l.school_name && permittedSchools.find(ps => ps.id === selectedSchoolId)?.name.toLowerCase() === l.school_name.toLowerCase()))
 
-      const activeGradeObj = gradeLevels.find(g => g.id === selectedGradeId)
-      const matchesGrade =
-        selectedGradeId === 'all' ||
-        l.grade_level_id === selectedGradeId ||
-        (activeGradeObj && (
-          (l.grade_level_name && l.grade_level_name.toLowerCase() === activeGradeObj.name.toLowerCase()) ||
-          (activeGradeObj.grade_number === 0 && l.grade_level_name && (l.grade_level_name.toLowerCase().includes('kinder') || l.grade_level_name === 'K'))
-        ))
+      const matchesGrade = isGradeMatch(l, selectedGradeId, gradeLevels)
 
       return matchesSearch && matchesGrade && matchesSchool
     })
