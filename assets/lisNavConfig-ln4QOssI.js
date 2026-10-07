@@ -1,1 +1,0 @@
-import{j as s}from"./index-C1jW7ojm.js";import{U as e}from"./users-lbyfwUqa.js";import{F as o}from"./file-spreadsheet-mbb9Fxuu.js";const a=[{title:"Learner Information System",items:[{to:"/lis/directory",label:"Master Directory",icon:s.jsx(e,{size:18})},{to:"/lis/sf1",label:"SF1 School Register",icon:s.jsx(o,{size:18})}]}];export{a as l};
