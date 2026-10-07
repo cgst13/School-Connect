@@ -28,6 +28,7 @@ import {
 } from 'lucide-react'
 
 export function GradingSummaryPage() {
+  const { admin, getPermittedSchools, getPermittedGradeLevels, getPermittedLearningAreas } = useAuth()
   const { toast } = useToast()
 
   const [schools, setSchools] = useState<School[]>([])
@@ -43,6 +44,11 @@ export function GradingSummaryPage() {
   const [selectedGradeId, setSelectedGradeId] = useState<string>('')
   const [selectedSectionId, setSelectedSectionId] = useState<string>('')
   const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>('2025-2026')
+
+  // Scoped / Permitted Options based on logged-in user assignments
+  const permittedSchools = useMemo(() => getPermittedSchools(schools), [schools, getPermittedSchools])
+  const permittedGradeLevels = useMemo(() => getPermittedGradeLevels(gradeLevels), [gradeLevels, getPermittedGradeLevels])
+  const permittedLearningAreas = useMemo(() => getPermittedLearningAreas(learningAreas, selectedGradeId), [learningAreas, selectedGradeId, getPermittedLearningAreas])
 
   useEffect(() => {
     async function loadData() {
@@ -61,8 +67,10 @@ export function GradingSummaryPage() {
         setLearningAreas(la)
         setLearners(ln)
 
-        if (sch.length > 0) setSelectedSchoolId(sch[0].id)
-        if (gr.length > 0) setSelectedGradeId(gr[0].id)
+        const pSch = getPermittedSchools(sch)
+        const pGr = getPermittedGradeLevels(gr)
+        if (pSch.length > 0) setSelectedSchoolId(pSch[0].id)
+        if (pGr.length > 0) setSelectedGradeId(pGr[0].id)
       } catch (err) {
         console.error('Failed to load summary data:', err)
         toast('Failed to load consolidated summary data.', 'error')
@@ -72,6 +80,20 @@ export function GradingSummaryPage() {
     }
     loadData()
   }, [])
+
+  // Auto-sync selected school if current selection is invalid
+  useEffect(() => {
+    if (permittedSchools.length > 0 && (!selectedSchoolId || !permittedSchools.some(s => s.id === selectedSchoolId))) {
+      setSelectedSchoolId(permittedSchools[0].id)
+    }
+  }, [permittedSchools, selectedSchoolId])
+
+  // Auto-sync selected grade level if current selection is invalid
+  useEffect(() => {
+    if (permittedGradeLevels.length > 0 && (!selectedGradeId || !permittedGradeLevels.some(g => g.id === selectedGradeId))) {
+      setSelectedGradeId(permittedGradeLevels[0].id)
+    }
+  }, [permittedGradeLevels, selectedGradeId])
 
   // Load actual grades from Supabase when filters change
   useEffect(() => {
@@ -123,12 +145,12 @@ export function GradingSummaryPage() {
         } catch {}
       }
 
-      // Map real grades per learning area
+      // Map real grades per permitted learning area
       const gradesBySubject: Record<string, number | null> = {}
       let totalSum = 0
       let count = 0
 
-      learningAreas.forEach((la) => {
+      permittedLearningAreas.forEach((la) => {
         // Look in database grades first, then local storage
         const matchedDB = dbGrades.filter(g => g.learner_id === learner.id && g.learning_area_id === la.id && g.quarterly_grade !== null && g.quarterly_grade !== undefined)
         let rating: number | null = null
@@ -231,7 +253,7 @@ export function GradingSummaryPage() {
               onChange={e => setSelectedSchoolId(e.target.value)}
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-500"
             >
-              {schools.map(s => (
+              {permittedSchools.map(s => (
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
             </select>
@@ -246,7 +268,7 @@ export function GradingSummaryPage() {
               onChange={e => setSelectedGradeId(e.target.value)}
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-500"
             >
-              {gradeLevels.map(g => (
+              {permittedGradeLevels.map(g => (
                 <option key={g.id} value={g.id}>{g.name}</option>
               ))}
             </select>
@@ -322,7 +344,7 @@ export function GradingSummaryPage() {
                   <th className="py-2.5 px-2 w-10 text-center border-r border-slate-800">Rank</th>
                   <th className="py-2.5 px-3 text-left w-28 border-r border-slate-800">LRN</th>
                   <th className="py-2.5 px-3 text-left min-w-[200px] border-r border-slate-800">Learner Full Name</th>
-                  {learningAreas.map(la => (
+                  {permittedLearningAreas.map(la => (
                     <th key={la.id} className="py-2.5 px-2 min-w-[80px] border-r border-slate-800 font-semibold text-[11px]">
                       {la.name}
                     </th>
@@ -346,7 +368,7 @@ export function GradingSummaryPage() {
                     </td>
 
                     {/* Subject Ratings */}
-                    {learningAreas.map(la => {
+                    {permittedLearningAreas.map(la => {
                       const grade = row.gradesBySubject[la.id]
                       return (
                         <td key={la.id} className="py-2 px-2 text-center font-mono font-semibold text-slate-800 border-r border-slate-100">

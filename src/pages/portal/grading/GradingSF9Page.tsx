@@ -28,6 +28,7 @@ import {
 } from 'lucide-react'
 
 export function GradingSF9Page() {
+  const { admin, getPermittedSchools, getPermittedGradeLevels } = useAuth()
   const { toast } = useToast()
 
   const [schools, setSchools] = useState<School[]>([])
@@ -44,6 +45,10 @@ export function GradingSF9Page() {
   const [selectedSectionId, setSelectedSectionId] = useState<string>('')
   const [selectedLearnerId, setSelectedLearnerId] = useState<string>('')
   const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>('2025-2026')
+
+  // Permitted schools and grade levels based on assignments
+  const permittedSchools = useMemo(() => getPermittedSchools(schools), [schools, getPermittedSchools])
+  const permittedGradeLevels = useMemo(() => getPermittedGradeLevels(gradeLevels), [gradeLevels, getPermittedGradeLevels])
 
   useEffect(() => {
     async function loadData() {
@@ -62,8 +67,10 @@ export function GradingSF9Page() {
         setLearningAreas(la)
         setLearners(ln)
 
-        if (sch.length > 0) setSelectedSchoolId(sch[0].id)
-        if (gr.length > 0) setSelectedGradeId(gr[0].id)
+        const pSch = getPermittedSchools(sch)
+        const pGr = getPermittedGradeLevels(gr)
+        if (pSch.length > 0) setSelectedSchoolId(pSch[0].id)
+        if (pGr.length > 0) setSelectedGradeId(pGr[0].id)
       } catch (err) {
         console.error('Failed to load SF9 report card data:', err)
         toast('Failed to load report card reference data.', 'error')
@@ -74,13 +81,21 @@ export function GradingSF9Page() {
     loadData()
   }, [])
 
+  // Auto-sync selected school if current selection is invalid
+  useEffect(() => {
+    if (permittedSchools.length > 0 && (!selectedSchoolId || !permittedSchools.some(s => s.id === selectedSchoolId))) {
+      setSelectedSchoolId(permittedSchools[0].id)
+    }
+  }, [permittedSchools, selectedSchoolId])
+
   const filteredSections = useMemo(() => {
+    const permittedGradeIds = permittedGradeLevels.map(g => g.id)
     return sections.filter(s => {
       const matchSchool = !selectedSchoolId || s.school_id === selectedSchoolId
-      const matchGrade = !selectedGradeId || s.grade_level_id === selectedGradeId
+      const matchGrade = !selectedGradeId ? permittedGradeIds.includes(s.grade_level_id) : s.grade_level_id === selectedGradeId
       return matchSchool && matchGrade
     })
-  }, [sections, selectedSchoolId, selectedGradeId])
+  }, [sections, selectedSchoolId, selectedGradeId, permittedGradeLevels])
 
   useEffect(() => {
     if (filteredSections.length > 0 && (!selectedSectionId || !filteredSections.some(s => s.id === selectedSectionId))) {
@@ -216,7 +231,7 @@ export function GradingSF9Page() {
               onChange={e => setSelectedSchoolId(e.target.value)}
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-500"
             >
-              {schools.map(s => (
+              {permittedSchools.map(s => (
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
             </select>

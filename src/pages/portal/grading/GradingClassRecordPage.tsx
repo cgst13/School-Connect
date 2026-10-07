@@ -54,7 +54,7 @@ interface StudentECRScore {
 }
 
 export function GradingClassRecordPage() {
-  const { user, admin, canEditGrades } = useAuth()
+  const { user, admin, canEditGrades, getPermittedSchools, getPermittedGradeLevels, getPermittedLearningAreas } = useAuth()
   const { toast } = useToast()
 
   const [schools, setSchools] = useState<School[]>([])
@@ -81,6 +81,11 @@ export function GradingClassRecordPage() {
   // Student Score Matrix
   const [studentScores, setStudentScores] = useState<Record<string, StudentECRScore>>({})
 
+  // Scoped / Permitted Options based on logged-in user assignments
+  const permittedSchools = useMemo(() => getPermittedSchools(schools), [schools, getPermittedSchools])
+  const permittedGradeLevels = useMemo(() => getPermittedGradeLevels(gradeLevels), [gradeLevels, getPermittedGradeLevels])
+  const permittedLearningAreas = useMemo(() => getPermittedLearningAreas(learningAreas, selectedGradeId), [learningAreas, selectedGradeId, getPermittedLearningAreas])
+
   // Load Base Reference Data
   useEffect(() => {
     async function loadData() {
@@ -99,9 +104,14 @@ export function GradingClassRecordPage() {
         setLearningAreas(la)
         setLearners(ln)
 
-        if (sch.length > 0) setSelectedSchoolId(sch[0].id)
-        if (gr.length > 0) setSelectedGradeId(gr[0].id)
-        if (la.length > 0) setSelectedSubjectId(la[0].id)
+        const pSch = getPermittedSchools(sch)
+        const pGr = getPermittedGradeLevels(gr)
+        const initialGradeId = pGr[0]?.id || ''
+        const pLa = getPermittedLearningAreas(la, initialGradeId)
+
+        if (pSch.length > 0) setSelectedSchoolId(pSch[0].id)
+        if (pGr.length > 0) setSelectedGradeId(pGr[0].id)
+        if (pLa.length > 0) setSelectedSubjectId(pLa[0].id)
       } catch (err) {
         console.error('Failed to load grading setup data:', err)
         toast('Failed to load class record setup data.', 'error')
@@ -111,6 +121,27 @@ export function GradingClassRecordPage() {
     }
     loadData()
   }, [])
+
+  // Auto-sync selected school if current selection is invalid
+  useEffect(() => {
+    if (permittedSchools.length > 0 && (!selectedSchoolId || !permittedSchools.some(s => s.id === selectedSchoolId))) {
+      setSelectedSchoolId(permittedSchools[0].id)
+    }
+  }, [permittedSchools, selectedSchoolId])
+
+  // Auto-sync selected grade level if current selection is invalid
+  useEffect(() => {
+    if (permittedGradeLevels.length > 0 && (!selectedGradeId || !permittedGradeLevels.some(g => g.id === selectedGradeId))) {
+      setSelectedGradeId(permittedGradeLevels[0].id)
+    }
+  }, [permittedGradeLevels, selectedGradeId])
+
+  // Auto-sync selected learning area if current selection is invalid
+  useEffect(() => {
+    if (permittedLearningAreas.length > 0 && (!selectedSubjectId || !permittedLearningAreas.some(l => l.id === selectedSubjectId))) {
+      setSelectedSubjectId(permittedLearningAreas[0].id)
+    }
+  }, [permittedLearningAreas, selectedSubjectId])
 
   // Auto-select first matching section when grade/school changes
   const filteredSections = useMemo(() => {
@@ -510,7 +541,7 @@ export function GradingClassRecordPage() {
                 onChange={e => setSelectedSchoolId(e.target.value)}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-500"
               >
-                {schools.map(s => (
+                {permittedSchools.map(s => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
@@ -526,7 +557,7 @@ export function GradingClassRecordPage() {
                 onChange={e => setSelectedGradeId(e.target.value)}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-500"
               >
-                {gradeLevels.map(g => (
+                {permittedGradeLevels.map(g => (
                   <option key={g.id} value={g.id}>{g.name}</option>
                 ))}
               </select>
@@ -558,7 +589,7 @@ export function GradingClassRecordPage() {
                 onChange={e => setSelectedSubjectId(e.target.value)}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-500"
               >
-                {learningAreas.map(la => (
+                {permittedLearningAreas.map(la => (
                   <option key={la.id} value={la.id}>{la.name}</option>
                 ))}
               </select>

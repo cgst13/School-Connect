@@ -20,6 +20,8 @@ interface AuthContextType {
   getPermittedSchoolIds: (allSchoolIds?: string[]) => string[]
   isSchoolPermitted: (schoolId: string, allSchoolIds?: string[]) => boolean
   getPermittedSchools: <T extends { id: string }>(schools: T[]) => T[]
+  getPermittedGradeLevels: <T extends { id: string }>(gradeLevels: T[]) => T[]
+  getPermittedLearningAreas: <T extends { id: string }>(learningAreas: T[], targetGradeId?: string) => T[]
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
@@ -182,7 +184,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const getPermittedSchools = <T extends { id: string }>(schools: T[]): T[] => {
     if (hasFullAccess()) return schools
     const permittedIds = getPermittedSchoolIds(schools.map(s => s.id))
+    if (!permittedIds || permittedIds.length === 0) return schools
     return schools.filter(s => permittedIds.includes(s.id))
+  }
+
+  // Returns permitted Grade Levels for the current user (filtered by assigned_grade_ids for teachers)
+  const getPermittedGradeLevels = <T extends { id: string }>(gradeLevels: T[]): T[] => {
+    if (hasFullAccess()) return gradeLevels
+    if (admin?.assigned_grade_ids && admin.assigned_grade_ids.length > 0) {
+      return gradeLevels.filter(g => admin.assigned_grade_ids!.includes(g.id))
+    }
+    return gradeLevels
+  }
+
+  // Returns permitted Learning Areas / Subjects for the current user
+  const getPermittedLearningAreas = <T extends { id: string }>(learningAreas: T[], targetGradeId?: string): T[] => {
+    if (hasFullAccess()) return learningAreas
+    if (admin?.role === 'teacher') {
+      // 1. Check grade-specific subject assignments first
+      if (targetGradeId && admin.assigned_grade_subject_ids?.[targetGradeId]?.length) {
+        const gradeSubjects = admin.assigned_grade_subject_ids[targetGradeId]
+        return learningAreas.filter(la => gradeSubjects.includes(la.id))
+      }
+      // 2. Check general assigned subjects
+      if (admin.assigned_subject_ids && admin.assigned_subject_ids.length > 0) {
+        return learningAreas.filter(la => admin.assigned_subject_ids!.includes(la.id))
+      }
+    }
+    if (admin?.assigned_subject_ids && admin.assigned_subject_ids.length > 0) {
+      return learningAreas.filter(la => admin.assigned_subject_ids!.includes(la.id))
+    }
+    return learningAreas
   }
 
   return (
@@ -203,6 +235,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         getPermittedSchoolIds,
         isSchoolPermitted,
         getPermittedSchools,
+        getPermittedGradeLevels,
+        getPermittedLearningAreas,
       }}
     >
       {children}
