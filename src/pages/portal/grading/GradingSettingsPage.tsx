@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { SchoolConnectLayout } from '@/components/layouts/SchoolConnectLayout'
 import { gradingNavGroups } from '@/config/navConfigs'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { useAuth } from '@/features/auth/useAuth'
 import { useToast } from '@/hooks/useToast'
 import {
   DEPED_DEFAULT_WEIGHTS,
@@ -15,11 +16,15 @@ import {
   Layers,
   BookOpen,
   Info,
-  CheckCircle2
+  CheckCircle2,
+  Lock,
+  Eye
 } from 'lucide-react'
 
 export function GradingSettingsPage() {
+  const { admin, canEditGrades } = useAuth()
   const { toast } = useToast()
+  const isEditable = canEditGrades()
 
   const [weights, setWeights] = useState<Record<string, SubjectWeightConfig>>({
     languages_ap_esp: { ...DEPED_DEFAULT_WEIGHTS.languages_ap_esp },
@@ -31,10 +36,18 @@ export function GradingSettingsPage() {
   const [transmutationEnabled, setTransmutationEnabled] = useState<boolean>(true)
 
   const handleSaveSettings = () => {
+    if (!isEditable) {
+      toast('Unauthorized: Only teachers and administrators can configure grading settings.', 'error')
+      return
+    }
     toast('Grading settings & DepEd weight configurations saved!', 'success')
   }
 
   const handleResetDefaults = () => {
+    if (!isEditable) {
+      toast('Unauthorized: Only teachers and administrators can configure grading settings.', 'error')
+      return
+    }
     setWeights({
       languages_ap_esp: { ...DEPED_DEFAULT_WEIGHTS.languages_ap_esp },
       science_math: { ...DEPED_DEFAULT_WEIGHTS.science_math },
@@ -56,25 +69,57 @@ export function GradingSettingsPage() {
           badge="DepEd Order No. 8, s. 2015"
           actions={
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleResetDefaults}
-                className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 shadow-2xs transition-all inline-flex items-center gap-1.5 cursor-pointer"
-              >
-                <RotateCcw size={14} className="text-slate-500" />
-                Reset Defaults
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveSettings}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all inline-flex items-center gap-1.5 cursor-pointer"
-              >
-                <Save size={14} />
-                Save Settings
-              </button>
+              {isEditable ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleResetDefaults}
+                    className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 shadow-2xs transition-all inline-flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <RotateCcw size={14} className="text-slate-500" />
+                    Reset Defaults
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveSettings}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all inline-flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Save size={14} />
+                    Save Settings
+                  </button>
+                </>
+              ) : (
+                <div className="px-3.5 py-2 bg-slate-100 text-slate-500 font-bold text-xs rounded-xl border border-slate-200 shadow-2xs inline-flex items-center gap-1.5 cursor-not-allowed select-none">
+                  <Lock size={14} className="text-slate-400" />
+                  <span>View Only Mode</span>
+                </div>
+              )}
             </div>
           }
         />
+
+        {/* View-Only Alert for Non-Admin/Non-Teacher */}
+        {!isEditable && (
+          <div className="p-4 bg-amber-50/90 rounded-2xl border border-amber-200 shadow-2xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-800 shrink-0">
+                <Lock className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-amber-900 uppercase tracking-wide">
+                  Grading Settings: View-Only Access Mode
+                </h4>
+                <p className="text-xs text-amber-800/90 mt-0.5">
+                  You are viewing the grading system configuration in read-only mode. AO II, School Head, and PSDS accounts cannot modify weight distributions.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-amber-900 text-xs font-bold rounded-xl border border-amber-200 shadow-2xs shrink-0">
+              <Eye className="w-3.5 h-3.5 text-amber-600" />
+              <span>Read Only</span>
+            </div>
+          </div>
+        )}
 
         {/* Info Banner */}
         <div className="p-4 bg-blue-50/80 rounded-2xl border border-blue-200 flex items-start gap-3">
@@ -110,12 +155,14 @@ export function GradingSettingsPage() {
                   <div className="flex items-center gap-1">
                     <input
                       type="number"
+                      disabled={!isEditable}
+                      readOnly={!isEditable}
                       value={weights.languages_ap_esp.writtenWorks}
                       onChange={e => setWeights(prev => ({
                         ...prev,
                         languages_ap_esp: { ...prev.languages_ap_esp, writtenWorks: parseInt(e.target.value, 10) || 0 }
                       }))}
-                      className="w-16 px-2 py-1 border border-slate-200 rounded-lg text-center font-bold"
+                      className={`w-16 px-2 py-1 border border-slate-200 rounded-lg text-center font-bold ${!isEditable ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : 'bg-white'}`}
                     />
                     <span className="font-bold text-slate-500">%</span>
                   </div>
@@ -126,12 +173,14 @@ export function GradingSettingsPage() {
                   <div className="flex items-center gap-1">
                     <input
                       type="number"
+                      disabled={!isEditable}
+                      readOnly={!isEditable}
                       value={weights.languages_ap_esp.performanceTasks}
                       onChange={e => setWeights(prev => ({
                         ...prev,
                         languages_ap_esp: { ...prev.languages_ap_esp, performanceTasks: parseInt(e.target.value, 10) || 0 }
                       }))}
-                      className="w-16 px-2 py-1 border border-slate-200 rounded-lg text-center font-bold"
+                      className={`w-16 px-2 py-1 border border-slate-200 rounded-lg text-center font-bold ${!isEditable ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : 'bg-white'}`}
                     />
                     <span className="font-bold text-slate-500">%</span>
                   </div>
@@ -142,12 +191,14 @@ export function GradingSettingsPage() {
                   <div className="flex items-center gap-1">
                     <input
                       type="number"
+                      disabled={!isEditable}
+                      readOnly={!isEditable}
                       value={weights.languages_ap_esp.quarterlyAssessment}
                       onChange={e => setWeights(prev => ({
                         ...prev,
                         languages_ap_esp: { ...prev.languages_ap_esp, quarterlyAssessment: parseInt(e.target.value, 10) || 0 }
                       }))}
-                      className="w-16 px-2 py-1 border border-slate-200 rounded-lg text-center font-bold"
+                      className={`w-16 px-2 py-1 border border-slate-200 rounded-lg text-center font-bold ${!isEditable ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : 'bg-white'}`}
                     />
                     <span className="font-bold text-slate-500">%</span>
                   </div>
@@ -171,12 +222,14 @@ export function GradingSettingsPage() {
                   <div className="flex items-center gap-1">
                     <input
                       type="number"
+                      disabled={!isEditable}
+                      readOnly={!isEditable}
                       value={weights.science_math.writtenWorks}
                       onChange={e => setWeights(prev => ({
                         ...prev,
                         science_math: { ...prev.science_math, writtenWorks: parseInt(e.target.value, 10) || 0 }
                       }))}
-                      className="w-16 px-2 py-1 border border-slate-200 rounded-lg text-center font-bold"
+                      className={`w-16 px-2 py-1 border border-slate-200 rounded-lg text-center font-bold ${!isEditable ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : 'bg-white'}`}
                     />
                     <span className="font-bold text-slate-500">%</span>
                   </div>
@@ -187,12 +240,14 @@ export function GradingSettingsPage() {
                   <div className="flex items-center gap-1">
                     <input
                       type="number"
+                      disabled={!isEditable}
+                      readOnly={!isEditable}
                       value={weights.science_math.performanceTasks}
                       onChange={e => setWeights(prev => ({
                         ...prev,
                         science_math: { ...prev.science_math, performanceTasks: parseInt(e.target.value, 10) || 0 }
                       }))}
-                      className="w-16 px-2 py-1 border border-slate-200 rounded-lg text-center font-bold"
+                      className={`w-16 px-2 py-1 border border-slate-200 rounded-lg text-center font-bold ${!isEditable ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : 'bg-white'}`}
                     />
                     <span className="font-bold text-slate-500">%</span>
                   </div>
@@ -203,12 +258,14 @@ export function GradingSettingsPage() {
                   <div className="flex items-center gap-1">
                     <input
                       type="number"
+                      disabled={!isEditable}
+                      readOnly={!isEditable}
                       value={weights.science_math.quarterlyAssessment}
                       onChange={e => setWeights(prev => ({
                         ...prev,
                         science_math: { ...prev.science_math, quarterlyAssessment: parseInt(e.target.value, 10) || 0 }
                       }))}
-                      className="w-16 px-2 py-1 border border-slate-200 rounded-lg text-center font-bold"
+                      className={`w-16 px-2 py-1 border border-slate-200 rounded-lg text-center font-bold ${!isEditable ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : 'bg-white'}`}
                     />
                     <span className="font-bold text-slate-500">%</span>
                   </div>
@@ -232,12 +289,14 @@ export function GradingSettingsPage() {
                   <div className="flex items-center gap-1">
                     <input
                       type="number"
+                      disabled={!isEditable}
+                      readOnly={!isEditable}
                       value={weights.mapeh_epp_tle.writtenWorks}
                       onChange={e => setWeights(prev => ({
                         ...prev,
                         mapeh_epp_tle: { ...prev.mapeh_epp_tle, writtenWorks: parseInt(e.target.value, 10) || 0 }
                       }))}
-                      className="w-16 px-2 py-1 border border-slate-200 rounded-lg text-center font-bold"
+                      className={`w-16 px-2 py-1 border border-slate-200 rounded-lg text-center font-bold ${!isEditable ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : 'bg-white'}`}
                     />
                     <span className="font-bold text-slate-500">%</span>
                   </div>
@@ -248,12 +307,14 @@ export function GradingSettingsPage() {
                   <div className="flex items-center gap-1">
                     <input
                       type="number"
+                      disabled={!isEditable}
+                      readOnly={!isEditable}
                       value={weights.mapeh_epp_tle.performanceTasks}
                       onChange={e => setWeights(prev => ({
                         ...prev,
                         mapeh_epp_tle: { ...prev.mapeh_epp_tle, performanceTasks: parseInt(e.target.value, 10) || 0 }
                       }))}
-                      className="w-16 px-2 py-1 border border-slate-200 rounded-lg text-center font-bold"
+                      className={`w-16 px-2 py-1 border border-slate-200 rounded-lg text-center font-bold ${!isEditable ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : 'bg-white'}`}
                     />
                     <span className="font-bold text-slate-500">%</span>
                   </div>
@@ -264,12 +325,14 @@ export function GradingSettingsPage() {
                   <div className="flex items-center gap-1">
                     <input
                       type="number"
+                      disabled={!isEditable}
+                      readOnly={!isEditable}
                       value={weights.mapeh_epp_tle.quarterlyAssessment}
                       onChange={e => setWeights(prev => ({
                         ...prev,
                         mapeh_epp_tle: { ...prev.mapeh_epp_tle, quarterlyAssessment: parseInt(e.target.value, 10) || 0 }
                       }))}
-                      className="w-16 px-2 py-1 border border-slate-200 rounded-lg text-center font-bold"
+                      className={`w-16 px-2 py-1 border border-slate-200 rounded-lg text-center font-bold ${!isEditable ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : 'bg-white'}`}
                     />
                     <span className="font-bold text-slate-500">%</span>
                   </div>

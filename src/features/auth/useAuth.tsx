@@ -14,6 +14,7 @@ interface AuthContextType {
   updateAdminProfile: (updatedFields: Partial<AdminProfile>) => void
   hasFullAccess: () => boolean
   canEditData: (targetSchoolId?: string, targetGradeId?: string, targetSubjectId?: string) => boolean
+  canEditGrades: (targetSchoolId?: string, targetGradeId?: string, targetSubjectId?: string) => boolean
   isReadOnlyUser: () => boolean
   isDistrictAdminAO2: () => boolean
   getPermittedSchoolIds: (allSchoolIds?: string[]) => string[]
@@ -133,6 +134,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return true
   }
 
+  // Evaluates whether current user can Add, Edit, Delete, or Update GRADES (e-Class Record)
+  // STRICT RULE: Only Teachers and Admins (Admin, Superadmin) can add, edit, delete, update grades.
+  // AO II, School Head, and PSDS are strictly VIEW-ONLY.
+  const canEditGrades = (targetSchoolId?: string, targetGradeId?: string, targetSubjectId?: string) => {
+    if (!admin) return false // Unauthenticated is view only
+
+    // AO II, School Head, and PSDS are strictly View-Only for grades
+    if (admin.role === 'ao_2' || admin.role === 'school_head' || admin.role === 'psds') {
+      return false
+    }
+
+    // Superadmin and Admin have full CRUD access on grades
+    if (admin.role === 'superadmin' || admin.role === 'admin') {
+      return true
+    }
+
+    // Teacher: Access strictly restricted to assigned school, assigned grade levels, and assigned subjects
+    if (admin.role === 'teacher') {
+      if (targetSchoolId && admin.assigned_school_ids && admin.assigned_school_ids.length > 0) {
+        if (!admin.assigned_school_ids.includes(targetSchoolId)) return false
+      }
+      if (targetGradeId && admin.assigned_grade_ids && admin.assigned_grade_ids.length > 0) {
+        if (!admin.assigned_grade_ids.includes(targetGradeId)) return false
+      }
+      if (targetSubjectId && admin.assigned_subject_ids && admin.assigned_subject_ids.length > 0) {
+        if (!admin.assigned_subject_ids.includes(targetSubjectId)) return false
+      }
+      return true
+    }
+
+    return false
+  }
+
   const getPermittedSchoolIds = (allSchoolIds: string[] = []) => {
     if (hasFullAccess()) return allSchoolIds
     return admin?.assigned_school_ids || []
@@ -163,6 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         updateAdminProfile,
         hasFullAccess,
         canEditData,
+        canEditGrades,
         isReadOnlyUser,
         isDistrictAdminAO2,
         getPermittedSchoolIds,

@@ -37,7 +37,10 @@ import {
   Users,
   Award,
   ArrowUpDown,
-  BookOpen
+  BookOpen,
+  Lock,
+  Eye,
+  ShieldAlert
 } from 'lucide-react'
 
 interface StudentECRScore {
@@ -51,7 +54,7 @@ interface StudentECRScore {
 }
 
 export function GradingClassRecordPage() {
-  const { user } = useAuth()
+  const { user, admin, canEditGrades } = useAuth()
   const { toast } = useToast()
 
   const [schools, setSchools] = useState<School[]>([])
@@ -207,6 +210,25 @@ export function GradingClassRecordPage() {
     return () => { isCancelled = true }
   }, [selectedSchoolId, selectedGradeId, selectedSectionId, selectedSubjectId, quarterNum, selectedSchoolYear, sectionLearners])
 
+  // Permissions: Only Teachers and Admins can add, edit, delete, update grades
+  // AO II, School Head, and PSDS are View-Only
+  const isEditable = useMemo(() => {
+    return canEditGrades(selectedSchoolId, selectedGradeId, selectedSubjectId)
+  }, [canEditGrades, selectedSchoolId, selectedGradeId, selectedSubjectId])
+
+  const roleBadgeLabel = useMemo(() => {
+    if (!admin) return 'Guest'
+    switch (admin.role) {
+      case 'ao_2': return 'AO II (View Only)'
+      case 'school_head': return 'School Head (View Only)'
+      case 'psds': return 'PSDS (View Only)'
+      case 'teacher': return 'Teacher'
+      case 'admin': return 'Administrator'
+      case 'superadmin': return 'Superadmin'
+      default: return admin.role
+    }
+  }, [admin])
+
   // HPS Totals
   const totalHpsWW = useMemo(() => hpsWW.reduce((sum, v) => sum + (v || 0), 0), [hpsWW])
   const totalHpsPT = useMemo(() => hpsPT.reduce((sum, v) => sum + (v || 0), 0), [hpsPT])
@@ -214,6 +236,10 @@ export function GradingClassRecordPage() {
 
   // Handle cell score changes
   const handleScoreChange = (learnerId: string, type: 'ww' | 'pt' | 'qa', index: number, value: string) => {
+    if (!isEditable) {
+      toast('View-Only Mode: You do not have permission to encode or edit grades.', 'warning')
+      return
+    }
     const num = value === '' ? null : Math.max(0, parseInt(value, 10) || 0)
     setStudentScores(prev => {
       const current = prev[learnerId] || {
@@ -302,6 +328,10 @@ export function GradingClassRecordPage() {
 
   // Save Class Record & Synchronize with Supabase & LIS Learner Profiles
   const handleSaveClassRecord = async () => {
+    if (!isEditable) {
+      toast('Unauthorized: Only teachers and administrators can save or update grades.', 'error')
+      return
+    }
     setSaving(true)
     try {
       // 1. Save Class Record to Supabase
@@ -415,18 +445,56 @@ export function GradingClassRecordPage() {
                 <Printer size={14} className="text-slate-500" />
                 Print Class Record
               </button>
-              <button
-                type="button"
-                onClick={handleSaveClassRecord}
-                disabled={saving}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all inline-flex items-center gap-2 cursor-pointer disabled:opacity-50"
-              >
-                <Save size={14} />
-                {saving ? 'Saving...' : 'Save & Sync to LIS'}
-              </button>
+              {isEditable ? (
+                <button
+                  type="button"
+                  onClick={handleSaveClassRecord}
+                  disabled={saving}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all inline-flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  <Save size={14} />
+                  {saving ? 'Saving...' : 'Save & Sync to LIS'}
+                </button>
+              ) : (
+                <div
+                  className="px-3.5 py-2 bg-slate-100 text-slate-500 font-bold text-xs rounded-xl border border-slate-200 shadow-2xs inline-flex items-center gap-1.5 cursor-not-allowed select-none"
+                  title="View Only: Only teachers and admins can modify or save grades."
+                >
+                  <Lock size={14} className="text-slate-400" />
+                  <span>View Only Mode</span>
+                </div>
+              )}
             </div>
           }
         />
+
+        {/* View-Only Alert Banner for AO II / School Head / PSDS */}
+        {!isEditable && (
+          <div className="p-4 bg-amber-50/90 rounded-2xl border border-amber-200 shadow-2xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-800 shrink-0">
+                <Lock className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h4 className="text-xs font-bold text-amber-900 uppercase tracking-wide">
+                    e-Class Record: View-Only Access Mode
+                  </h4>
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-200 text-amber-900">
+                    {roleBadgeLabel}
+                  </span>
+                </div>
+                <p className="text-xs text-amber-800/90 mt-0.5">
+                  You are viewing this electronic class record in read-only mode. As an AO II, School Head, or PSDS, grade editing and encoding permissions are restricted to classroom teachers and system administrators.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-amber-900 text-xs font-bold rounded-xl border border-amber-200 shadow-2xs shrink-0 self-end sm:self-auto">
+              <Eye className="w-3.5 h-3.5 text-amber-600" />
+              <span>Read Only</span>
+            </div>
+          </div>
+        )}
 
         {/* Filter Controls Bar */}
         <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-xs space-y-4">
@@ -622,13 +690,16 @@ export function GradingClassRecordPage() {
                     <td key={`hps-ww-${idx}`} className="p-0.5 border-r border-slate-300 bg-amber-100/70">
                       <input
                         type="number"
+                        disabled={!isEditable}
+                        readOnly={!isEditable}
                         value={val}
                         onChange={e => {
+                          if (!isEditable) return
                           const newHps = [...hpsWW]
                           newHps[idx] = parseInt(e.target.value, 10) || 0
                           setHpsWW(newHps)
                         }}
-                        className="w-full text-center font-bold text-amber-900 py-1 bg-transparent focus:bg-white rounded"
+                        className={`w-full text-center font-bold text-amber-900 py-1 ${!isEditable ? 'bg-transparent cursor-not-allowed' : 'bg-transparent focus:bg-white rounded'}`}
                       />
                     </td>
                   ))}
@@ -641,13 +712,16 @@ export function GradingClassRecordPage() {
                     <td key={`hps-pt-${idx}`} className="p-0.5 border-r border-slate-300 bg-emerald-100/70">
                       <input
                         type="number"
+                        disabled={!isEditable}
+                        readOnly={!isEditable}
                         value={val}
                         onChange={e => {
+                          if (!isEditable) return
                           const newHps = [...hpsPT]
                           newHps[idx] = parseInt(e.target.value, 10) || 0
                           setHpsPT(newHps)
                         }}
-                        className="w-full text-center font-bold text-emerald-900 py-1 bg-transparent focus:bg-white rounded"
+                        className={`w-full text-center font-bold text-emerald-900 py-1 ${!isEditable ? 'bg-transparent cursor-not-allowed' : 'bg-transparent focus:bg-white rounded'}`}
                       />
                     </td>
                   ))}
@@ -659,9 +733,14 @@ export function GradingClassRecordPage() {
                   <td className="p-0.5 border-r border-slate-300 bg-blue-100/70">
                     <input
                       type="number"
+                      disabled={!isEditable}
+                      readOnly={!isEditable}
                       value={hpsQA}
-                      onChange={e => setHpsQA(parseInt(e.target.value, 10) || 0)}
-                      className="w-full text-center font-bold text-blue-900 py-1 bg-transparent focus:bg-white rounded"
+                      onChange={e => {
+                        if (!isEditable) return
+                        setHpsQA(parseInt(e.target.value, 10) || 0)
+                      }}
+                      className={`w-full text-center font-bold text-blue-900 py-1 ${!isEditable ? 'bg-transparent cursor-not-allowed' : 'bg-transparent focus:bg-white rounded'}`}
                     />
                   </td>
                   <td className="py-1 px-1 bg-blue-200 font-black text-blue-950 border-r border-slate-300">100.0</td>
@@ -703,9 +782,15 @@ export function GradingClassRecordPage() {
                         <td key={`ww-${wIdx}`} className="p-0.5 border-r border-slate-100 text-center">
                           <input
                             type="number"
+                            disabled={!isEditable}
+                            readOnly={!isEditable}
                             value={student.wwScores[wIdx] ?? ''}
                             onChange={e => handleScoreChange(learner.id, 'ww', wIdx, e.target.value)}
-                            className="w-full text-center py-1 text-slate-800 font-semibold focus:bg-amber-50 focus:outline-none rounded hover:bg-slate-100"
+                            className={`w-full text-center py-1 font-semibold rounded ${
+                              !isEditable
+                                ? 'bg-transparent text-slate-700 cursor-not-allowed select-none'
+                                : 'text-slate-800 focus:bg-amber-50 focus:outline-none hover:bg-slate-100'
+                            }`}
                           />
                         </td>
                       ))}
@@ -718,9 +803,15 @@ export function GradingClassRecordPage() {
                         <td key={`pt-${pIdx}`} className="p-0.5 border-r border-slate-100 text-center">
                           <input
                             type="number"
+                            disabled={!isEditable}
+                            readOnly={!isEditable}
                             value={student.ptScores[pIdx] ?? ''}
                             onChange={e => handleScoreChange(learner.id, 'pt', pIdx, e.target.value)}
-                            className="w-full text-center py-1 text-slate-800 font-semibold focus:bg-emerald-50 focus:outline-none rounded hover:bg-slate-100"
+                            className={`w-full text-center py-1 font-semibold rounded ${
+                              !isEditable
+                                ? 'bg-transparent text-slate-700 cursor-not-allowed select-none'
+                                : 'text-slate-800 focus:bg-emerald-50 focus:outline-none hover:bg-slate-100'
+                            }`}
                           />
                         </td>
                       ))}
@@ -732,9 +823,15 @@ export function GradingClassRecordPage() {
                       <td className="p-0.5 border-r border-slate-100 text-center">
                         <input
                           type="number"
+                          disabled={!isEditable}
+                          readOnly={!isEditable}
                           value={student.qaScore ?? ''}
                           onChange={e => handleScoreChange(learner.id, 'qa', 0, e.target.value)}
-                          className="w-full text-center py-1 text-slate-800 font-semibold focus:bg-blue-50 focus:outline-none rounded hover:bg-slate-100"
+                          className={`w-full text-center py-1 font-semibold rounded ${
+                            !isEditable
+                              ? 'bg-transparent text-slate-700 cursor-not-allowed select-none'
+                              : 'text-slate-800 focus:bg-blue-50 focus:outline-none hover:bg-slate-100'
+                          }`}
                         />
                       </td>
                       <td className="py-1 px-1.5 text-center text-slate-600 bg-blue-50/50 border-r border-slate-100">{calc.psQA}</td>
@@ -786,9 +883,15 @@ export function GradingClassRecordPage() {
                         <td key={`ww-${wIdx}`} className="p-0.5 border-r border-slate-100 text-center">
                           <input
                             type="number"
+                            disabled={!isEditable}
+                            readOnly={!isEditable}
                             value={student.wwScores[wIdx] ?? ''}
                             onChange={e => handleScoreChange(learner.id, 'ww', wIdx, e.target.value)}
-                            className="w-full text-center py-1 text-slate-800 font-semibold focus:bg-amber-50 focus:outline-none rounded hover:bg-slate-100"
+                            className={`w-full text-center py-1 font-semibold rounded ${
+                              !isEditable
+                                ? 'bg-transparent text-slate-700 cursor-not-allowed select-none'
+                                : 'text-slate-800 focus:bg-amber-50 focus:outline-none hover:bg-slate-100'
+                            }`}
                           />
                         </td>
                       ))}
@@ -801,9 +904,15 @@ export function GradingClassRecordPage() {
                         <td key={`pt-${pIdx}`} className="p-0.5 border-r border-slate-100 text-center">
                           <input
                             type="number"
+                            disabled={!isEditable}
+                            readOnly={!isEditable}
                             value={student.ptScores[pIdx] ?? ''}
                             onChange={e => handleScoreChange(learner.id, 'pt', pIdx, e.target.value)}
-                            className="w-full text-center py-1 text-slate-800 font-semibold focus:bg-emerald-50 focus:outline-none rounded hover:bg-slate-100"
+                            className={`w-full text-center py-1 font-semibold rounded ${
+                              !isEditable
+                                ? 'bg-transparent text-slate-700 cursor-not-allowed select-none'
+                                : 'text-slate-800 focus:bg-emerald-50 focus:outline-none hover:bg-slate-100'
+                            }`}
                           />
                         </td>
                       ))}
@@ -815,9 +924,15 @@ export function GradingClassRecordPage() {
                       <td className="p-0.5 border-r border-slate-100 text-center">
                         <input
                           type="number"
+                          disabled={!isEditable}
+                          readOnly={!isEditable}
                           value={student.qaScore ?? ''}
                           onChange={e => handleScoreChange(learner.id, 'qa', 0, e.target.value)}
-                          className="w-full text-center py-1 text-slate-800 font-semibold focus:bg-blue-50 focus:outline-none rounded hover:bg-slate-100"
+                          className={`w-full text-center py-1 font-semibold rounded ${
+                            !isEditable
+                              ? 'bg-transparent text-slate-700 cursor-not-allowed select-none'
+                              : 'text-slate-800 focus:bg-blue-50 focus:outline-none hover:bg-slate-100'
+                          }`}
                         />
                       </td>
                       <td className="py-1 px-1.5 text-center text-slate-600 bg-blue-50/50 border-r border-slate-100">{calc.psQA}</td>

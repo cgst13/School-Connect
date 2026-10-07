@@ -90,7 +90,7 @@ const DEFAULT_SECONDARY_SUBJECTS = [
 export function LearnerProfilePage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { admin, canEditData } = useAuth()
+  const { admin, canEditData, canEditGrades } = useAuth()
   const { toast } = useToast()
 
   const [learner, setLearner] = useState<Learner | null>(null)
@@ -309,6 +309,10 @@ export function LearnerProfilePage() {
 
   const handleSaveGrades = async () => {
     if (!learner) return
+    if (!canEditGrades(learner.school_id, learner.grade_level_id)) {
+      toast('Unauthorized: Only teachers and admins can edit or save grades.', 'error')
+      return
+    }
     setIsSavingGrades(true)
     try {
       const batch: Partial<LearnerGrade>[] = []
@@ -1048,7 +1052,7 @@ General Average: ${computedGeneralAverage ? `${computedGeneralAverage}% (${getGe
                       </button>
                     </>
                   ) : (
-                    canEditData(learner.school_id, learner.grade_level_id, learner.section_id) && (
+                    canEditGrades(learner.school_id, learner.grade_level_id) && (
                       <button
                         onClick={() => setIsEditingGrades(true)}
                         className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
