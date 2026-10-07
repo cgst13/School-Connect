@@ -91,17 +91,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Returns true if user is an AO II assigned to district (acting like System Administrator for that district)
   const isDistrictAdminAO2 = () => {
     if (!admin) return false
-    return admin.role === 'ao_2' && Boolean(admin.district_name)
+    return admin.role === 'ao_2' && Boolean(admin.district_name) && (!admin.assigned_school_ids || admin.assigned_school_ids.length === 0)
   }
 
   // Returns true if user has global unrestricted access across ALL schools
   const hasFullAccess = () => {
     if (!admin) return true // Fallback for unauthenticated
-    if (admin.role === 'superadmin' || admin.role === 'admin' || isDistrictAdminAO2()) return true
-    if (admin.role === 'psds') return true // PSDS sees all schools in district
-    if (!admin.assigned_school_ids || admin.assigned_school_ids.length === 0) {
-      return true
+    // Superadmin has full unrestricted access
+    if (admin.role === 'superadmin') return true
+    // If the user has assigned schools, they are strictly restricted to their assigned schools
+    if (admin.assigned_school_ids && admin.assigned_school_ids.length > 0) {
+      return false
     }
+    // Users without assigned school restrictions
+    if (admin.role === 'admin' || isDistrictAdminAO2()) return true
+    if (admin.role === 'psds') return true
     return false
   }
 
@@ -110,8 +114,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!admin) return true // Default fallback
     if (isReadOnlyUser()) return false // PSDS and School Heads are STRICTLY View-Only (Read-Only)
 
-    // Superadmin, Admin, and District-Assigned AO II have full CRUD access
-    if (admin.role === 'superadmin' || admin.role === 'admin' || isDistrictAdminAO2()) return true
+    // Superadmin has full CRUD access
+    if (admin.role === 'superadmin') return true
+
+    // Check school assignment boundary: If user has assigned schools, must belong to assigned schools
+    if (admin.assigned_school_ids && admin.assigned_school_ids.length > 0) {
+      if (targetSchoolId && !admin.assigned_school_ids.includes(targetSchoolId)) {
+        return false
+      }
+    }
+
+    if (admin.role === 'admin' || isDistrictAdminAO2()) return true
 
     // Standard AO II: Full CRUD access on assigned schools
     if (admin.role === 'ao_2') {
@@ -170,22 +183,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const getPermittedSchoolIds = (allSchoolIds: string[] = []) => {
-    if (hasFullAccess()) return allSchoolIds
-    return admin?.assigned_school_ids || []
+    if (!admin) return allSchoolIds
+    // If user has assigned_school_ids, STRICTLY return only their assigned schools
+    if (admin.assigned_school_ids && admin.assigned_school_ids.length > 0) {
+      return admin.assigned_school_ids
+    }
+    if (admin.role === 'superadmin' || admin.role === 'admin' || isDistrictAdminAO2() || admin.role === 'psds') {
+      return allSchoolIds
+    }
+    return []
   }
 
   const isSchoolPermitted = (schoolId: string, allSchoolIds: string[] = []) => {
     if (!schoolId) return true
-    if (hasFullAccess()) return true
-    const permitted = getPermittedSchoolIds(allSchoolIds)
-    return permitted.includes(schoolId)
+    if (!admin) return true
+    if (admin.assigned_school_ids && admin.assigned_school_ids.length > 0) {
+      return admin.assigned_school_ids.includes(schoolId)
+    }
+    if (admin.role === 'superadmin' || admin.role === 'admin' || isDistrictAdminAO2() || admin.role === 'psds') {
+      return true
+    }
+    return false
   }
 
   const getPermittedSchools = <T extends { id: string }>(schools: T[]): T[] => {
-    if (hasFullAccess()) return schools
-    const permittedIds = getPermittedSchoolIds(schools.map(s => s.id))
-    if (!permittedIds || permittedIds.length === 0) return schools
-    return schools.filter(s => permittedIds.includes(s.id))
+    if (!admin) return schools
+    // STRICT RULE: If user has assigned schools, ONLY return their assigned schools
+    if (admin.assigned_school_ids && admin.assigned_school_ids.length > 0) {
+      return schools.filter(s => admin.assigned_school_ids!.includes(s.id))
+    }
+    if (admin.role === 'superadmin' || admin.role === 'admin' || isDistrictAdminAO2() || admin.role === 'psds') {
+      return schools
+    }
+    return []
   }
 
   // Returns permitted Grade Levels for the current user (filtered by assigned_grade_ids for teachers)

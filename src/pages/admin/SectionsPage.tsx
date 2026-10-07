@@ -35,7 +35,7 @@ import {
 import { captureGenieOrigin, useGenieModal } from '@/utils/genieAnimation'
 
 export function SectionsPage() {
-  const { admin } = useAuth()
+  const { admin, getPermittedSchools } = useAuth()
   const { toast } = useToast()
 
   const [sections, setSections] = useState<Section[]>([])
@@ -44,10 +44,20 @@ export function SectionsPage() {
   const [teachers, setTeachers] = useState<AdminProfile[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Permitted Schools for current user role scope
+  const permittedSchools = useMemo(() => getPermittedSchools(schools), [schools, getPermittedSchools])
+
   // Filters
   const [selectedSchoolFilter, setSelectedSchoolFilter] = useState<string>('all')
   const [selectedGradeFilter, setSelectedGradeFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
+
+  // Auto-select school if user only has 1 assigned school
+  useEffect(() => {
+    if (permittedSchools.length === 1 && selectedSchoolFilter === 'all') {
+      setSelectedSchoolFilter(permittedSchools[0].id)
+    }
+  }, [permittedSchools, selectedSchoolFilter])
 
   // Add / Edit Modal State
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -96,8 +106,12 @@ export function SectionsPage() {
       setGrades(gList)
       setTeachers(sList.filter(s => s.role === 'teacher' && s.is_active !== false))
 
-      if (schList.length > 0 && !formSchoolId) setFormSchoolId(schList[0].id)
+      const permitted = getPermittedSchools(schList)
+      const defaultSchoolId = permitted[0]?.id || schList[0]?.id || ''
+      if (schList.length > 0 && !formSchoolId) setFormSchoolId(defaultSchoolId)
+      if (schList.length > 0 && !batchSchoolId) setBatchSchoolId(defaultSchoolId)
       if (gList.length > 0 && !formGradeId) setFormGradeId(gList[0].id)
+      if (gList.length > 0 && !batchGradeId) setBatchGradeId(gList[0].id)
     } catch (err) {
       console.error('Failed to load sections data:', err)
       toast(formatDetailedError(err, { action: 'Failed to load school sections data', table: 'sc_sections' }), 'error')
@@ -315,7 +329,9 @@ export function SectionsPage() {
 
   // Filtered Sections List
   const filteredSections = useMemo(() => {
+    const permittedIds = new Set(permittedSchools.map(s => s.id))
     return sections.filter(sec => {
+      if (permittedSchools.length > 0 && !permittedIds.has(sec.school_id)) return false
       if (selectedSchoolFilter !== 'all' && sec.school_id !== selectedSchoolFilter) return false
       if (selectedGradeFilter !== 'all' && sec.grade_level_id !== selectedGradeFilter) return false
 
@@ -334,7 +350,7 @@ export function SectionsPage() {
 
       return true
     })
-  }, [sections, selectedSchoolFilter, selectedGradeFilter, searchQuery, schools, grades])
+  }, [sections, selectedSchoolFilter, selectedGradeFilter, searchQuery, schools, grades, permittedSchools])
 
   // Summary counts
   const activeCount = sections.filter(s => s.is_active).length
@@ -441,8 +457,10 @@ export function SectionsPage() {
               onChange={e => setSelectedSchoolFilter(e.target.value)}
               className="form-select py-1.5 w-auto"
             >
-              <option value="all">All Schools ({schools.length})</option>
-              {schools.map(sch => (
+              {permittedSchools.length > 1 && (
+                <option value="all">All Assigned Schools ({permittedSchools.length})</option>
+              )}
+              {permittedSchools.map(sch => (
                 <option key={sch.id} value={sch.id}>{sch.name}</option>
               ))}
             </select>
@@ -580,7 +598,7 @@ export function SectionsPage() {
                   onChange={e => setFormSchoolId(e.target.value)}
                   className="w-full px-4 py-2.5 text-xs rounded-2xl bg-white border-2 border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.04)] text-[#2D2638] font-bold focus:outline-none focus:ring-4 focus:ring-[#8B72F4]/20"
                 >
-                  {schools.map(sch => (
+                  {permittedSchools.map(sch => (
                     <option key={sch.id} value={sch.id}>{sch.name} ({sch.school_type.toUpperCase()})</option>
                   ))}
                 </select>
@@ -704,7 +722,7 @@ export function SectionsPage() {
                   onChange={e => setBatchSchoolId(e.target.value)}
                   className="w-full px-4 py-2.5 text-xs rounded-2xl bg-white border-2 border-white text-[#2D2638] font-bold"
                 >
-                  {schools.map(sch => (
+                  {permittedSchools.map(sch => (
                     <option key={sch.id} value={sch.id}>{sch.name}</option>
                   ))}
                 </select>

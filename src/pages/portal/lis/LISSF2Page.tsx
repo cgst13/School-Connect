@@ -16,31 +16,47 @@ import {
   QrCode,
   UserCheck
 } from 'lucide-react'
-import { fetchLearners, fetchGradeLevels } from '@/lib/supabase/queries'
+import { fetchLearners, fetchGradeLevels, fetchSchools } from '@/lib/supabase/queries'
+import { useAuth } from '@/features/auth/useAuth'
 import { useToast } from '@/hooks/useToast'
 import { useLISRealtimeSync } from '@/hooks/useLISRealtimeSync'
 import { QRAttendanceModal } from '@/components/lis/QRAttendanceModal'
-import type { Learner, GradeLevel } from '@/types'
+import type { Learner, GradeLevel, School } from '@/types'
 
 export function LISSF2Page() {
+  const { admin, getPermittedSchools } = useAuth()
   const { toast } = useToast()
   const [learners, setLearners] = useState<Learner[]>([])
+  const [schools, setSchools] = useState<School[]>([])
   const [gradeLevels, setGradeLevels] = useState<GradeLevel[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedMonth, setSelectedMonth] = useState('October 2026')
+  const [selectedSchoolId, setSelectedSchoolId] = useState<string>('all')
   const [selectedGradeId, setSelectedGradeId] = useState<string>('all')
   const [searchTerm, setSearchTerm] = useState('')
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false)
 
+  // Permitted Schools for current user role scope
+  const permittedSchools = useMemo(() => getPermittedSchools(schools), [schools, getPermittedSchools])
+
+  // Auto-select school if user only has 1 assigned school
+  useEffect(() => {
+    if (permittedSchools.length === 1 && selectedSchoolId === 'all') {
+      setSelectedSchoolId(permittedSchools[0].id)
+    }
+  }, [permittedSchools, selectedSchoolId])
+
   const loadData = async (showSpinner = true) => {
     if (showSpinner) setLoading(true)
     try {
-      const [lData, gData] = await Promise.all([
+      const [lData, gData, schData] = await Promise.all([
         fetchLearners(),
-        fetchGradeLevels(undefined, true)
+        fetchGradeLevels(undefined, true),
+        fetchSchools(true, true),
       ])
       setLearners(lData)
       setGradeLevels(gData)
+      setSchools(schData)
     } catch (err) {
       console.error(err)
       if (showSpinner) toast('Failed to load SF2 attendance data.', 'error')
@@ -63,6 +79,10 @@ export function LISSF2Page() {
         l.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         l.lrn.includes(searchTerm)
 
+      const matchesSchool = selectedSchoolId === 'all'
+        ? (permittedSchools.length > 0 ? permittedSchools.some(ps => ps.id === l.school_id || (l.school_name && ps.name.toLowerCase() === l.school_name.toLowerCase())) : true)
+        : (l.school_id === selectedSchoolId || (l.school_name && permittedSchools.find(ps => ps.id === selectedSchoolId)?.name.toLowerCase() === l.school_name.toLowerCase()))
+
       const activeGradeObj = gradeLevels.find(g => g.id === selectedGradeId)
       const matchesGrade =
         selectedGradeId === 'all' ||
@@ -72,9 +92,9 @@ export function LISSF2Page() {
           (activeGradeObj.grade_number === 0 && l.grade_level_name && (l.grade_level_name.toLowerCase().includes('kinder') || l.grade_level_name === 'K'))
         ))
 
-      return matchesSearch && matchesGrade
+      return matchesSearch && matchesGrade && matchesSchool
     })
-  }, [learners, searchTerm, selectedGradeId, gradeLevels])
+  }, [learners, searchTerm, selectedSchoolId, permittedSchools, selectedGradeId, gradeLevels])
 
   return (
     <SchoolConnectLayout
@@ -115,6 +135,19 @@ export function LISSF2Page() {
                   <QrCode size={15} />
                   <span>Scan QR Attendance</span>
                 </button>
+
+                {permittedSchools.length > 1 && (
+                  <select
+                    value={selectedSchoolId}
+                    onChange={e => setSelectedSchoolId(e.target.value)}
+                    className="px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  >
+                    <option value="all">🏫 All Assigned Schools ({permittedSchools.length})</option>
+                    {permittedSchools.map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                )}
 
                 <select
                   value={selectedGradeId}
