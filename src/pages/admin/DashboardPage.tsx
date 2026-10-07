@@ -65,28 +65,28 @@ export function DashboardPage() {
           subtitle="Fetching real-time district statistics and submission metrics"
         />
       ) : (
-      <div className="space-y-6 animate-fade-in pb-12">
+      <div className="space-y-6 animate-fade-in pb-12 font-sans">
         {/* Top Header Controls Bar */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-[28px] border border-white shadow-xs">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#F3EFFF] text-[#6D28D9] text-xs font-black mb-1.5 border border-[#E2D5FE]">
-              <Sparkles className="w-3.5 h-3.5 text-[#8B72F4]" />
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-[#2563EB] text-xs font-bold mb-1.5 border border-blue-100">
+              <Sparkles className="w-3.5 h-3.5 text-[#2563EB]" />
               District Administrative Overview
             </div>
-            <h1 className="text-xl sm:text-2xl font-black text-[#2D2638] tracking-tight">Executive Dashboard</h1>
-            <p className="text-xs sm:text-sm text-[#7A7289] font-medium mt-0.5">
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Executive Dashboard</h1>
+            <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
               Real-time monitoring of teacher ratings and school consolidations for Concepcion District.
             </p>
           </div>
 
           {/* Quick Filters */}
-          <div className="flex items-center gap-2.5 bg-[#FAF5F0] p-2 rounded-full border border-white flex-wrap sm:flex-nowrap shadow-2xs">
-            <div className="flex items-center gap-1.5 text-[#7A7289] px-3 text-xs font-bold uppercase tracking-wider">
+          <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-200/80 flex-wrap sm:flex-nowrap">
+            <div className="flex items-center gap-1 text-slate-500 px-2 text-xs font-semibold uppercase tracking-wider">
               <Filter className="w-3.5 h-3.5" />
               <span>Filter:</span>
             </div>
             <select
-              className="text-xs py-1.5 px-3 bg-white rounded-full border border-white focus:outline-none font-bold text-[#2D2638]"
+              className="form-select text-xs py-1.5 px-3 bg-white rounded-lg border border-slate-200 focus:outline-none focus:border-[#2563EB] font-semibold text-slate-800"
               value={filterSY}
               onChange={e => setFilterSY(e.target.value)}
             >
@@ -94,7 +94,7 @@ export function DashboardPage() {
               {schoolYears.map(sy => <option key={sy.id} value={sy.id}>{sy.name}</option>)}
             </select>
             <select
-              className="text-xs py-1.5 px-3 bg-white rounded-full border border-white focus:outline-none font-bold text-[#2D2638]"
+              className="form-select text-xs py-1.5 px-3 bg-white rounded-lg border border-slate-200 focus:outline-none focus:border-[#2563EB] font-semibold text-slate-800"
               value={filterTerm}
               onChange={e => setFilterTerm(e.target.value)}
             >
@@ -105,62 +105,62 @@ export function DashboardPage() {
         </div>
 
         {/* 4 Stat Metric Cards Row matching Reference Design */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Card 1: Lavender Tasks/Submissions Done */}
-          <div className="clay-card-purple p-5 flex items-center justify-between">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+          {/* Card 1: Submissions Done */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between transition-all hover:border-slate-300 hover:shadow-sm">
             <div>
-              <span className="text-xs font-bold text-[#7A7289]">Submissions Done</span>
-              <h2 className="text-2xl font-black text-[#2D2638] mt-1">{stats?.total || 0}</h2>
-              <span className="text-[11px] font-extrabold text-[#6D28D9] inline-block mt-1">
-                +12% from previous quarter
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Submissions Done</span>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1">{stats?.total || 0}</h2>
+              <span className="text-[11px] font-bold text-[#2563EB] inline-flex items-center gap-1 mt-1 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
+                ↑ +12% vs last quarter
               </span>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-white/80 border border-white shadow-xs text-[#8B72F4] flex items-center justify-center shrink-0">
-              <FileText className="w-6 h-6" />
+            <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-100 text-[#2563EB] flex items-center justify-center shrink-0 shadow-2xs">
+              <FileText className="w-5 h-5" />
             </div>
           </div>
 
-          {/* Card 2: Pink In Progress */}
-          <div className="clay-card-pink p-5 flex items-center justify-between">
+          {/* Card 2: In Progress */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between transition-all hover:border-slate-300 hover:shadow-sm">
             <div>
-              <span className="text-xs font-bold text-[#7A7289]">In Progress / Pending</span>
-              <h2 className="text-2xl font-black text-[#2D2638] mt-1">{stats?.submitted || 0}</h2>
-              <span className="text-[11px] font-extrabold text-[#E11D48] inline-block mt-1">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">In Progress / Pending</span>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1">{stats?.submitted || 0}</h2>
+              <span className="text-[11px] font-bold text-rose-600 inline-flex items-center gap-1 mt-1 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-100">
                 {stats?.schools || 0} active schools
               </span>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-white/80 border border-white shadow-xs text-[#E11D48] flex items-center justify-center shrink-0">
-              <Clock className="w-6 h-6" />
+            <div className="w-11 h-11 rounded-xl bg-rose-50 border border-rose-100 text-rose-600 flex items-center justify-center shrink-0 shadow-2xs">
+              <Clock className="w-5 h-5" />
             </div>
           </div>
 
-          {/* Card 3: Green Completed/Finalized */}
-          <div className="clay-card-green p-5 flex items-center justify-between">
+          {/* Card 3: Finalized / Completed */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between transition-all hover:border-slate-300 hover:shadow-sm">
             <div>
-              <span className="text-xs font-bold text-[#7A7289]">Finalized / Completed</span>
-              <h2 className="text-2xl font-black text-[#2D2638] mt-1">{stats?.finalized || 0}</h2>
-              <span className="text-[11px] font-extrabold text-[#059669] inline-block mt-1">
-                This academic period
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Finalized / Completed</span>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1">{stats?.finalized || 0}</h2>
+              <span className="text-[11px] font-bold text-emerald-600 inline-flex items-center gap-1 mt-1 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                ↑ 100% verified
               </span>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-white/80 border border-white shadow-xs text-[#059669] flex items-center justify-center shrink-0">
-              <CheckCircle2 className="w-6 h-6" />
+            <div className="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 shadow-2xs">
+              <CheckCircle2 className="w-5 h-5" />
             </div>
           </div>
 
-          {/* Card 4: Yellow Active SY / Focus Time */}
-          <div className="clay-card-yellow p-5 flex items-center justify-between">
+          {/* Card 4: Active Period */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between transition-all hover:border-slate-300 hover:shadow-sm">
             <div>
-              <span className="text-xs font-bold text-[#7A7289]">Active Period</span>
-              <h2 className="text-xl font-black text-[#2D2638] mt-1">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active Period</span>
+              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-1">
                 {terms.find(t => t.id === filterTerm)?.name || 'Q1 Active'}
               </h2>
-              <span className="text-[11px] font-extrabold text-[#D97706] inline-block mt-1">
+              <span className="text-[11px] font-bold text-amber-700 inline-flex items-center gap-1 mt-1 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">
                 Concepcion District
               </span>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-white/80 border border-white shadow-xs text-[#D97706] flex items-center justify-center shrink-0">
-              <Star className="w-6 h-6 fill-[#FDE68A]" />
+            <div className="w-11 h-11 rounded-xl bg-amber-50 border border-amber-100 text-amber-600 flex items-center justify-center shrink-0 shadow-2xs">
+              <Star className="w-5 h-5 fill-amber-400 text-amber-500" />
             </div>
           </div>
         </div>
@@ -168,13 +168,13 @@ export function DashboardPage() {
         {/* Middle Grid: Productivity Overview Area Line Chart & Mini Calendar */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           {/* Productivity Overview Line Graph (2/3 width) */}
-          <div className="lg:col-span-2 clay-card p-6 flex flex-col justify-between">
+          <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h3 className="text-base font-black text-[#2D2638] tracking-tight">Productivity & Submission Trend</h3>
-                <p className="text-xs text-[#7A7289] font-medium">Weekly evaluation form completion progress</p>
+                <h3 className="text-base font-bold text-slate-900 tracking-tight">Productivity & Submission Trend</h3>
+                <p className="text-xs text-slate-500 font-medium">Weekly evaluation form completion progress</p>
               </div>
-              <div className="px-3.5 py-1.5 rounded-full bg-[#FAF5F0] border border-white text-xs font-bold text-[#2D2638] shadow-2xs">
+              <div className="px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700">
                 This Quarter ▾
               </div>
             </div>
@@ -184,22 +184,22 @@ export function DashboardPage() {
               <svg className="w-full h-full overflow-visible" viewBox="0 0 600 200">
                 <defs>
                   <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#8B72F4" stopOpacity="0.35" />
-                    <stop offset="100%" stopColor="#8B72F4" stopOpacity="0.0" />
+                    <stop offset="0%" stopColor="#2563EB" stopOpacity="0.2" />
+                    <stop offset="100%" stopColor="#2563EB" stopOpacity="0.0" />
                   </linearGradient>
                 </defs>
 
                 {/* Horizontal Grid lines */}
-                <line x1="0" y1="20" x2="600" y2="20" stroke="#F0E8F5" strokeDasharray="4 4" />
-                <line x1="0" y1="70" x2="600" y2="70" stroke="#F0E8F5" strokeDasharray="4 4" />
-                <line x1="0" y1="120" x2="600" y2="120" stroke="#F0E8F5" strokeDasharray="4 4" />
-                <line x1="0" y1="170" x2="600" y2="170" stroke="#F0E8F5" strokeDasharray="4 4" />
+                <line x1="0" y1="20" x2="600" y2="20" stroke="#F1F5F9" strokeDasharray="4 4" />
+                <line x1="0" y1="70" x2="600" y2="70" stroke="#F1F5F9" strokeDasharray="4 4" />
+                <line x1="0" y1="120" x2="600" y2="120" stroke="#F1F5F9" strokeDasharray="4 4" />
+                <line x1="0" y1="170" x2="600" y2="170" stroke="#F1F5F9" strokeDasharray="4 4" />
 
                 {/* Y-Axis Labels */}
-                <text x="0" y="25" fill="#A39BAF" fontSize="10" fontWeight="bold">100</text>
-                <text x="0" y="75" fill="#A39BAF" fontSize="10" fontWeight="bold">75</text>
-                <text x="0" y="125" fill="#A39BAF" fontSize="10" fontWeight="bold">50</text>
-                <text x="0" y="175" fill="#A39BAF" fontSize="10" fontWeight="bold">25</text>
+                <text x="0" y="25" fill="#94A3B8" fontSize="10" fontWeight="bold">100</text>
+                <text x="0" y="75" fill="#94A3B8" fontSize="10" fontWeight="bold">75</text>
+                <text x="0" y="125" fill="#94A3B8" fontSize="10" fontWeight="bold">50</text>
+                <text x="0" y="175" fill="#94A3B8" fontSize="10" fontWeight="bold">25</text>
 
                 {/* Area Gradient Fill */}
                 <path
@@ -211,29 +211,29 @@ export function DashboardPage() {
                 <path
                   d="M 50 150 Q 140 110, 230 70 T 410 40 T 570 45"
                   fill="none"
-                  stroke="#8B72F4"
-                  strokeWidth="4"
+                  stroke="#2563EB"
+                  strokeWidth="3"
                   strokeLinecap="round"
                 />
 
                 {/* Data Node Dots */}
-                <circle cx="50" cy="150" r="6" fill="#8B72F4" stroke="#FFFFFF" strokeWidth="3" />
-                <circle cx="140" cy="110" r="6" fill="#8B72F4" stroke="#FFFFFF" strokeWidth="3" />
-                <circle cx="230" cy="70" r="6" fill="#8B72F4" stroke="#FFFFFF" strokeWidth="3" />
-                <circle cx="320" cy="100" r="6" fill="#8B72F4" stroke="#FFFFFF" strokeWidth="3" />
-                <circle cx="410" cy="45" r="6" fill="#8B72F4" stroke="#FFFFFF" strokeWidth="3" />
-                <circle cx="500" cy="35" r="6" fill="#8B72F4" stroke="#FFFFFF" strokeWidth="3" />
-                <circle cx="570" cy="45" r="6" fill="#8B72F4" stroke="#FFFFFF" strokeWidth="3" />
+                <circle cx="50" cy="150" r="5" fill="#2563EB" stroke="#FFFFFF" strokeWidth="2" />
+                <circle cx="140" cy="110" r="5" fill="#2563EB" stroke="#FFFFFF" strokeWidth="2" />
+                <circle cx="230" cy="70" r="5" fill="#2563EB" stroke="#FFFFFF" strokeWidth="2" />
+                <circle cx="320" cy="100" r="5" fill="#2563EB" stroke="#FFFFFF" strokeWidth="2" />
+                <circle cx="410" cy="45" r="5" fill="#2563EB" stroke="#FFFFFF" strokeWidth="2" />
+                <circle cx="500" cy="35" r="5" fill="#2563EB" stroke="#FFFFFF" strokeWidth="2" />
+                <circle cx="570" cy="45" r="5" fill="#2563EB" stroke="#FFFFFF" strokeWidth="2" />
               </svg>
 
-              {/* Floating Pill Tooltip matching reference screenshot */}
-              <div className="absolute top-2 right-24 bg-[#F3EFFF] text-[#6D28D9] border border-[#E2D5FE] px-3 py-1 rounded-full text-xs font-black shadow-xs animate-bounce">
+              {/* Floating Tooltip */}
+              <div className="absolute top-2 right-24 bg-blue-50 text-[#2563EB] border border-blue-200 px-3 py-1.5 rounded-xl text-xs font-bold shadow-2xs">
                 Great job! 🎉
               </div>
             </div>
 
             {/* X-Axis Labels */}
-            <div className="flex justify-between text-xs font-bold text-[#A39BAF] px-4 pt-2">
+            <div className="flex justify-between text-xs font-semibold text-slate-400 px-4 pt-2">
               <span>Mon</span>
               <span>Tue</span>
               <span>Wed</span>
@@ -245,13 +245,13 @@ export function DashboardPage() {
           </div>
 
           {/* Side Mini Calendar Card (1/3 width) */}
-          <div className="clay-card p-6 flex flex-col justify-between">
+          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
             <div className="flex items-center justify-between mb-4">
-              <button className="p-1 rounded-lg hover:bg-slate-100 text-[#7A7289]">
+              <button className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 cursor-pointer">
                 <ChevronLeft size={16} />
               </button>
-              <h3 className="text-sm font-black text-[#2D2638]">May 2026</h3>
-              <button className="p-1 rounded-lg hover:bg-slate-100 text-[#7A7289]">
+              <h3 className="text-sm font-bold text-slate-900">May 2026</h3>
+              <button className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 cursor-pointer">
                 <ChevronRight size={16} />
               </button>
             </div>
@@ -259,12 +259,12 @@ export function DashboardPage() {
             {/* Calendar Grid matching reference design */}
             <div className="grid grid-cols-7 gap-1 text-center text-xs">
               {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
-                <span key={day} className="text-[10px] font-bold text-[#A39BAF] py-1">{day}</span>
+                <span key={day} className="text-[10px] font-bold text-slate-400 uppercase py-1">{day}</span>
               ))}
 
               {/* Prev Month Days */}
-              <span className="text-[#D0C9DB] py-1.5 font-medium">29</span>
-              <span className="text-[#D0C9DB] py-1.5 font-medium">30</span>
+              <span className="text-slate-300 py-1.5 font-medium">29</span>
+              <span className="text-slate-300 py-1.5 font-medium">30</span>
 
               {/* Current Month Days */}
               {Array.from({ length: 31 }).map((_, i) => {
@@ -273,12 +273,12 @@ export function DashboardPage() {
                 return (
                   <span
                     key={dayNum}
-                    className={`py-1.5 rounded-full font-bold transition-all cursor-pointer ${
+                    className={`py-1.5 rounded-xl font-semibold transition-all cursor-pointer text-xs ${
                       isSelected
-                        ? 'bg-[#8B72F4] text-white shadow-md shadow-indigo-500/30 font-black'
+                        ? 'bg-[#2563EB] text-white font-bold shadow-xs'
                         : dayNum % 6 === 0
-                        ? 'text-[#E11D48]'
-                        : 'text-[#2D2638] hover:bg-[#F3EFFF]'
+                        ? 'text-rose-600'
+                        : 'text-slate-700 hover:bg-slate-100'
                     }`}
                   >
                     {dayNum}
@@ -287,9 +287,9 @@ export function DashboardPage() {
               })}
             </div>
 
-            <div className="mt-4 pt-3 border-t border-[#F0E8F5] flex items-center justify-between text-xs">
-              <span className="font-bold text-[#7A7289]">Deadline Alert:</span>
-              <span className="font-extrabold text-[#E11D48] bg-[#FFF0F3] px-2.5 py-0.5 rounded-full border border-[#FFCCD4]">
+            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+              <span className="font-semibold text-slate-600">Deadline Alert:</span>
+              <span className="font-bold text-rose-600 bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-200 text-[11px]">
                 May 31, 11:59 PM
               </span>
             </div>
@@ -298,11 +298,11 @@ export function DashboardPage() {
 
         {/* Bottom Grid: Projects, Top Tasks, Bunny Motivation Card */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          {/* My Projects / School Submission Progress (1/3 width) */}
-          <div className="clay-card p-6 space-y-4">
+          {/* School Submission Progress (1/3 width) */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-black text-[#2D2638] tracking-tight">School Progress</h3>
-              <Link to="/admin/schools" className="px-3 py-1 rounded-full bg-[#F3EFFF] text-[#6D28D9] text-xs font-bold hover:bg-[#E9E1FF]">
+              <h3 className="text-base font-bold text-slate-900 tracking-tight">School Progress</h3>
+              <Link to="/admin/schools" className="px-3 py-1 rounded-xl bg-blue-50 text-[#2563EB] text-xs font-bold hover:bg-blue-100 border border-blue-100">
                 View all
               </Link>
             </div>
@@ -310,165 +310,165 @@ export function DashboardPage() {
             <div className="space-y-3.5">
               {/* Progress Item 1 */}
               <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs font-bold">
+                <div className="flex items-center justify-between text-xs font-semibold">
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-lg clay-folder-purple text-white flex items-center justify-center">
-                      <Folder size={12} />
+                    <div className="w-6 h-6 rounded-lg bg-blue-50 text-[#2563EB] flex items-center justify-center border border-blue-100">
+                      <Folder size={13} />
                     </div>
-                    <span className="text-[#2D2638]">Concepcion Central ES</span>
+                    <span className="text-slate-800">Concepcion Central ES</span>
                   </div>
-                  <span className="text-[#7A7289]">75%</span>
+                  <span className="text-slate-500 font-bold">75%</span>
                 </div>
-                <div className="w-full bg-[#FAF5F0] rounded-full h-2 overflow-hidden">
-                  <div className="bg-[#8B72F4] h-full rounded-full" style={{ width: '75%' }} />
+                <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                  <div className="bg-[#2563EB] h-full rounded-full" style={{ width: '75%' }} />
                 </div>
               </div>
 
               {/* Progress Item 2 */}
               <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs font-bold">
+                <div className="flex items-center justify-between text-xs font-semibold">
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-lg clay-folder-pink text-white flex items-center justify-center">
-                      <Folder size={12} />
+                    <div className="w-6 h-6 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-100">
+                      <Folder size={13} />
                     </div>
-                    <span className="text-[#2D2638]">Concepcion NHS</span>
+                    <span className="text-slate-800">Concepcion NHS</span>
                   </div>
-                  <span className="text-[#7A7289]">60%</span>
+                  <span className="text-slate-500 font-bold">60%</span>
                 </div>
-                <div className="w-full bg-[#FAF5F0] rounded-full h-2 overflow-hidden">
-                  <div className="bg-[#F43F5E] h-full rounded-full" style={{ width: '60%' }} />
+                <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                  <div className="bg-rose-500 h-full rounded-full" style={{ width: '60%' }} />
                 </div>
               </div>
 
               {/* Progress Item 3 */}
               <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs font-bold">
+                <div className="flex items-center justify-between text-xs font-semibold">
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-lg clay-folder-green text-white flex items-center justify-center">
-                      <Folder size={12} />
+                    <div className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100">
+                      <Folder size={13} />
                     </div>
-                    <span className="text-[#2D2638]">San Jose Elementary</span>
+                    <span className="text-slate-800">San Jose Elementary</span>
                   </div>
-                  <span className="text-[#7A7289]">40%</span>
+                  <span className="text-slate-500 font-bold">40%</span>
                 </div>
-                <div className="w-full bg-[#FAF5F0] rounded-full h-2 overflow-hidden">
-                  <div className="bg-[#10B981] h-full rounded-full" style={{ width: '40%' }} />
+                <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                  <div className="bg-emerald-500 h-full rounded-full" style={{ width: '40%' }} />
                 </div>
               </div>
 
               {/* Progress Item 4 */}
               <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs font-bold">
+                <div className="flex items-center justify-between text-xs font-semibold">
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-lg clay-folder-yellow text-white flex items-center justify-center">
-                      <Folder size={12} />
+                    <div className="w-6 h-6 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100">
+                      <Folder size={13} />
                     </div>
-                    <span className="text-[#2D2638]">Poblacion High School</span>
+                    <span className="text-slate-800">Poblacion High School</span>
                   </div>
-                  <span className="text-[#7A7289]">90%</span>
+                  <span className="text-slate-500 font-bold">90%</span>
                 </div>
-                <div className="w-full bg-[#FAF5F0] rounded-full h-2 overflow-hidden">
-                  <div className="bg-[#F59E0B] h-full rounded-full" style={{ width: '90%' }} />
+                <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                  <div className="bg-amber-500 h-full rounded-full" style={{ width: '90%' }} />
                 </div>
               </div>
             </div>
           </div>
 
           {/* Top Tasks / Priority Submissions (1/3 width) */}
-          <div className="clay-card p-6 space-y-4">
+          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-black text-[#2D2638] tracking-tight">Top Submissions</h3>
-              <Link to="/admin/submissions" className="px-3 py-1 rounded-full bg-[#EDFAF3] text-[#059669] text-xs font-bold hover:bg-[#D1FAE5]">
+              <h3 className="text-base font-bold text-slate-900 tracking-tight">Top Submissions</h3>
+              <Link to="/admin/submissions" className="px-3 py-1 rounded-xl bg-emerald-50 text-emerald-600 text-xs font-bold hover:bg-emerald-100 border border-emerald-100">
                 View all
               </Link>
             </div>
 
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               <div
                 onClick={() => toggleTask('task1')}
-                className="flex items-center justify-between p-2.5 rounded-2xl hover:bg-[#FAF5F0] transition-colors cursor-pointer"
+                className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer border border-slate-100"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   {checkedTasks['task1'] ? (
-                    <CheckSquare size={16} className="text-[#059669] shrink-0" />
+                    <CheckSquare size={16} className="text-[#2563EB] shrink-0" />
                   ) : (
-                    <Square size={16} className="text-[#A39BAF] shrink-0" />
+                    <Square size={16} className="text-slate-400 shrink-0" />
                   )}
-                  <span className={`text-xs font-bold truncate ${checkedTasks['task1'] ? 'line-through text-[#A39BAF]' : 'text-[#2D2638]'}`}>
+                  <span className={`text-xs font-semibold truncate ${checkedTasks['task1'] ? 'line-through text-slate-400' : 'text-slate-800'}`}>
                     Grade 1 Mathematics
                   </span>
                 </div>
-                <span className="clay-badge-pink px-2.5 py-0.5 text-[10px] shrink-0">High</span>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-600 border border-rose-200 shrink-0">High</span>
               </div>
 
               <div
                 onClick={() => toggleTask('task2')}
-                className="flex items-center justify-between p-2.5 rounded-2xl hover:bg-[#FAF5F0] transition-colors cursor-pointer"
+                className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer border border-slate-100"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   {checkedTasks['task2'] ? (
-                    <CheckSquare size={16} className="text-[#059669] shrink-0" />
+                    <CheckSquare size={16} className="text-[#2563EB] shrink-0" />
                   ) : (
-                    <Square size={16} className="text-[#A39BAF] shrink-0" />
+                    <Square size={16} className="text-slate-400 shrink-0" />
                   )}
-                  <span className={`text-xs font-bold truncate ${checkedTasks['task2'] ? 'line-through text-[#A39BAF]' : 'text-[#2D2638]'}`}>
+                  <span className={`text-xs font-semibold truncate ${checkedTasks['task2'] ? 'line-through text-slate-400' : 'text-slate-800'}`}>
                     Grade 4 Science Rating
                   </span>
                 </div>
-                <span className="clay-badge-orange px-2.5 py-0.5 text-[10px] shrink-0">Medium</span>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 shrink-0">Medium</span>
               </div>
 
               <div
                 onClick={() => toggleTask('task3')}
-                className="flex items-center justify-between p-2.5 rounded-2xl hover:bg-[#FAF5F0] transition-colors cursor-pointer"
+                className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer border border-slate-100"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   {checkedTasks['task3'] ? (
-                    <CheckSquare size={16} className="text-[#059669] shrink-0" />
+                    <CheckSquare size={16} className="text-[#2563EB] shrink-0" />
                   ) : (
-                    <Square size={16} className="text-[#A39BAF] shrink-0" />
+                    <Square size={16} className="text-slate-400 shrink-0" />
                   )}
-                  <span className={`text-xs font-bold truncate ${checkedTasks['task3'] ? 'line-through text-[#A39BAF]' : 'text-[#2D2638]'}`}>
+                  <span className={`text-xs font-semibold truncate ${checkedTasks['task3'] ? 'line-through text-slate-400' : 'text-slate-800'}`}>
                     Grade 6 English Form
                   </span>
                 </div>
-                <span className="clay-badge-blue px-2.5 py-0.5 text-[10px] shrink-0">Low</span>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-[#2563EB] border border-blue-200 shrink-0">Low</span>
               </div>
 
               <div
                 onClick={() => toggleTask('task4')}
-                className="flex items-center justify-between p-2.5 rounded-2xl hover:bg-[#FAF5F0] transition-colors cursor-pointer"
+                className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer border border-slate-100"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   {checkedTasks['task4'] ? (
-                    <CheckSquare size={16} className="text-[#059669] shrink-0" />
+                    <CheckSquare size={16} className="text-[#2563EB] shrink-0" />
                   ) : (
-                    <Square size={16} className="text-[#A39BAF] shrink-0" />
+                    <Square size={16} className="text-slate-400 shrink-0" />
                   )}
-                  <span className={`text-xs font-bold truncate ${checkedTasks['task4'] ? 'line-through text-[#A39BAF]' : 'text-[#2D2638]'}`}>
+                  <span className={`text-xs font-semibold truncate ${checkedTasks['task4'] ? 'line-through text-slate-400' : 'text-slate-800'}`}>
                     Kindergarten MAPEH Form
                   </span>
                 </div>
-                <span className="clay-badge-blue px-2.5 py-0.5 text-[10px] shrink-0">Low</span>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-[#2563EB] border border-blue-200 shrink-0">Low</span>
               </div>
             </div>
           </div>
 
-          {/* Motivational 3D Bunny Card matching Reference Design (1/3 width) */}
-          <div className="bg-gradient-to-br from-[#F3EFFF] to-[#E5D8FD] rounded-[28px] p-5 border border-white shadow-xs flex items-center justify-between relative overflow-hidden">
+          {/* Motivational Card (1/3 width) */}
+          <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs flex items-center justify-between relative overflow-hidden">
             <div className="space-y-2 z-10 max-w-[180px]">
-              <h3 className="text-sm font-black text-[#2D2638] leading-tight">
-                You're doing amazing, {admin?.full_name.split(' ')[0] || 'Emily'}! 💜
+              <h3 className="text-base font-bold text-slate-900 leading-tight">
+                You're doing amazing, {admin?.full_name.split(' ')[0] || 'Administrator'}! 👋
               </h3>
-              <p className="text-[11px] font-medium text-[#7A7289] leading-relaxed">
+              <p className="text-xs font-medium text-slate-500 leading-relaxed">
                 Keep up the good work and don't forget to review pending school submissions today ✨
               </p>
             </div>
             <div className="relative shrink-0 z-10">
               <img
-                src="/images/clay/bunny_motivation.jpg"
-                alt="Bunny Mascot"
-                className="w-24 h-24 rounded-2xl object-cover shadow-sm border-2 border-white"
+                src="/images/school_connect_logo.png"
+                alt="School Connect Logo"
+                className="w-16 h-16 object-contain drop-shadow-xs"
               />
             </div>
           </div>

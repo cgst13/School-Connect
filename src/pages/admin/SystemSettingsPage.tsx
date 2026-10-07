@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { SchoolConnectLayout } from '@/components/layouts/SchoolConnectLayout'
+import { platformAdminNavGroups } from '@/config/navConfigs'
 import { useToast } from '@/hooks/useToast'
 import { useAuth } from '@/features/auth/useAuth'
 import { insertAuditLog } from '@/lib/supabase/queries'
@@ -117,7 +118,7 @@ export function SystemSettingsPage() {
   }
 
   return (
-    <SchoolConnectLayout systemTitle="Platform System Settings">
+    <SchoolConnectLayout systemTitle="Platform System Settings" navGroups={platformAdminNavGroups}>
       <div className="space-y-6 w-full pb-16 animate-fade-in">
         {/* Header Banner */}
         <PageHeader
@@ -142,7 +143,7 @@ export function SystemSettingsPage() {
             {/* Left 2 Columns: Identity & Modules */}
             <div className="lg:col-span-2 space-y-6">
               {/* 1. District & Platform Identity */}
-              <div className="clay-card p-6 sm:p-7 space-y-5">
+              <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 sm:p-7 space-y-5">
                 <div className="flex items-center gap-3 border-b border-purple-100 pb-4">
                   <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#8B72F4] to-[#A88BEB] text-white flex items-center justify-center border border-white shadow-md shrink-0">
                     <Building2 className="w-5 h-5" />
@@ -212,7 +213,7 @@ export function SystemSettingsPage() {
               </div>
 
               {/* 2. Integrated Educational Modules */}
-              <div className="clay-card p-6 sm:p-7 space-y-5">
+              <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 sm:p-7 space-y-5">
                 <div className="flex items-center gap-3 border-b border-purple-100 pb-4">
                   <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#F9A8D4] to-[#F472B6] text-white flex items-center justify-center border border-white shadow-md shrink-0">
                     <Layers className="w-5 h-5" />
@@ -340,7 +341,7 @@ export function SystemSettingsPage() {
             {/* Right Column: Security & System Health */}
             <div className="space-y-6">
               {/* 3. System Preferences & Security */}
-              <div className="clay-card p-6 space-y-5">
+              <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-5">
                 <div className="flex items-center gap-3 border-b border-purple-100 pb-4">
                   <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#6EE7B7] to-[#10B981] text-white flex items-center justify-center border border-white shadow-md shrink-0">
                     <ShieldCheck className="w-5 h-5" />
@@ -408,7 +409,7 @@ export function SystemSettingsPage() {
               </div>
 
               {/* 4. Cloud DB & Backup Status */}
-              <div className="clay-card p-6 space-y-4">
+              <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-4">
                 <div className="flex items-center gap-3 border-b border-purple-100 pb-3">
                   <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#93C5FD] to-[#60A5FA] text-white flex items-center justify-center border border-white shadow-md shrink-0">
                     <Database className="w-5 h-5" />

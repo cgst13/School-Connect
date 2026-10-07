@@ -720,13 +720,13 @@ export function ConsolidationPage() {
           title="Data Consolidation & Verification"
           description="Validate 100% school submission completion across ES, JHS, and SHS levels before consolidating evaluation metrics into Supabase."
           actions={
-            <div className="inline-flex p-1 bg-white/90 rounded-2xl border border-purple-100 shadow-2xs flex-wrap gap-1">
+            <div className="inline-flex p-1 bg-slate-100 rounded-xl flex-wrap gap-1">
               <button
                 onClick={() => setActiveTab('consolidate')}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                   activeTab === 'consolidate'
-                    ? 'bg-gradient-to-r from-[#A88BEB] via-[#8B72F4] to-[#795CEE] text-white shadow-md'
-                    : 'text-[#7A7289] hover:text-[#2D2638] hover:bg-[#F6EFFF]/50'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 <LayoutList size={15} />
@@ -734,10 +734,10 @@ export function ConsolidationPage() {
               </button>
               <button
                 onClick={() => setActiveTab('by_subject')}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                   activeTab === 'by_subject'
-                    ? 'bg-gradient-to-r from-[#A88BEB] via-[#8B72F4] to-[#795CEE] text-white shadow-md'
-                    : 'text-[#7A7289] hover:text-[#2D2638] hover:bg-[#F6EFFF]/50'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 <BookOpen size={15} />
@@ -745,10 +745,10 @@ export function ConsolidationPage() {
               </button>
               <button
                 onClick={() => setActiveTab('history')}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                   activeTab === 'history'
-                    ? 'bg-gradient-to-r from-[#A88BEB] via-[#8B72F4] to-[#795CEE] text-white shadow-md'
-                    : 'text-[#7A7289] hover:text-[#2D2638] hover:bg-[#F6EFFF]/50'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 <History size={15} />
@@ -762,19 +762,19 @@ export function ConsolidationPage() {
         {activeTab === 'consolidate' && (
           <div className="space-y-6 animate-fade-in">
             {/* Filter & Level Selection Card */}
-            <div className="clay-card p-6 space-y-5 bg-gradient-to-br from-white via-white to-[#F6EFFF]/40 border border-purple-100 shadow-md rounded-3xl no-print">
-              <div className="flex items-center justify-between border-b border-purple-100 pb-3">
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-5 no-print">
+              <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-[#F6EFFF] text-[#8B72F4] border border-[#8B72F4]/20">
+                  <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
                     <Sparkles size={18} />
                   </div>
                   <div>
-                    <h2 className="text-base font-extrabold text-[#2D2638]">Select Consolidation Criteria</h2>
-                    <p className="text-xs text-[#7A7289] font-medium">Choose School Level, Grade, and Learning Area to verify submission completion</p>
+                    <h2 className="text-base font-bold text-slate-900">Select Consolidation Criteria</h2>
+                    <p className="text-xs text-slate-500 font-medium">Choose School Level, Grade, and Learning Area to verify submission completion</p>
                   </div>
                 </div>
                 {checkingCompliance && (
-                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#8B72F4] bg-[#F6EFFF] px-3 py-1 rounded-full border border-[#8B72F4]/20 animate-pulse">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 bg-blue-50 px-3 py-1 rounded-full border border-blue-200 animate-pulse">
                     <RefreshCw size={12} className="animate-spin" /> Verifying Submissions...
                   </span>
                 )}
@@ -783,12 +783,12 @@ export function ConsolidationPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
                 {/* 1. School Year */}
                 <div>
-                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 flex items-center gap-1">
-                    <Calendar size={13} className="text-[#8B72F4]" />
+                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1 flex items-center gap-1">
+                    <Calendar size={13} className="text-slate-400" />
                     <span>School Year *</span>
                   </label>
                   <select
-                    className="w-full px-3 py-2.5 rounded-xl bg-white border border-purple-100 text-xs font-bold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs cursor-pointer"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
                     value={filters.school_year_id}
                     onChange={e => setF('school_year_id', e.target.value)}
                   >
@@ -799,12 +799,12 @@ export function ConsolidationPage() {
 
                 {/* 2. Quarter / Term */}
                 <div>
-                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 flex items-center gap-1">
-                    <Clock size={13} className="text-[#795CEE]" />
+                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1 flex items-center gap-1">
+                    <Clock size={13} className="text-slate-400" />
                     <span>Quarter / Term *</span>
                   </label>
                   <select
-                    className="w-full px-3 py-2.5 rounded-xl bg-white border border-purple-100 text-xs font-bold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs cursor-pointer"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
                     value={filters.term_id}
                     onChange={e => setF('term_id', e.target.value)}
                   >
@@ -815,12 +815,12 @@ export function ConsolidationPage() {
 
                 {/* 3. Grade Level */}
                 <div>
-                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 flex items-center gap-1">
-                    <GraduationCap size={13} className="text-[#795CEE]" />
+                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1 flex items-center gap-1">
+                    <GraduationCap size={13} className="text-slate-400" />
                     <span>Grade Level *</span>
                   </label>
                   <select
-                    className="w-full px-3 py-2.5 rounded-xl bg-white border border-purple-100 text-xs font-bold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs cursor-pointer"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
                     value={filters.grade_level_id}
                     onChange={e => setF('grade_level_id', e.target.value)}
                   >
@@ -831,19 +831,19 @@ export function ConsolidationPage() {
 
                 {/* 4. Learning Area */}
                 <div>
-                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 flex items-center justify-between">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1 flex items-center justify-between">
                     <span className="flex items-center gap-1">
-                      <BookOpen size={13} className="text-[#8B72F4]" />
+                      <BookOpen size={13} className="text-slate-400" />
                       <span>Learning Area *</span>
                     </span>
                     {availableLearningAreas.length < learningAreas.length && (
-                      <span className="text-[10px] text-[#8B72F4] font-bold">
+                      <span className="text-[10px] text-blue-600 font-semibold">
                         ({availableLearningAreas.length} for Grade)
                       </span>
                     )}
                   </label>
                   <select
-                    className="w-full px-3 py-2.5 rounded-xl bg-white border border-purple-100 text-xs font-bold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs cursor-pointer"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
                     value={filters.learning_area_id}
                     onChange={e => setF('learning_area_id', e.target.value)}
                   >
@@ -858,17 +858,17 @@ export function ConsolidationPage() {
               </div>
 
               {/* Status checkboxes */}
-              <div className="pt-2 border-t border-purple-100/60 flex items-center justify-between flex-wrap gap-3">
+              <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center gap-3">
-                  <span className="text-xs font-extrabold text-[#7A7289]">Include Statuses:</span>
+                  <span className="text-xs font-semibold text-slate-600">Include Statuses:</span>
                   <div className="flex flex-wrap gap-2.5">
                     {(['submitted', 'reviewed', 'finalized'] as SubmissionStatus[]).map(s => (
-                      <label key={s} className="inline-flex items-center gap-1.5 text-xs font-bold text-[#2D2638] cursor-pointer bg-white px-3 py-1 rounded-xl border border-purple-100 shadow-2xs">
+                      <label key={s} className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-800 cursor-pointer bg-slate-50 px-3 py-1 rounded-xl border border-slate-200">
                         <input
                           type="checkbox"
                           checked={filters.statuses.includes(s)}
                           onChange={e => setF('statuses', e.target.checked ? [...filters.statuses, s] : filters.statuses.filter(x => x !== s))}
-                          className="rounded text-[#8B72F4] focus:ring-[#8B72F4]/30"
+                          className="rounded text-blue-600 focus:ring-blue-500/20"
                         />
                         <span className="capitalize">{s}</span>
                       </label>
@@ -888,9 +888,9 @@ export function ConsolidationPage() {
                       ? `Consolidation blocked: ${missingSchools.length} school(s) have not submitted evaluation forms.`
                       : 'Consolidate evaluation data for selected criteria'
                   }
-                  className={`px-6 py-3 rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-2 shadow-md ${
+                  className={`px-6 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 shadow-xs ${
                     canConsolidate && !loading
-                      ? 'bg-gradient-to-r from-[#8B72F4] via-[#795CEE] to-[#6366F1] text-white hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] cursor-pointer'
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer'
                       : 'bg-slate-200 text-slate-400 border border-slate-300 cursor-not-allowed shadow-none'
                   }`}
                 >
@@ -918,33 +918,33 @@ export function ConsolidationPage() {
                   </div>
                 ) : (
                   /* IN PROGRESS: COMPACT BANNER WITH MINIMAL INLINE PENDING TAGS */
-                  <div className="p-3 bg-purple-50/80 border border-purple-200/90 rounded-2xl space-y-2 text-xs shadow-2xs">
+                  <div className="p-3.5 bg-blue-50/80 border border-blue-200/90 rounded-2xl space-y-2 text-xs shadow-xs">
                     <div className="flex items-center justify-between gap-3 flex-wrap">
-                      <div className="flex items-center gap-2 text-[#2D2638] font-bold min-w-0">
-                        <Building2 size={16} className="text-[#8B72F4] shrink-0" />
+                      <div className="flex items-center gap-2 text-slate-900 font-bold min-w-0">
+                        <Building2 size={16} className="text-blue-600 shrink-0" />
                         <span>
                           Submissions In Progress ({submittedSchools.length} of {expectedSchools.length} Schools Submitted)
                         </span>
-                        <span className="text-[10px] text-[#7A7289] font-medium">— {selectedGrade} · {selectedLA}</span>
+                        <span className="text-xs text-slate-500 font-medium">— {selectedGrade} · {selectedLA}</span>
                       </div>
-                      <span className="px-2.5 py-0.5 rounded-full bg-[#8B72F4] text-white text-[10px] font-black shrink-0">
+                      <span className="px-2.5 py-0.5 rounded-full bg-blue-600 text-white text-[10px] font-black shrink-0">
                         PROCEED ALLOWED ({currentSubmissions.length} Received)
                       </span>
                     </div>
 
                     {/* Pending Schools Inline Tags */}
                     {missingSchools.length > 0 && (
-                      <div className="flex items-center gap-2 pt-1 border-t border-purple-100/70 text-[11px] flex-wrap">
-                        <span className="font-extrabold text-[#7A7289] flex items-center gap-1">
-                          <Clock size={12} className="text-[#8B72F4]" />
+                      <div className="flex items-center gap-2 pt-2 border-t border-blue-100/80 text-[11px] flex-wrap">
+                        <span className="font-bold text-slate-600 flex items-center gap-1">
+                          <Clock size={12} className="text-blue-600" />
                           <span>Pending ({missingSchools.length}):</span>
                         </span>
                         {missingSchools.map(school => (
                           <span
                             key={school.id}
-                            className="px-2 py-0.5 rounded-lg bg-white border border-purple-200/80 text-[#2D2638] font-semibold text-[10px] inline-flex items-center gap-1"
+                            className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-800 font-semibold text-xs inline-flex items-center gap-1 shadow-xs"
                           >
-                            <Building2 size={10} className="text-slate-400" />
+                            <Building2 size={11} className="text-slate-400" />
                             {school.name}
                           </span>
                         ))}
@@ -953,38 +953,38 @@ export function ConsolidationPage() {
                   </div>
                 )}
 
-                {/* SUPER MINIMAL COLLAPSIBLE BUDGET OF WORK (BOW) SECTION */}
+                {/* BUDGET OF WORK (BOW) SECTION */}
                 {gradeCompetencies.length > 0 && (
-                  <details className="group bg-white border border-purple-100 rounded-2xl shadow-2xs overflow-hidden">
-                    <summary className="p-3 flex items-center justify-between cursor-pointer select-none text-xs font-bold text-[#2D2638] hover:bg-[#F6EFFF]/30 transition-colors">
+                  <details className="group bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
+                    <summary className="p-3.5 flex items-center justify-between cursor-pointer select-none text-xs font-bold text-slate-900 hover:bg-slate-50 transition-colors">
                       <div className="flex items-center gap-2">
-                        <BookOpen size={14} className="text-[#8B72F4]" />
+                        <BookOpen size={15} className="text-blue-600" />
                         <span>Official Budget of Work Competencies List — {selectedGrade} ({selectedLA})</span>
                       </div>
-                      <span className="text-[10px] font-extrabold text-[#8B72F4] bg-[#F6EFFF] px-2.5 py-0.5 rounded-full border border-[#8B72F4]/20">
+                      <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
                         {gradeCompetencies.length} Competencies (Click to toggle)
                       </span>
                     </summary>
-                    <div className="p-3 border-t border-purple-100">
+                    <div className="p-3.5 border-t border-slate-200/80">
                       <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse text-xs">
-                          <thead className="bg-[#F8F9FD] text-[#7A7289] font-extrabold uppercase tracking-wider text-[10px]">
+                          <thead className="bg-slate-50 text-slate-600 font-semibold uppercase tracking-wider text-[10px] border-b border-slate-200">
                             <tr>
-                              <th className="py-2 px-3 w-10 text-center">#</th>
-                              <th className="py-2 px-3 w-28">Code</th>
-                              <th className="py-2 px-3 w-36">Domain</th>
-                              <th className="py-2 px-4">Competency Description</th>
-                              <th className="py-2 px-3 w-24 text-center">Schedule</th>
+                              <th className="py-2.5 px-3 w-10 text-center">#</th>
+                              <th className="py-2.5 px-3 w-28">Code</th>
+                              <th className="py-2.5 px-3 w-36">Domain</th>
+                              <th className="py-2.5 px-4">Competency Description</th>
+                              <th className="py-2.5 px-3 w-24 text-center">Schedule</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-purple-50/70 font-medium text-[#2D2638]">
+                          <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
                             {gradeCompetencies.map((comp, idx) => (
-                              <tr key={comp.id || idx} className="hover:bg-[#F6EFFF]/20">
-                                <td className="py-2 px-3 text-center text-[#7A7289]">{idx + 1}</td>
-                                <td className="py-2 px-3 font-mono font-bold text-[#8B72F4]">{comp.code || '—'}</td>
-                                <td className="py-2 px-3 text-[#7A7289]">{comp.domain_strand || '—'}</td>
-                                <td className="py-2 px-4">{comp.competency_description}</td>
-                                <td className="py-2 px-3 text-center text-[10px] text-[#8B72F4]">{comp.target_week || 'Week 1-2'}</td>
+                              <tr key={comp.id || idx} className="hover:bg-slate-50/50 transition-colors">
+                                <td className="py-2 px-3 text-center text-slate-400">{idx + 1}</td>
+                                <td className="py-2 px-3 font-mono font-bold text-blue-600">{comp.code || '—'}</td>
+                                <td className="py-2 px-3 text-slate-500">{comp.domain_strand || '—'}</td>
+                                <td className="py-2 px-4 text-slate-900">{comp.competency_description}</td>
+                                <td className="py-2 px-3 text-center text-[10px] text-blue-600 font-semibold">{comp.target_week || 'Week 1-2'}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -998,16 +998,16 @@ export function ConsolidationPage() {
 
             {/* PROMPT TO SELECT GRADE & SUBJECT */}
             {!isSpecificFilterSelected && (
-              <div className="clay-card p-5 bg-gradient-to-br from-[#F6EFFF] via-white to-[#EEF0FF] border border-purple-100 shadow-xs rounded-3xl">
+              <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 space-y-2">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-[#8B72F4] text-white flex items-center justify-center font-bold shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold shrink-0">
                     <BookOpen size={20} />
                   </div>
                   <div>
-                    <h3 className="text-sm font-extrabold text-[#2D2638]">
+                    <h3 className="text-sm font-bold text-slate-900">
                       Select Grade Level & Learning Area to Verify Submissions
                     </h3>
-                    <p className="text-xs text-[#7A7289] font-medium mt-0.5">
+                    <p className="text-xs text-slate-500 font-medium mt-0.5">
                       Choose a specific Grade Level and Learning Area above to perform submission completeness checking across all eligible schools.
                     </p>
                   </div>
@@ -1019,21 +1019,21 @@ export function ConsolidationPage() {
             {result && (
               <div className="space-y-6 animate-fade-in">
                 {/* Result Control Bar */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-3xl border border-purple-100 shadow-sm no-print">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs no-print">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center font-bold">
                       <CheckCircle2 size={20} />
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-extrabold text-[#2D2638]">Consolidated Dataset Active</h3>
+                        <h3 className="text-sm font-bold text-slate-900">Consolidated Dataset Active</h3>
                         {isSaved && (
-                          <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black border border-emerald-300 inline-flex items-center gap-1">
-                            <Check size={11} /> Saved to Supabase ({lastSavedTime})
+                          <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold border border-emerald-300 inline-flex items-center gap-1">
+                            <Check size={11} /> Saved ({lastSavedTime})
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-[#7A7289]">
+                      <p className="text-xs text-slate-500 font-medium">
                         Aggregating {result.totalSubmissions} forms across {submittedSchools.length} schools · {result.totalLearners} total learners
                       </p>
                     </div>
@@ -1041,33 +1041,33 @@ export function ConsolidationPage() {
 
                   <div className="flex items-center gap-2 flex-wrap">
                     {/* View Switcher */}
-                    <div className="inline-flex p-1 bg-[#F6EFFF] rounded-2xl border border-purple-100 shadow-2xs">
+                    <div className="inline-flex p-1 bg-slate-100 rounded-xl gap-1">
                       <button
                         onClick={() => setViewMode('single_table')}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                           viewMode === 'single_table'
-                            ? 'bg-white text-[#8B72F4] shadow-xs'
-                            : 'text-[#7A7289] hover:text-[#2D2638]'
+                            ? 'bg-blue-600 text-white shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
                         Single Table Matrix
                       </button>
                       <button
                         onClick={() => setViewMode('official_template')}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                           viewMode === 'official_template'
-                            ? 'bg-white text-[#8B72F4] shadow-xs'
-                            : 'text-[#7A7289] hover:text-[#2D2638]'
+                            ? 'bg-blue-600 text-white shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
                         Official DepEd Form
                       </button>
                       <button
                         onClick={() => setViewMode('cards')}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                           viewMode === 'cards'
-                            ? 'bg-white text-[#8B72F4] shadow-xs'
-                            : 'text-[#7A7289] hover:text-[#2D2638]'
+                            ? 'bg-blue-600 text-white shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
                         Summary Cards
@@ -1077,35 +1077,35 @@ export function ConsolidationPage() {
                     <button
                       type="button"
                       onClick={() => setShowAnalysisCards(prev => !prev)}
-                      className={`px-3.5 py-2 text-xs font-bold rounded-xl transition-all shadow-2xs inline-flex items-center gap-1.5 cursor-pointer border ${
+                      className={`px-3.5 py-2.5 text-xs font-semibold rounded-xl transition-all shadow-xs inline-flex items-center gap-1.5 cursor-pointer border ${
                         showAnalysisCards
-                          ? 'bg-purple-100 text-purple-900 border-purple-300 shadow-xs'
-                          : 'bg-white text-slate-700 border-purple-200 hover:bg-purple-50/70 hover:text-purple-900'
+                          ? 'bg-blue-50 text-blue-700 border-blue-200'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                       }`}
                       title="Toggle display of Top 5 Competency Analysis Cards"
                     >
-                      <Sparkles size={14} className={showAnalysisCards ? 'text-purple-600' : 'text-purple-500'} />
-                      <span>{showAnalysisCards ? 'Hide Analysis Cards' : 'Show Analysis Cards'}</span>
+                      <Sparkles size={14} className={showAnalysisCards ? 'text-blue-600' : 'text-slate-400'} />
+                      <span>{showAnalysisCards ? 'Hide Cards' : 'Show Cards'}</span>
                     </button>
 
                     <button
                       onClick={handleSaveConsolidation}
                       disabled={saving}
-                      className={`px-3.5 py-2 text-xs font-extrabold rounded-xl border transition-all shadow-2xs inline-flex items-center gap-1.5 cursor-pointer ${
+                      className={`px-3.5 py-2.5 text-xs font-semibold rounded-xl border transition-all shadow-xs inline-flex items-center gap-1.5 cursor-pointer ${
                         isSaved
                           ? 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100'
-                          : 'bg-gradient-to-r from-[#8B72F4] via-[#795CEE] to-[#6366F1] text-white border-transparent hover:shadow-md hover:scale-[1.01]'
+                          : 'bg-blue-600 hover:bg-blue-700 text-white border-transparent'
                       }`}
                       title="Save this consolidation into Saved Reports tab for easy retrieval"
                     >
                       <Save size={14} className={saving ? 'animate-spin' : ''} />
-                      <span>{saving ? 'Saving...' : isSaved ? 'Saved to Reports Tab' : 'Save Consolidation'}</span>
+                      <span>{saving ? 'Saving...' : isSaved ? 'Saved to Reports' : 'Save Consolidation'}</span>
                     </button>
 
                     <button
                       onClick={handleExport}
                       disabled={exporting}
-                      className="px-3.5 py-2 text-xs font-bold rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-600 hover:text-white transition-all shadow-2xs inline-flex items-center gap-1.5 cursor-pointer"
+                      className="px-3.5 py-2.5 text-xs font-semibold rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-600 hover:text-white transition-all shadow-xs inline-flex items-center gap-1.5 cursor-pointer"
                     >
                       <FileSpreadsheet size={14} />
                       <span>{exporting ? 'Exporting...' : 'Export Excel'}</span>
@@ -1122,7 +1122,7 @@ export function ConsolidationPage() {
                           setTimeout(() => window.print(), 50)
                         })
                       }}
-                      className="px-3.5 py-2 text-xs font-bold rounded-xl bg-[#8B72F4] text-white hover:bg-[#795CEE] transition-all shadow-2xs inline-flex items-center gap-1.5 cursor-pointer"
+                      className="px-3.5 py-2.5 text-xs font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-xs inline-flex items-center gap-1.5 cursor-pointer"
                     >
                       <Printer size={14} />
                       <span>Print Official Form</span>
@@ -1137,7 +1137,7 @@ export function ConsolidationPage() {
                     {showAnalysisCards ? (
                       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 animate-fade-in">
                         {/* Card 1: Top 5 Most Learned */}
-                        <div className="clay-card p-5 bg-gradient-to-br from-emerald-50/60 via-white to-teal-50/40 border border-emerald-200 rounded-3xl space-y-3.5 shadow-sm">
+                        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 bg-gradient-to-br from-emerald-50/60 via-white to-teal-50/40 border border-emerald-200 rounded-3xl space-y-3.5 shadow-sm">
                           <div className="flex items-center justify-between border-b border-emerald-100 pb-2.5">
                             <div className="flex items-center gap-2">
                               <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
@@ -1184,7 +1184,7 @@ export function ConsolidationPage() {
                         </div>
 
                         {/* Card 2: Top 5 Least Mastered */}
-                        <div className="clay-card p-5 bg-gradient-to-br from-amber-50/60 via-white to-orange-50/40 border border-amber-200 rounded-3xl space-y-3.5 shadow-sm">
+                        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 bg-gradient-to-br from-amber-50/60 via-white to-orange-50/40 border border-amber-200 rounded-3xl space-y-3.5 shadow-sm">
                           <div className="flex items-center justify-between border-b border-amber-100 pb-2.5">
                             <div className="flex items-center gap-2">
                               <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
@@ -1231,7 +1231,7 @@ export function ConsolidationPage() {
                         </div>
 
                         {/* Card 3: Top 5 Most Difficult */}
-                        <div className="clay-card p-5 bg-gradient-to-br from-rose-50/60 via-white to-pink-50/40 border border-rose-200 rounded-3xl space-y-3.5 shadow-sm">
+                        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 bg-gradient-to-br from-rose-50/60 via-white to-pink-50/40 border border-rose-200 rounded-3xl space-y-3.5 shadow-sm">
                           <div className="flex items-center justify-between border-b border-rose-100 pb-2.5">
                             <div className="flex items-center gap-2">
                               <div className="w-8 h-8 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center font-bold">
@@ -1278,7 +1278,7 @@ export function ConsolidationPage() {
                         </div>
 
                         {/* Card 4: Factors Contributing to Instructional Difficulty */}
-                        <div className="clay-card p-5 bg-gradient-to-br from-purple-50/60 via-white to-indigo-50/40 border border-purple-200 rounded-3xl space-y-3.5 shadow-sm">
+                        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 bg-gradient-to-br from-purple-50/60 via-white to-indigo-50/40 border border-purple-200 rounded-3xl space-y-3.5 shadow-sm">
                           <div className="flex items-center justify-between border-b border-purple-100 pb-2.5">
                             <div className="flex items-center gap-2">
                               <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-800 flex items-center justify-center font-bold">
@@ -1373,7 +1373,7 @@ export function ConsolidationPage() {
                       )}
 
                       {!result.submissions.some(s => s.form_type === 'ks1') && !result.submissions.some(s => s.form_type === 'ks2to4') && (
-                        <div className="clay-card p-6 text-center text-xs font-bold text-slate-500 bg-white border border-purple-100 rounded-2xl">
+                        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 text-center text-xs font-bold text-slate-500 bg-white border border-purple-100 rounded-2xl">
                           No submissions available for the selected criteria.
                         </div>
                       )}
@@ -1409,7 +1409,7 @@ export function ConsolidationPage() {
                     )}
 
                     {!result.submissions.some(s => s.form_type === 'ks1') && !result.submissions.some(s => s.form_type === 'ks2to4') && (
-                      <div className="clay-card p-6 text-center text-xs font-bold text-slate-500 bg-white border border-purple-100 rounded-2xl">
+                      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 text-center text-xs font-bold text-slate-500 bg-white border border-purple-100 rounded-2xl">
                         No submissions available for the selected criteria.
                       </div>
                     )}
@@ -1426,7 +1426,7 @@ export function ConsolidationPage() {
                         { label: 'Average MPS', value: result.averageMps !== null ? `${result.averageMps}%` : '—' },
                         { label: 'Competencies Taught', value: result.totalTaught },
                       ].map(s => (
-                        <div key={s.label} className="clay-card p-4 text-center border border-purple-100 bg-white">
+                        <div key={s.label} className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 text-center border border-purple-100 bg-white">
                           <p className="text-xs text-[#7A7289] uppercase tracking-wide font-extrabold">{s.label}</p>
                           <p className="text-2xl font-black text-[#8B72F4] mt-1">{s.value}</p>
                         </div>
@@ -1443,7 +1443,7 @@ export function ConsolidationPage() {
         {result && activeTab === 'consolidate' && (
           <div className="animate-fade-in">
             <div
-              className="flex items-center justify-between p-4 clay-card bg-white border border-purple-100 rounded-2xl cursor-pointer select-none hover:border-purple-300 transition-all group"
+              className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200/80 shadow-xs bg-white border border-purple-100 rounded-2xl cursor-pointer select-none hover:border-purple-300 transition-all group"
               onClick={() => setShowSchoolEntries(prev => !prev)}
             >
               <div className="flex items-center gap-3">
@@ -1463,7 +1463,7 @@ export function ConsolidationPage() {
             </div>
 
             {showSchoolEntries && (
-              <div className="mt-2 clay-card bg-white border border-purple-100 rounded-2xl overflow-hidden shadow-sm animate-fade-in">
+              <div className="mt-2 bg-white rounded-2xl border border-slate-200/80 shadow-xs bg-white border border-purple-100 rounded-2xl overflow-hidden shadow-sm animate-fade-in">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse text-[11px]" style={{ minWidth: '1600px' }}>
                     <thead className="sticky top-0 z-10">
@@ -1632,7 +1632,7 @@ export function ConsolidationPage() {
         {activeTab === 'by_subject' && (
           <div className="space-y-6 animate-fade-in">
             {/* Criteria Selection Card */}
-            <div className="clay-card p-6 space-y-5 bg-gradient-to-br from-white via-white to-[#F6EFFF]/40 border border-purple-100 shadow-md rounded-3xl no-print">
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-5 bg-gradient-to-br from-white via-white to-[#F6EFFF]/40 border border-purple-100 shadow-md rounded-3xl no-print">
               <div className="flex items-center justify-between border-b border-purple-100 pb-3 flex-wrap gap-2">
                 <div className="flex items-center gap-2.5">
                   <div className="p-2 rounded-xl bg-[#F6EFFF] text-[#8B72F4] border border-[#8B72F4]/20">
@@ -1758,7 +1758,7 @@ export function ConsolidationPage() {
             {loadingBySubject ? (
               <DepEdPageLoader label="Fetching Consolidated Subject Data across Offered Grades..." />
             ) : !bySubjLAId || bySubjLAId === 'all' ? (
-              <div className="clay-card p-12 text-center text-xs font-bold text-slate-500 bg-white border border-purple-100 rounded-3xl space-y-2">
+              <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-12 text-center text-xs font-bold text-slate-500 bg-white border border-purple-100 rounded-3xl space-y-2">
                 <BookOpen size={36} className="mx-auto text-purple-400" />
                 <p className="text-sm font-extrabold text-slate-800">Please Select a Learning Area Above</p>
                 <p className="text-xs text-slate-500 max-w-md mx-auto">
@@ -1766,7 +1766,7 @@ export function ConsolidationPage() {
                 </p>
               </div>
             ) : subjectGradeConsolidationRows.length === 0 ? (
-              <div className="clay-card p-12 text-center text-xs font-bold text-slate-500 bg-white border border-purple-100 rounded-3xl space-y-2">
+              <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-12 text-center text-xs font-bold text-slate-500 bg-white border border-purple-100 rounded-3xl space-y-2">
                 <AlertCircle size={36} className="mx-auto text-amber-500" />
                 <p className="text-sm font-extrabold text-slate-800">No Grade Levels or Submissions Found</p>
                 <p className="text-xs text-slate-500 max-w-md mx-auto">
@@ -1776,7 +1776,7 @@ export function ConsolidationPage() {
             ) : (
               <div className="space-y-6">
                 {/* Stats Header Bar & View Switcher */}
-                <div className="clay-card p-4 bg-white border border-purple-100 rounded-3xl shadow-sm flex items-center justify-between flex-wrap gap-4 no-print">
+                <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 bg-white border border-purple-100 rounded-3xl shadow-sm flex items-center justify-between flex-wrap gap-4 no-print">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-2xl bg-purple-100 text-[#8B72F4] flex items-center justify-center font-bold text-lg">
                       <BookOpen size={20} />
@@ -1886,7 +1886,7 @@ export function ConsolidationPage() {
                     )}
 
                     {ks1Submissions.length === 0 && ks24Submissions.length === 0 && (
-                      <div className="clay-card p-12 text-center text-xs font-bold text-slate-500 bg-white border border-purple-100 rounded-3xl space-y-2">
+                      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-12 text-center text-xs font-bold text-slate-500 bg-white border border-purple-100 rounded-3xl space-y-2">
                         <AlertCircle size={36} className="mx-auto text-amber-500" />
                         <p className="text-sm font-extrabold text-slate-800">No Submissions Found to Display Official Template</p>
                         <p className="text-xs text-slate-500 max-w-md mx-auto">
@@ -1897,7 +1897,7 @@ export function ConsolidationPage() {
                   </div>
                 ) : (
                   /* VIEW 2: MASTER MATRIX TABLE VIEW */
-                  <div className="clay-card bg-white border border-purple-200 rounded-3xl overflow-hidden shadow-sm">
+                  <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs bg-white border border-purple-200 rounded-3xl overflow-hidden shadow-sm">
                     <div className="overflow-x-auto">
                       <table className="w-full text-left border-collapse text-xs" style={{ minWidth: '1500px' }}>
                         <thead className="bg-[#2D2638] text-white font-extrabold uppercase tracking-wider text-[10px]">
@@ -2073,7 +2073,7 @@ export function ConsolidationPage() {
               </button>
             </div>
 
-            <div className="clay-card overflow-hidden p-1.5 bg-white border border-purple-100 shadow-md rounded-3xl">
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden p-1.5 bg-white border border-purple-100 shadow-md rounded-3xl">
               {loadingHistory ? (
                 <div className="p-8 text-center text-xs text-[#7A7289]">Loading saved history...</div>
               ) : savedReports.length === 0 ? (

@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import { SchoolConnectLayout } from '@/components/layouts/SchoolConnectLayout'
+import { academicMasterDataNavGroups } from '@/config/navConfigs'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { DepEdSpinner } from '@/components/ui/DepEdSpinner'
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog'
@@ -85,34 +86,34 @@ function SchoolModal({ isOpen, school, onSave, onClose, isLoading }: SchoolModal
   }
 
   return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2D2638]/40 backdrop-blur-md ${backdropClass}`}>
+    <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/30 backdrop-blur-xs ${backdropClass}`}>
       <div className="absolute inset-0" onClick={triggerClose} />
-      <div className={`relative w-full max-w-lg bg-[#FAF5F0] rounded-[36px] overflow-hidden border-4 border-white shadow-[0_25px_60px_rgba(139,114,244,0.22)] z-10 ${containerClass}`}>
+      <div className={`relative w-full max-w-lg bg-white rounded-lg overflow-hidden border border-slate-200 shadow-xl z-10 ${containerClass}`}>
         {/* Modal Header */}
-        <div className="px-6 py-4.5 bg-gradient-to-r from-[#A88BEB] via-[#8B72F4] to-[#795CEE] text-white flex items-center justify-between">
+        <div className="px-5 py-3.5 bg-[#2563EB] text-white flex items-center justify-between border-b border-slate-200">
           <div className="flex items-center gap-2">
-            <Building2 size={18} className="text-amber-300" />
-            <h2 className="text-base font-black tracking-tight font-display">{school ? 'Edit School Profile' : 'Add New School'}</h2>
+            <Building2 size={18} className="text-white" />
+            <h2 className="text-sm font-bold tracking-tight">{school ? 'Edit School Profile' : 'Add New School'}</h2>
           </div>
-          <button onClick={triggerClose} className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white backdrop-blur-md transition-all cursor-pointer border border-white/30 active:scale-95 text-xs font-bold w-7 h-7 flex items-center justify-center">✕</button>
+          <button onClick={triggerClose} className="p-1 rounded-md bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer text-xs">✕</button>
         </div>
 
-        <div className="p-6 space-y-4 max-h-[85vh] overflow-y-auto">
+        <div className="p-5 space-y-4 max-h-[85vh] overflow-y-auto">
           <div>
-            <label className="block text-xs font-black text-[#2D2638] mb-1.5 font-display">Official School Name *</label>
+            <label className="block text-xs font-semibold text-slate-800 mb-1">Official School Name *</label>
             <input
-              className="w-full px-4 py-3 text-xs rounded-2xl bg-white border-2 border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] placeholder-[#A39BAF] focus:outline-none focus:ring-4 focus:ring-[#8B72F4]/20 font-semibold transition-all"
+              className="form-input"
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="e.g., Concepcion Central Elementary School"
             />
-            {error && <p className="text-[11px] font-bold text-rose-600 mt-1">{error}</p>}
+            {error && <p className="text-xs font-semibold text-rose-600 mt-1">{error}</p>}
           </div>
 
           <div>
-            <label className="block text-xs font-black text-[#2D2638] mb-1.5 font-display">School Level Classification *</label>
+            <label className="block text-xs font-semibold text-slate-800 mb-1">School Level Classification *</label>
             <select
-              className="w-full px-4 py-3 text-xs rounded-2xl bg-white border-2 border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] font-bold focus:outline-none focus:ring-4 focus:ring-[#8B72F4]/20"
+              className="form-select"
               value={type}
               onChange={e => {
                 const newType = e.target.value as 'elementary' | 'secondary'
@@ -126,16 +127,16 @@ function SchoolModal({ isOpen, school, onSave, onClose, isLoading }: SchoolModal
           </div>
 
           {/* Grade Level Offering & Enrollee Configuration */}
-          <div className="p-4 rounded-2xl bg-white border border-[#E8EAF0] space-y-2.5">
+          <div className="p-3.5 rounded-md bg-slate-50 border border-slate-200 space-y-2">
             <div className="flex items-center justify-between">
-              <label className="block text-xs font-black text-[#2D2638] font-display">
+              <label className="block text-xs font-semibold text-slate-900">
                 Active Grade Levels & Enrollees
               </label>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setOfferedGrades(gradeOptions.map(g => g.num))}
-                  className="text-[10px] font-bold text-[#8B72F4] hover:underline cursor-pointer"
+                  className="text-[11px] font-semibold text-[#2563EB] hover:underline cursor-pointer"
                 >
                   Select All
                 </button>
@@ -143,13 +144,13 @@ function SchoolModal({ isOpen, school, onSave, onClose, isLoading }: SchoolModal
                 <button
                   type="button"
                   onClick={() => setOfferedGrades([])}
-                  className="text-[10px] font-bold text-slate-500 hover:underline cursor-pointer"
+                  className="text-[11px] font-semibold text-slate-500 hover:underline cursor-pointer"
                 >
                   Clear All
                 </button>
               </div>
             </div>
-            <p className="text-[11px] text-[#7A7289] font-medium leading-relaxed">
+            <p className="text-[11px] text-slate-500 font-normal leading-relaxed">
               Uncheck grade levels that have <b>no enrollees</b> for this school. Unchecked grades will be <b>exempted from TermCat submission requirements</b>.
             </p>
 
@@ -159,10 +160,10 @@ function SchoolModal({ isOpen, school, onSave, onClose, isLoading }: SchoolModal
                 return (
                   <label
                     key={g.num}
-                    className={`flex items-center gap-2 p-2 rounded-xl border transition-all cursor-pointer select-none ${
+                    className={`flex items-center gap-2 p-2 rounded-md border transition-all cursor-pointer select-none text-xs ${
                       isChecked
-                        ? 'bg-purple-50/60 border-purple-200 text-purple-950 font-bold'
-                        : 'bg-slate-50 border-slate-200 text-slate-400 font-semibold'
+                        ? 'bg-blue-50/80 border-blue-200 text-slate-900 font-semibold'
+                        : 'bg-white border-slate-200 text-slate-400 font-normal'
                     }`}
                   >
                     <input
@@ -175,10 +176,10 @@ function SchoolModal({ isOpen, school, onSave, onClose, isLoading }: SchoolModal
                           setOfferedGrades(prev => prev.filter(num => num !== g.num))
                         }
                       }}
-                      className="rounded text-[#8B72F4] focus:ring-[#8B72F4]/20 w-4 h-4 cursor-pointer"
+                      className="rounded text-[#2563EB] focus:ring-[#2563EB]/20 w-4 h-4 cursor-pointer"
                     />
-                    <span className="text-xs">{g.label}</span>
-                    <span className={`ml-auto text-[9px] px-1.5 py-0.5 rounded font-extrabold uppercase ${
+                    <span>{g.label}</span>
+                    <span className={`ml-auto text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${
                       isChecked ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
                     }`}>
                       {isChecked ? 'Active' : 'No Enrollees'}
@@ -189,28 +190,28 @@ function SchoolModal({ isOpen, school, onSave, onClose, isLoading }: SchoolModal
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 pt-1">
+          <div className="flex items-center gap-2 pt-1">
             <input
               type="checkbox"
               id="school-active"
               checked={active}
               onChange={e => setActive(e.target.checked)}
-              className="rounded text-[#8B72F4] focus:ring-[#8B72F4]/20 w-4 h-4 cursor-pointer"
+              className="rounded text-[#2563EB] focus:ring-[#2563EB]/20 w-4 h-4 cursor-pointer"
             />
-            <label htmlFor="school-active" className="text-xs font-black text-[#2D2638] cursor-pointer select-none">
+            <label htmlFor="school-active" className="text-xs font-semibold text-slate-800 cursor-pointer select-none">
               Active Status in District Directory
             </label>
           </div>
 
-          <div className="flex gap-2.5 justify-end pt-4 border-t border-[#F0E6DD]">
+          <div className="flex gap-2 justify-end pt-3 border-t border-slate-200">
             <button
-              className="px-5 py-2.5 rounded-full text-xs font-black text-[#7A7289] bg-white hover:bg-[#F6EFFF] hover:text-[#2D2638] shadow-2xs border border-white transition-all cursor-pointer active:scale-95"
+              className="btn btn-secondary text-xs px-4 py-1.5"
               onClick={triggerClose}
             >
               Cancel
             </button>
             <button
-              className="px-6 py-2.5 rounded-full text-xs font-black text-white bg-gradient-to-r from-[#A88BEB] via-[#8B72F4] to-[#795CEE] shadow-md hover:brightness-105 transition-all cursor-pointer active:animate-button-sparkle border border-white/50"
+              className="btn btn-primary text-xs px-4 py-1.5"
               onClick={handleSave}
               disabled={isLoading}
             >
@@ -224,7 +225,7 @@ function SchoolModal({ isOpen, school, onSave, onClose, isLoading }: SchoolModal
 }
 
 export function SchoolsPage() {
-  const { admin } = useAuth()
+  const { admin, canEditData } = useAuth()
   const { toast } = useToast()
   const [schools, setSchools] = useState<School[]>([])
   const [loading, setLoading] = useState(true)
@@ -271,107 +272,109 @@ export function SchoolsPage() {
   const activeCount = schools.filter(s => s.is_active).length
 
   return (
-    <SchoolConnectLayout systemTitle="Schools Directory & Governance">
-      <div className="space-y-6 w-full pb-12 animate-fade-in">
+    <SchoolConnectLayout systemTitle="Schools Directory & Governance" navGroups={academicMasterDataNavGroups}>
+      <div className="space-y-5 w-full pb-12 animate-fade-in font-sans">
         {/* Header Banner */}
         <PageHeader
           badge="Academic Master Data"
           title="School Directory & Governance"
           description="Manage elementary & secondary schools across Concepcion District, configure offered grade levels & enrollees, and maintain district governance master data."
           actions={
-            <button
-              onClick={(e) => { captureGenieOrigin(e); setModal({ open: true }) }}
-              className="px-5 py-2.5 rounded-full bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] text-white font-black text-xs shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer active:animate-button-sparkle"
-            >
-              <Plus size={16} />
-              <span>Add New School</span>
-            </button>
+            canEditData() ? (
+              <button
+                onClick={(e) => { captureGenieOrigin(e); setModal({ open: true }) }}
+                className="btn btn-primary text-xs px-4 py-2"
+              >
+                <Plus size={15} />
+                <span>Add New School</span>
+              </button>
+            ) : null
           }
         />
 
         {/* Metric Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white p-4 rounded-2xl border border-[#E8EAF0] shadow-xs flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#EEF0FF] text-[#3B49B8] border border-[#BFD7FF] flex items-center justify-center shrink-0">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-4 transition-all hover:border-slate-300 hover:shadow-sm">
+            <div className="w-11 h-11 rounded-xl bg-blue-50 text-[#2563EB] border border-blue-100 flex items-center justify-center shrink-0 shadow-2xs">
               <Building2 size={20} />
             </div>
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">Total Schools</span>
-              <p className="text-lg font-black text-[#1F2937]">{schools.length}</p>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Schools</span>
+              <p className="text-xl sm:text-2xl font-black text-slate-900 leading-tight">{schools.length}</p>
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-2xl border border-[#E8EAF0] shadow-xs flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#EBF8FF] text-[#0284C7] border border-[#BAE6FD] flex items-center justify-center shrink-0">
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-4 transition-all hover:border-slate-300 hover:shadow-sm">
+            <div className="w-11 h-11 rounded-xl bg-sky-50 text-sky-600 border border-sky-100 flex items-center justify-center shrink-0 shadow-2xs">
               <GraduationCap size={20} />
             </div>
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">ES (Elementary)</span>
-              <p className="text-lg font-black text-[#1F2937]">{elementaryCount}</p>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">ES (Elementary)</span>
+              <p className="text-xl sm:text-2xl font-black text-slate-900 leading-tight">{elementaryCount}</p>
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-2xl border border-[#E8EAF0] shadow-xs flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#F3E8FF] text-[#9333EA] border border-[#E9D5FF] flex items-center justify-center shrink-0">
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-4 transition-all hover:border-slate-300 hover:shadow-sm">
+            <div className="w-11 h-11 rounded-xl bg-purple-50 text-purple-600 border border-purple-100 flex items-center justify-center shrink-0 shadow-2xs">
               <GraduationCap size={20} />
             </div>
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">HS (High School)</span>
-              <p className="text-lg font-black text-[#1F2937]">{secondaryCount}</p>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">HS (High School)</span>
+              <p className="text-xl sm:text-2xl font-black text-slate-900 leading-tight">{secondaryCount}</p>
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-2xl border border-[#E8EAF0] shadow-xs flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#F0FAF5] text-[#1E6B48] border border-[#BFE8D5] flex items-center justify-center shrink-0">
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-4 transition-all hover:border-slate-300 hover:shadow-sm">
+            <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center shrink-0 shadow-2xs">
               <CheckCircle2 size={20} />
             </div>
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">Active Status</span>
-              <p className="text-lg font-black text-[#1F2937]">{activeCount}</p>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Active Status</span>
+              <p className="text-xl sm:text-2xl font-black text-slate-900 leading-tight">{activeCount}</p>
             </div>
           </div>
         </div>
 
         {/* Filter Bar */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-[#E8EAF0] shadow-xs">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
           <div className="relative w-full sm:w-80">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               placeholder="Search school name..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 text-xs rounded-xl border border-[#E8EAF0] bg-[#F7F8FC] focus:bg-white focus:outline-none focus:border-[#6675E8] transition-all"
+              className="form-input pl-9"
             />
           </div>
 
           <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto">
             <button
               onClick={() => setSelectedTypeFilter('all')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                 selectedTypeFilter === 'all'
-                  ? 'bg-[#6675E8] text-white shadow-xs'
-                  : 'bg-[#F8FAFC] text-[#64748B] hover:bg-[#EEF0FF]'
+                  ? 'bg-[#2563EB] text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
               All Schools ({schools.length})
             </button>
             <button
               onClick={() => setSelectedTypeFilter('elementary')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                 selectedTypeFilter === 'elementary'
-                  ? 'bg-[#0284C7] text-white shadow-xs'
-                  : 'bg-[#F8FAFC] text-[#64748B] hover:bg-[#EBF8FF]'
+                  ? 'bg-[#2563EB] text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
               ES ({elementaryCount})
             </button>
             <button
               onClick={() => setSelectedTypeFilter('secondary')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                 selectedTypeFilter === 'secondary'
-                  ? 'bg-[#9333EA] text-white shadow-xs'
-                  : 'bg-[#F8FAFC] text-[#64748B] hover:bg-[#F3E8FF]'
+                  ? 'bg-[#2563EB] text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
               HS ({secondaryCount})
@@ -380,30 +383,30 @@ export function SchoolsPage() {
         </div>
 
         {/* Content Section */}
-        <div className="bg-white rounded-2xl border border-[#E8EAF0] shadow-xs overflow-hidden">
+        <div className="card overflow-hidden">
           {loading ? (
             <div className="p-8"><DepEdSpinner size="lg" label="Loading Schools Directory..." /></div>
           ) : filteredSchools.length === 0 ? (
-            <div className="p-12 text-center text-[#64748B]">
-              <Building2 size={36} className="mx-auto mb-3 opacity-30 text-[#6675E8]" />
-              <p className="text-sm font-bold text-[#1F2937]">No schools found</p>
-              <p className="text-xs text-[#94A3B8] mt-1">Try adjusting search query or filters.</p>
+            <div className="p-12 text-center text-slate-500">
+              <Building2 size={36} className="mx-auto mb-3 opacity-30 text-[#2563EB]" />
+              <p className="text-sm font-bold text-slate-800">No schools found</p>
+              <p className="text-xs text-slate-400 mt-1">Try adjusting search query or filters.</p>
             </div>
           ) : (
             <>
               {/* Desktop Data Table */}
               <div className="hidden md:block overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+                <table className="data-table">
                   <thead>
-                    <tr className="bg-[#F8FAFC] border-b border-[#E8EAF0] text-[11px] font-extrabold text-[#64748B] uppercase tracking-wider">
-                      <th className="py-3.5 px-6">School Name</th>
-                      <th className="py-3.5 px-6">Classification</th>
-                      <th className="py-3.5 px-6">Enrollee Grade Offering</th>
-                      <th className="py-3.5 px-6">Status</th>
-                      <th className="py-3.5 px-6 text-right">Actions</th>
+                    <tr>
+                      <th>School Name</th>
+                      <th>Classification</th>
+                      <th>Enrollee Grade Offering</th>
+                      <th>Status</th>
+                      <th className="text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#E8EAF0]">
+                  <tbody>
                     {filteredSchools.map(school => {
                       const defaultNums = school.school_type === 'elementary' ? [0, 1, 2, 3, 4, 5, 6] : [7, 8, 9, 10, 11, 12]
                       const activeNums = school.offered_grade_numbers && school.offered_grade_numbers.length > 0
@@ -412,68 +415,71 @@ export function SchoolsPage() {
                       const missingNums = defaultNums.filter(n => !activeNums.includes(n))
 
                       return (
-                        <tr key={school.id} className="hover:bg-[#F8FAFC]/70 transition-colors text-xs">
-                          <td className="py-4 px-6">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-xl bg-[#EEF0FF] text-[#3B49B8] font-bold text-xs flex items-center justify-center shrink-0 border border-[#BFD7FF]">
-                                <Building2 size={16} />
+                        <tr key={school.id}>
+                          <td>
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-7 h-7 rounded-md bg-blue-50 text-[#2563EB] font-bold text-xs flex items-center justify-center shrink-0 border border-blue-100">
+                                <Building2 size={15} />
                               </div>
-                              <span className="font-bold text-[#1F2937]">{school.name}</span>
+                              <span className="font-semibold text-slate-900">{school.name}</span>
                             </div>
                           </td>
-                          <td className="py-4 px-6">
+                          <td>
                             {school.school_type === 'elementary' ? (
-                              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-sky-100 text-sky-800 border border-sky-200">
+                              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">
                                 ES
                               </span>
                             ) : (
-                              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
+                              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200">
                                 HS
                               </span>
                             )}
                           </td>
-                          <td className="py-4 px-6">
+                          <td>
                             {missingNums.length === 0 ? (
-                              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                                 All Grades Active ({school.school_type === 'elementary' ? 'K–6' : 'G7–12'})
                               </span>
                             ) : (
-                              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-900 border border-amber-200" title={`Exempt grades without enrollees: ${missingNums.map(n => n === 0 ? 'Kinder' : `Grade ${n}`).join(', ')}`}>
+                              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200" title={`Exempt grades without enrollees: ${missingNums.map(n => n === 0 ? 'Kinder' : `Grade ${n}`).join(', ')}`}>
                                 No Enrollees: {missingNums.map(n => n === 0 ? 'K' : `G${n}`).join(', ')}
                               </span>
                             )}
                           </td>
-                          <td className="py-4 px-6">
+                          <td>
                             {school.is_active ? (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#F0FAF5] text-[#1E6B48] border border-[#BFE8D5]">
-                                <span className="w-1.5 h-1.5 rounded-full bg-[#1E6B48]" /> Active
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" /> Active
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
                                 <span className="w-1.5 h-1.5 rounded-full bg-slate-400" /> Inactive
                               </span>
                             )}
                           </td>
-                          <td className="py-4 px-6 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <button
-                                onClick={(e) => { captureGenieOrigin(e); setModal({ open: true, school }) }}
-                                className="p-1.5 rounded-lg text-[#64748B] hover:text-[#3B49B8] hover:bg-[#EEF0FF] transition-colors cursor-pointer active:animate-button-sparkle"
-                                title="Edit School & Grade Level Offerings"
-                              >
-                                <Edit2 size={16} />
-                              </button>
-                              <button
-                                onClick={() => handleToggleActive(school)}
-                                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                                  school.is_active
-                                    ? 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200'
-                                    : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
-                                }`}
-                              >
-                                {school.is_active ? 'Deactivate' : 'Activate'}
-                              </button>
-                            </div>
+                          <td className="text-right">
+                            {canEditData(school.id) && (
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={(e) => { captureGenieOrigin(e); setModal({ open: true, school }) }}
+                                  className="btn btn-secondary btn-sm px-2 py-1"
+                                  title="Edit School & Grade Level Offerings"
+                                >
+                                  <Edit2 size={13} />
+                                  <span>Edit</span>
+                                </button>
+                                <button
+                                  onClick={() => handleToggleActive(school)}
+                                  className={`btn btn-sm px-2.5 py-1 ${
+                                    school.is_active
+                                      ? 'btn-danger'
+                                      : 'btn-success'
+                                  }`}
+                                >
+                                  {school.is_active ? 'Deactivate' : 'Activate'}
+                                </button>
+                              </div>
+                            )}
                           </td>
                         </tr>
                       )
@@ -483,21 +489,21 @@ export function SchoolsPage() {
               </div>
 
               {/* Mobile List */}
-              <div className="md:hidden divide-y divide-[#E8EAF0]">
+              <div className="md:hidden divide-y divide-slate-100">
                 {filteredSchools.map(school => (
-                  <div key={school.id} className="p-4 flex items-center justify-between gap-3">
+                  <div key={school.id} className="p-3.5 flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-xs font-bold text-[#1F2937]">{school.name}</p>
+                      <p className="text-xs font-semibold text-slate-900">{school.name}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[10px] font-semibold text-[#64748B] capitalize">{school.school_type}</span>
-                        <span className={`text-[10px] font-bold ${school.is_active ? 'text-[#1E6B48]' : 'text-slate-400'}`}>
+                        <span className="text-[10px] font-medium text-slate-500 capitalize">{school.school_type}</span>
+                        <span className={`text-[10px] font-semibold ${school.is_active ? 'text-emerald-700' : 'text-slate-400'}`}>
                           {school.is_active ? 'Active' : 'Inactive'}
                         </span>
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <button onClick={() => setModal({ open: true, school })} className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg">
-                        <Edit2 size={15} />
+                      <button onClick={() => setModal({ open: true, school })} className="btn btn-secondary btn-sm p-1.5">
+                        <Edit2 size={14} />
                       </button>
                     </div>
                   </div>

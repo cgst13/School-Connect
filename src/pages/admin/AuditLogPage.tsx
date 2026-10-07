@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { SchoolConnectLayout } from '@/components/layouts/SchoolConnectLayout'
+import { platformAdminNavGroups } from '@/config/navConfigs'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { fetchAuditLogs } from '@/lib/supabase/queries'
 import { Pagination } from '@/components/ui/Pagination'
@@ -138,7 +139,7 @@ export function AuditLogPage() {
   })
 
   return (
-    <SchoolConnectLayout systemTitle="Platform Audit Logs">
+    <SchoolConnectLayout systemTitle="Platform Audit Logs" navGroups={platformAdminNavGroups}>
       <div className="space-y-6 w-full pb-12 animate-fade-in">
         {/* Header Banner */}
         <PageHeader

@@ -17,10 +17,15 @@ export interface School {
   id: string;
   name: string;
   school_type: SchoolType;
+  code?: string | null;
+  school_id?: string | null;
+  region?: string | null;
+  division?: string | null;
+  district?: string | null;
   is_active: boolean;
   offered_grade_numbers?: number[] | null;
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface GradeLevel {
@@ -477,3 +482,121 @@ export interface DTRUserConfig {
   official_hours_text?: string;
   updated_at?: string;
 }
+
+// --- LEARNER INFORMATION SYSTEM (LIS) TYPES ---
+
+export type LearnerStatus = 'enrolled' | 'transferred_in' | 'transferred_out' | 'dropped' | 'promoted' | 'graduated'
+export type LearnerSex = 'Male' | 'Female'
+
+export interface Learner {
+  id: string
+  lrn: string // 12-digit Learner Reference Number
+  first_name: string
+  middle_name?: string
+  last_name: string
+  extension_name?: string
+  sex: LearnerSex
+  birthdate: string // YYYY-MM-DD
+  age?: number
+  mother_tongue?: string
+  ip_group?: string
+  religion?: string
+  address_house_no?: string
+  address_street?: string
+  address_barangay?: string
+  address_city_municipality?: string
+  address_province?: string
+  father_name?: string
+  mother_maiden_name?: string
+  guardian_name?: string
+  guardian_relationship?: string
+  guardian_contact_no?: string
+  is_4ps_cct: boolean
+  is_balik_aral: boolean
+  is_ecd_alive_sped: boolean
+  school_id: string
+  school_name?: string
+  grade_level_id: string
+  grade_level_name?: string
+  section_id?: string
+  section_name?: string
+  school_year?: string
+  status: LearnerStatus
+  qr_code?: string
+  remarks?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface LearnerAttendanceRecord {
+  id: string
+  learner_id: string
+  date: string // YYYY-MM-DD
+  status: 'present' | 'absent' | 'tardy' | 'excused'
+  remarks?: string
+  created_at?: string
+}
+
+export interface LearnerFilters {
+  search?: string
+  school_id?: string
+  grade_level_id?: string
+  section_id?: string
+  status?: string
+  sex?: string
+  is_4ps?: boolean
+}
+
+// --- e-CLASS RECORD & GRADING TYPES ---
+
+export interface ClassRecord {
+  id?: string
+  school_id: string
+  grade_level_id: string
+  section_id?: string | null
+  learning_area_id: string
+  school_year: string
+  quarter: number
+  hps_written_works: number[]
+  hps_performance_tasks: number[]
+  hps_quarterly_assessment: number
+  created_by?: string | null
+  created_at?: string
+  updated_at?: string
+}
+
+export interface LearnerGrade {
+  id?: string
+  learner_id: string
+  class_record_id?: string | null
+  learning_area_id: string
+  school_id: string
+  grade_level_id: string
+  section_id?: string | null
+  school_year: string
+  quarter: number
+  scores_written_works: (number | null)[]
+  scores_performance_tasks: (number | null)[]
+  score_quarterly_assessment?: number | null
+  total_ww_score?: number | null
+  total_pt_score?: number | null
+  initial_grade?: number | null
+  quarterly_grade?: number | null
+  remarks?: string | null
+  created_at?: string
+  updated_at?: string
+}
+
+export interface SubjectGradeRecord {
+  id: string
+  learning_area_id?: string
+  subjectName: string
+  q1: number | null
+  q2: number | null
+  q3: number | null
+  q4: number | null
+  finalRating: number | null
+  remarks: string
+}
+
+

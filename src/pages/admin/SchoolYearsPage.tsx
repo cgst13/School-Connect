@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { SchoolConnectLayout } from '@/components/layouts/SchoolConnectLayout'
+import { academicMasterDataNavGroups } from '@/config/navConfigs'
 import { DepEdSpinner } from '@/components/ui/DepEdSpinner'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { fetchSchoolYears, fetchTerms, upsertSchoolYear, upsertTerm, setDefaultTerm, insertAuditLog } from '@/lib/supabase/queries'
@@ -292,7 +293,7 @@ function TermsSection() {
 
 export function SchoolYearsPage() {
   return (
-    <SchoolConnectLayout systemTitle="School Years & Terms">
+    <SchoolConnectLayout systemTitle="School Years & Terms" navGroups={academicMasterDataNavGroups}>
       <div className="space-y-6 w-full pb-12 animate-fade-in">
         {/* Header Banner */}
         <PageHeader

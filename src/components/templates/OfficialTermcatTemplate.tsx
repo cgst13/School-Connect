@@ -135,9 +135,15 @@ export function OfficialTermcatTemplate({
     })
     window.scrollTo(0, 0)
 
+    const pageStyle = document.createElement('style')
+    pageStyle.id = 'termcat-print-page-style'
+    pageStyle.innerHTML = `@page { size: 13in 8.5in landscape; margin: 0.35in 0.4in; }`
+    document.head.appendChild(pageStyle)
+
     const cleanup = () => {
       if (el) el.classList.remove('active-print-target')
       document.body.classList.remove('printing-single-target')
+      document.getElementById('termcat-print-page-style')?.remove()
       window.removeEventListener('afterprint', cleanup)
     }
 

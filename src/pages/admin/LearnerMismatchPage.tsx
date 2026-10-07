@@ -248,12 +248,12 @@ export function LearnerMismatchPage() {
     return (
       <button
         onClick={() => toggleSort(field)}
-        className="inline-flex items-center gap-1 hover:text-[#2D2638] transition-colors cursor-pointer group"
+        className="inline-flex items-center gap-1 hover:text-slate-900 transition-colors cursor-pointer group"
       >
         {label}
         <ArrowUpDown
           size={10}
-          className={`transition-colors ${sortField === field ? 'text-[#8B72F4]' : 'text-slate-400 group-hover:text-slate-600'}`}
+          className={`transition-colors ${sortField === field ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'}`}
         />
       </button>
     )
@@ -264,11 +264,11 @@ export function LearnerMismatchPage() {
   }: { value: string; onChange: (v: string) => void; children: React.ReactNode; icon: React.ElementType }) {
     return (
       <div className="relative flex-1 min-w-[160px]">
-        <Icon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-400 pointer-events-none" />
+        <Icon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
         <select
           value={value}
           onChange={e => onChange(e.target.value)}
-          className="w-full text-xs font-semibold pl-8 pr-7 py-2 rounded-xl border border-purple-100 bg-purple-50/30 text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#8B72F4] appearance-none cursor-pointer"
+          className="w-full text-xs font-semibold pl-8 pr-7 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 appearance-none cursor-pointer"
         >
           {children}
         </select>
@@ -309,7 +309,7 @@ export function LearnerMismatchPage() {
         </div>
 
         {/* ── Filters Bar (hidden on print) ── */}
-        <div className="clay-card bg-white border border-purple-100 rounded-2xl p-4 flex flex-wrap items-center gap-3 shadow-xs print:hidden">
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 flex flex-wrap items-center gap-3 shadow-xs print:hidden">
           <SelectBox value={syId} onChange={setSyId} icon={Calendar}>
             <option value="">— School Year —</option>
             {schoolYears.map(sy => <option key={sy.id} value={sy.id}>{sy.name}</option>)}
@@ -338,7 +338,7 @@ export function LearnerMismatchPage() {
             <button
               onClick={loadData}
               disabled={loading || !syId || !termId}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#8B72F4] to-[#6366F1] text-white text-xs font-bold flex items-center gap-1.5 hover:shadow-md hover:scale-[1.01] transition-all cursor-pointer disabled:opacity-40"
+              className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer disabled:opacity-40"
             >
               <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
               {loading ? 'Loading…' : 'Refresh'}
@@ -346,7 +346,7 @@ export function LearnerMismatchPage() {
 
             <button
               onClick={() => window.print()}
-              className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold flex items-center gap-1.5 hover:bg-slate-200 transition-all cursor-pointer"
+              className="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
             >
               <Printer size={13} />
               Print
@@ -357,47 +357,47 @@ export function LearnerMismatchPage() {
         {/* ── Stat Banner ── */}
         {initialized && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="clay-card p-4 border rounded-2xl bg-purple-50/50 border-purple-200 flex items-center gap-3 shadow-xs">
-              <div className="w-10 h-10 rounded-xl bg-white text-purple-600 flex items-center justify-center shadow-xs border border-purple-100">
+            <div className="p-4 border rounded-2xl bg-white border-slate-200/80 flex items-center gap-3 shadow-xs hover:border-slate-300 hover:shadow-sm transition-all">
+              <div className="w-11 h-11 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 font-bold">
                 <Building2 size={20} />
               </div>
               <div>
-                <p className="text-2xl font-black text-purple-900">{stats.total}</p>
-                <p className="text-[10px] text-purple-700 font-semibold leading-tight mt-0.5">
+                <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
+                <p className="text-[10px] text-slate-500 font-semibold leading-tight mt-0.5">
                   Submissions ({stats.totalSchoolsCount} Schools)
                 </p>
               </div>
             </div>
 
-            <div className="clay-card p-4 border rounded-2xl bg-red-50/50 border-red-200 flex items-center gap-3 shadow-xs">
-              <div className="w-10 h-10 rounded-xl bg-white text-red-600 flex items-center justify-center shadow-xs border border-red-100">
+            <div className="p-4 border rounded-2xl bg-white border-slate-200/80 flex items-center gap-3 shadow-xs hover:border-slate-300 hover:shadow-sm transition-all">
+              <div className="w-11 h-11 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 font-bold">
                 <AlertTriangle size={20} />
               </div>
               <div>
-                <p className="text-2xl font-black text-red-700">{stats.mismatchedCount}</p>
-                <p className="text-[10px] text-red-700 font-semibold leading-tight mt-0.5">
+                <p className="text-2xl font-bold text-rose-600">{stats.mismatchedCount}</p>
+                <p className="text-[10px] text-slate-500 font-semibold leading-tight mt-0.5">
                   Mismatched Entries {stats.schoolsAffected > 0 && `(${stats.schoolsAffected} Schools)`}
                 </p>
               </div>
             </div>
 
-            <div className="clay-card p-4 border rounded-2xl bg-emerald-50/50 border-emerald-200 flex items-center gap-3 shadow-xs">
-              <div className="w-10 h-10 rounded-xl bg-white text-emerald-600 flex items-center justify-center shadow-xs border border-emerald-100">
+            <div className="p-4 border rounded-2xl bg-white border border-slate-200/80 flex items-center gap-3 shadow-xs hover:border-slate-300 hover:shadow-sm transition-all">
+              <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 font-bold">
                 <CheckCircle2 size={20} />
               </div>
               <div>
-                <p className="text-2xl font-black text-emerald-800">{stats.matchingCount}</p>
-                <p className="text-[10px] text-emerald-700 font-semibold leading-tight mt-0.5">Matching / Verified Entries</p>
+                <p className="text-2xl font-bold text-emerald-600">{stats.matchingCount}</p>
+                <p className="text-[10px] text-slate-500 font-semibold leading-tight mt-0.5">Matching / Verified Entries</p>
               </div>
             </div>
 
-            <div className="clay-card p-4 border rounded-2xl bg-indigo-50/50 border-indigo-200 flex items-center gap-3 shadow-xs">
-              <div className="w-10 h-10 rounded-xl bg-white text-indigo-600 flex items-center justify-center shadow-xs border border-indigo-100">
+            <div className="p-4 border rounded-2xl bg-white border border-slate-200/80 flex items-center gap-3 shadow-xs hover:border-slate-300 hover:shadow-sm transition-all">
+              <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 font-bold">
                 <CheckCircle2 size={20} />
               </div>
               <div>
-                <p className="text-2xl font-black text-indigo-900">{stats.accuracyRate}%</p>
-                <p className="text-[10px] text-indigo-700 font-semibold leading-tight mt-0.5">Data Accuracy Rate</p>
+                <p className="text-2xl font-bold text-blue-600">{stats.accuracyRate}%</p>
+                <p className="text-[10px] text-slate-500 font-semibold leading-tight mt-0.5">Data Accuracy Rate</p>
               </div>
             </div>
           </div>
@@ -405,14 +405,14 @@ export function LearnerMismatchPage() {
 
         {/* ── Sub-navigation Tabs & Search ── */}
         {initialized && (
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-purple-100 shadow-xs print:hidden">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200/80 shadow-xs print:hidden">
             {/* Filter Tabs */}
             <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
               <button
                 onClick={() => setActiveTab('all')}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
                   activeTab === 'all'
-                    ? 'bg-[#8B72F4] text-white shadow-xs'
+                    ? 'bg-blue-600 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -421,9 +421,9 @@ export function LearnerMismatchPage() {
 
               <button
                 onClick={() => setActiveTab('mismatched')}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
                   activeTab === 'mismatched'
-                    ? 'bg-red-600 text-white shadow-xs'
+                    ? 'bg-rose-600 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -436,7 +436,7 @@ export function LearnerMismatchPage() {
 
               <button
                 onClick={() => setActiveTab('matching')}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
                   activeTab === 'matching'
                     ? 'bg-emerald-600 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
@@ -455,7 +455,7 @@ export function LearnerMismatchPage() {
                 placeholder="Search school or teacher..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="w-full text-xs font-medium pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#8B72F4]"
+                className="w-full text-xs font-medium pl-8 pr-3 py-2 bg-slate-50 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
               />
             </div>
           </div>
@@ -467,35 +467,35 @@ export function LearnerMismatchPage() {
             <DepEdPageLoader label="Loading consolidation data and detecting learner mismatches..." />
           </div>
         ) : sortedRows.length === 0 && initialized ? (
-          <div className="clay-card bg-white border border-purple-100 rounded-2xl p-14 text-center space-y-3">
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-14 text-center space-y-3 shadow-xs">
             <CheckCircle2 size={40} className="mx-auto text-emerald-500" />
-            <p className="text-base font-black text-slate-800">No School Entries Found</p>
+            <p className="text-base font-bold text-slate-800">No School Entries Found</p>
             <p className="text-xs text-slate-500 max-w-sm mx-auto">
               No submissions found matching the selected grade level and learning area. Try adjusting your filters.
             </p>
           </div>
         ) : (
           initialized && (
-            <div className="clay-card bg-white border border-purple-100 rounded-2xl overflow-hidden shadow-sm animate-fade-in">
+            <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-xs animate-fade-in">
               {/* Card Header Title */}
-              <div className="p-4 border-b border-purple-100 flex items-center justify-between flex-wrap gap-2">
+              <div className="p-4 border-b border-slate-200/80 flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center">
+                  <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
                     <Building2 size={16} />
                   </div>
                   <div>
-                    <p className="text-sm font-extrabold text-[#2D2638]">
+                    <p className="text-sm font-bold text-slate-900">
                       School Entries Included in Consolidation
                     </p>
-                    <p className="text-[10px] text-[#7A7289] font-medium">
+                    <p className="text-[10px] text-slate-500 font-medium">
                       {sortedRows.length} submission{sortedRows.length !== 1 ? 's' : ''} from {new Set(sortedRows.map(s => s.school_id)).size} school{new Set(sortedRows.map(s => s.school_id)).size !== 1 ? 's' : ''}
                     </p>
                   </div>
                 </div>
 
                 {stats.mismatchedCount > 0 && (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-100 text-red-800 border border-red-300 text-xs font-extrabold animate-pulse">
-                    <AlertTriangle size={14} className="text-red-600" />
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-xs font-semibold animate-pulse">
+                    <AlertTriangle size={14} className="text-rose-600" />
                     {stats.mismatchedCount} Mismatched {stats.mismatchedCount === 1 ? 'Row' : 'Rows'} Highlighted
                   </span>
                 )}
@@ -506,48 +506,48 @@ export function LearnerMismatchPage() {
                 <table className="w-full text-left border-collapse text-[11px]" style={{ minWidth: '1600px' }}>
                   <thead className="sticky top-0 z-10">
                     {/* Group header row */}
-                    <tr className="bg-[#2D2638] text-white text-[9px] font-black uppercase tracking-wider">
-                      <th className="py-2 px-3 border-r border-white/20" colSpan={4}>School Info</th>
-                      <th className="py-2 px-3 text-center border-r border-white/20" colSpan={1}>Learners</th>
-                      <th className="py-2 px-3 text-center border-r border-white/20 bg-teal-900/80" colSpan={5}>KS1 Performance Levels</th>
-                      <th className="py-2 px-3 text-center border-r border-white/20 bg-indigo-900/80" colSpan={1}>KS2–4</th>
-                      <th className="py-2 px-3 text-center border-r border-white/20 bg-purple-900/80" colSpan={3}>Competency Summary</th>
-                      <th className="py-2 px-3 text-center border-r border-white/20 bg-emerald-900/80" colSpan={1}>Most Learned (Top 5)</th>
-                      <th className="py-2 px-3 text-center border-r border-white/20 bg-amber-900/80" colSpan={1}>Least Mastered (Top 5)</th>
-                      <th className="py-2 px-3 text-center border-r border-white/20 bg-rose-900/80" colSpan={1}>Most Difficult (Top 5)</th>
+                    <tr className="bg-slate-800 text-white text-[9px] font-bold uppercase tracking-wider">
+                      <th className="py-2 px-3 border-r border-slate-700" colSpan={4}>School Info</th>
+                      <th className="py-2 px-3 text-center border-r border-slate-700" colSpan={1}>Learners</th>
+                      <th className="py-2 px-3 text-center border-r border-slate-700 bg-teal-900/80" colSpan={5}>KS1 Performance Levels</th>
+                      <th className="py-2 px-3 text-center border-r border-slate-700 bg-indigo-900/80" colSpan={1}>KS2–4</th>
+                      <th className="py-2 px-3 text-center border-r border-slate-700 bg-slate-900" colSpan={3}>Competency Summary</th>
+                      <th className="py-2 px-3 text-center border-r border-slate-700 bg-emerald-900/80" colSpan={1}>Most Learned (Top 5)</th>
+                      <th className="py-2 px-3 text-center border-r border-slate-700 bg-amber-900/80" colSpan={1}>Least Mastered (Top 5)</th>
+                      <th className="py-2 px-3 text-center border-r border-slate-700 bg-rose-900/80" colSpan={1}>Most Difficult (Top 5)</th>
                       <th className="py-2 px-3 text-center bg-slate-700/80" colSpan={2}>Status & Action</th>
                     </tr>
 
                     {/* Column header row */}
-                    <tr className="bg-[#F6EFFF] text-[#7A7289] font-extrabold uppercase tracking-wider border-b border-purple-100 text-[9px]">
+                    <tr className="bg-slate-50/80 text-slate-600 font-semibold uppercase tracking-wider border-b border-slate-200/80 text-[9px]">
                       <th className="py-2.5 px-3 w-7">#</th>
                       <th className="py-2.5 px-3 min-w-[180px]"><SortBtn field="school" label="School" /></th>
                       <th className="py-2.5 px-3 min-w-[140px]"><SortBtn field="grade" label="Grade & Subject" /></th>
-                      <th className="py-2.5 px-3 min-w-[120px] border-r border-purple-200"><SortBtn field="teacher" label="Teacher" /></th>
-                      <th className="py-2.5 px-3 text-center min-w-[70px] border-r border-purple-200"><SortBtn field="delta" label="Total" /></th>
+                      <th className="py-2.5 px-3 min-w-[120px] border-r border-slate-200/80"><SortBtn field="teacher" label="Teacher" /></th>
+                      <th className="py-2.5 px-3 text-center min-w-[70px] border-r border-slate-200/80"><SortBtn field="delta" label="Total" /></th>
                       {/* KS1 */}
-                      <th className="py-2.5 px-3 text-center min-w-[55px] bg-teal-50">Adv.</th>
-                      <th className="py-2.5 px-3 text-center min-w-[55px] bg-teal-50">Bench.</th>
-                      <th className="py-2.5 px-3 text-center min-w-[55px] bg-teal-50">Conn.</th>
-                      <th className="py-2.5 px-3 text-center min-w-[55px] bg-teal-50">Dev.</th>
-                      <th className="py-2.5 px-3 text-center min-w-[55px] bg-teal-50 border-r border-purple-200">Emerg.</th>
+                      <th className="py-2.5 px-3 text-center min-w-[55px] bg-teal-50/50">Adv.</th>
+                      <th className="py-2.5 px-3 text-center min-w-[55px] bg-teal-50/50">Bench.</th>
+                      <th className="py-2.5 px-3 text-center min-w-[55px] bg-teal-50/50">Conn.</th>
+                      <th className="py-2.5 px-3 text-center min-w-[55px] bg-teal-50/50">Dev.</th>
+                      <th className="py-2.5 px-3 text-center min-w-[55px] bg-teal-50/50 border-r border-slate-200/80">Emerg.</th>
                       {/* KS2-4 */}
-                      <th className="py-2.5 px-3 text-center min-w-[65px] bg-indigo-50 border-r border-purple-200">MPS</th>
+                      <th className="py-2.5 px-3 text-center min-w-[65px] bg-indigo-50/50 border-r border-slate-200/80">MPS</th>
                       {/* Competency summary */}
-                      <th className="py-2.5 px-3 text-center min-w-[65px] bg-purple-50">Intended</th>
-                      <th className="py-2.5 px-3 text-center min-w-[60px] bg-purple-50">Taught</th>
-                      <th className="py-2.5 px-3 text-center min-w-[65px] bg-purple-50 border-r border-purple-200">Not Tght</th>
+                      <th className="py-2.5 px-3 text-center min-w-[65px] bg-slate-100/50">Intended</th>
+                      <th className="py-2.5 px-3 text-center min-w-[60px] bg-slate-100/50">Taught</th>
+                      <th className="py-2.5 px-3 text-center min-w-[65px] bg-slate-100/50 border-r border-slate-200/80">Not Tght</th>
                       {/* Competency lists */}
-                      <th className="py-2.5 px-3 min-w-[200px] bg-emerald-50 border-r border-purple-200">Top 5 Most Learned</th>
-                      <th className="py-2.5 px-3 min-w-[200px] bg-amber-50 border-r border-purple-200">Top 5 Least Mastered</th>
-                      <th className="py-2.5 px-3 min-w-[200px] bg-rose-50 border-r border-purple-200">Top 5 Most Difficult</th>
+                      <th className="py-2.5 px-3 min-w-[200px] bg-emerald-50/50 border-r border-slate-200/80">Top 5 Most Learned</th>
+                      <th className="py-2.5 px-3 min-w-[200px] bg-amber-50/50 border-r border-slate-200/80">Top 5 Least Mastered</th>
+                      <th className="py-2.5 px-3 min-w-[200px] bg-rose-50/50 border-r border-slate-200/80">Top 5 Most Difficult</th>
                       {/* Factors + Status */}
                       <th className="py-2.5 px-3 min-w-[160px] bg-slate-50">Instructional Factors</th>
                       <th className="py-2.5 px-3 text-center min-w-[80px] bg-slate-50">Status</th>
                       <th className="py-2.5 px-3 text-center min-w-[90px] bg-slate-50 print:hidden">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-purple-50">
+                  <tbody className="divide-y divide-slate-100">
                     {sortedRows.map((sub, idx) => {
                       const isKS1 = checkIsKS1(sub)
                       const d1 = sub.ks1_learner_data
@@ -570,22 +570,22 @@ export function LearnerMismatchPage() {
                           key={sub.id}
                           className={`align-top transition-colors ${
                             hasMismatch
-                              ? 'bg-red-50/70 hover:bg-red-100/60 outline outline-1 outline-red-300'
+                              ? 'bg-rose-50/70 hover:bg-rose-100/60 outline outline-1 outline-rose-300'
                               : idx % 2 === 0
-                              ? 'bg-white hover:bg-purple-50/40'
-                              : 'bg-[#FAFAFE] hover:bg-purple-50/40'
+                              ? 'bg-white hover:bg-slate-50/50'
+                              : 'bg-slate-50/30 hover:bg-slate-50/50'
                           }`}
                         >
                           {/* Row number + mismatch indicator */}
                           <td className="py-2.5 px-3 whitespace-nowrap">
                             <div className="flex flex-col items-center gap-1">
-                              <span className="font-bold text-[#7A7289]">{idx + 1}</span>
+                              <span className="font-semibold text-slate-500">{idx + 1}</span>
                               {hasMismatch && (
                                 <Link
                                   to={`/admin/submissions/${sub.id}/edit`}
                                   target="_blank"
                                   title="Click to edit this mismatched submission"
-                                  className="text-[9px] font-black text-red-600 bg-red-100 hover:bg-red-200 border border-red-300 rounded-full px-1.5 py-0.5 leading-none transition-transform hover:scale-105"
+                                  className="text-[9px] font-bold text-rose-700 bg-rose-100 hover:bg-rose-200 border border-rose-300 rounded-full px-1.5 py-0.5 leading-none transition-transform hover:scale-105"
                                 >
                                   ⚠ Mismatch
                                 </Link>
@@ -596,17 +596,17 @@ export function LearnerMismatchPage() {
                           {/* School Info */}
                           <td className="py-2.5 px-3">
                             <div className="flex items-start gap-1.5">
-                              <div className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 mt-0.5 ${hasMismatch ? 'bg-red-100 text-red-700' : 'bg-purple-100 text-purple-700'}`}>
+                              <div className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 mt-0.5 ${hasMismatch ? 'bg-rose-100 text-rose-700' : 'bg-blue-50 text-blue-600'}`}>
                                 <Building2 size={10} />
                               </div>
                               <Link
                                 to={`/admin/submissions/${sub.id}/edit`}
                                 target="_blank"
-                                className={`font-bold leading-tight text-[11px] hover:underline flex items-center gap-1 group ${hasMismatch ? 'text-red-900 font-black' : 'text-[#2D2638]'}`}
+                                className={`font-semibold leading-tight text-[11px] hover:underline flex items-center gap-1 group ${hasMismatch ? 'text-rose-900 font-bold' : 'text-slate-900'}`}
                                 title="Click to edit submission"
                               >
                                 {sub.school?.name ?? sub.school_id}
-                                <ExternalLink size={10} className="opacity-0 group-hover:opacity-100 text-purple-600 transition-opacity" />
+                                <ExternalLink size={10} className="opacity-0 group-hover:opacity-100 text-blue-600 transition-opacity" />
                               </Link>
                             </div>
                           </td>
@@ -615,23 +615,23 @@ export function LearnerMismatchPage() {
                           <td className="py-2.5 px-3 font-semibold text-slate-700 whitespace-nowrap">
                             <div className="flex flex-col gap-0.5">
                               <span className="text-slate-900 font-bold text-xs">{sub.grade_level?.name ?? '—'}</span>
-                              <span className="text-[10px] text-purple-700 font-bold bg-purple-50 border border-purple-200 rounded px-1.5 py-0.5 w-fit">
+                              <span className="text-[10px] text-blue-700 font-semibold bg-blue-50 border border-blue-200 rounded px-1.5 py-0.5 w-fit">
                                 {sub.learning_area?.name ?? '—'}
                               </span>
                             </div>
                           </td>
 
                           {/* Teacher */}
-                          <td className="py-2.5 px-3 text-slate-600 border-r border-purple-100">
+                          <td className="py-2.5 px-3 text-slate-600 border-r border-slate-200/80">
                             {sub.teacher_name}
                           </td>
 
                           {/* Total Learners */}
-                          <td className={`py-2.5 px-3 text-center font-bold border-r border-purple-100 ${hasMismatch ? 'text-red-700 bg-red-100' : 'text-slate-800'}`}>
+                          <td className={`py-2.5 px-3 text-center font-bold border-r border-slate-200/80 ${hasMismatch ? 'text-rose-700 bg-rose-100/60' : 'text-slate-800'}`}>
                             <div className="flex flex-col items-center">
                               <span>{isKS1 ? n(d1?.total_learners) : n(d2?.total_learners)}</span>
                               {hasMismatch && (
-                                <span className="text-[9px] text-red-600 font-bold leading-tight">
+                                <span className="text-[9px] text-rose-600 font-bold leading-tight">
                                   ≠ sum: {ks1PerfSum}
                                 </span>
                               )}
@@ -639,43 +639,43 @@ export function LearnerMismatchPage() {
                           </td>
 
                           {/* KS1 Performance Levels */}
-                          <td className={`py-2.5 px-3 text-center font-semibold ${hasMismatch ? 'text-red-800 bg-red-50' : 'text-teal-800 bg-teal-50/40'}`}>
+                          <td className={`py-2.5 px-3 text-center font-semibold ${hasMismatch ? 'text-rose-800 bg-rose-50/60' : 'text-teal-800 bg-teal-50/40'}`}>
                             {isKS1 ? n(d1?.advancing) : <span className="text-slate-300">—</span>}
                           </td>
-                          <td className={`py-2.5 px-3 text-center font-semibold ${hasMismatch ? 'text-red-800 bg-red-50' : 'text-teal-800 bg-teal-50/40'}`}>
+                          <td className={`py-2.5 px-3 text-center font-semibold ${hasMismatch ? 'text-rose-800 bg-rose-50/60' : 'text-teal-800 bg-teal-50/40'}`}>
                             {isKS1 ? n(d1?.benchmarking) : <span className="text-slate-300">—</span>}
                           </td>
-                          <td className={`py-2.5 px-3 text-center font-semibold ${hasMismatch ? 'text-red-800 bg-red-50' : 'text-teal-800 bg-teal-50/40'}`}>
+                          <td className={`py-2.5 px-3 text-center font-semibold ${hasMismatch ? 'text-rose-800 bg-rose-50/60' : 'text-teal-800 bg-teal-50/40'}`}>
                             {isKS1 ? n(d1?.connecting) : <span className="text-slate-300">—</span>}
                           </td>
-                          <td className={`py-2.5 px-3 text-center font-semibold ${hasMismatch ? 'text-red-800 bg-red-50' : 'text-teal-800 bg-teal-50/40'}`}>
+                          <td className={`py-2.5 px-3 text-center font-semibold ${hasMismatch ? 'text-rose-800 bg-rose-50/60' : 'text-teal-800 bg-teal-50/40'}`}>
                             {isKS1 ? n(d1?.developing) : <span className="text-slate-300">—</span>}
                           </td>
-                          <td className={`py-2.5 px-3 text-center font-semibold border-r border-purple-100 ${hasMismatch ? 'text-red-800 bg-red-50' : 'text-teal-800 bg-teal-50/40'}`}>
+                          <td className={`py-2.5 px-3 text-center font-semibold border-r border-slate-200/80 ${hasMismatch ? 'text-rose-800 bg-rose-50/60' : 'text-teal-800 bg-teal-50/40'}`}>
                             {isKS1 ? n(d1?.emerging) : <span className="text-slate-300">—</span>}
                           </td>
 
                           {/* KS2-4 MPS */}
-                          <td className="py-2.5 px-3 text-center font-bold text-indigo-800 bg-indigo-50/40 border-r border-purple-100">
+                          <td className="py-2.5 px-3 text-center font-bold text-indigo-800 bg-indigo-50/40 border-r border-slate-200/80">
                             {!isKS1 ? (d2?.mps != null ? `${d2.mps}%` : '—') : <span className="text-slate-300">—</span>}
                           </td>
 
                           {/* Competency summary */}
-                          <td className="py-2.5 px-3 text-center font-semibold text-purple-800 bg-purple-50/40">{n(cs?.total_intended_competencies)}</td>
-                          <td className="py-2.5 px-3 text-center font-semibold text-emerald-700 bg-purple-50/40">{n(cs?.competencies_taught)}</td>
-                          <td className="py-2.5 px-3 text-center font-semibold text-rose-700 bg-purple-50/40 border-r border-purple-100">{n(cs?.competencies_not_taught)}</td>
+                          <td className="py-2.5 px-3 text-center font-semibold text-slate-800 bg-slate-50/40">{n(cs?.total_intended_competencies)}</td>
+                          <td className="py-2.5 px-3 text-center font-semibold text-emerald-700 bg-slate-50/40">{n(cs?.competencies_taught)}</td>
+                          <td className="py-2.5 px-3 text-center font-semibold text-rose-700 bg-slate-50/40 border-r border-slate-200/80">{n(cs?.competencies_not_taught)}</td>
 
                           {/* Top 5 Competency Lists */}
-                          <td className="py-2.5 px-3 bg-emerald-50/30 border-r border-purple-100 align-top"><CompList items={mostLearned} /></td>
-                          <td className="py-2.5 px-3 bg-amber-50/30 border-r border-purple-100 align-top"><CompList items={leastMastered} /></td>
-                          <td className="py-2.5 px-3 bg-rose-50/30 border-r border-purple-100 align-top"><CompList items={mostDifficult} /></td>
+                          <td className="py-2.5 px-3 bg-emerald-50/30 border-r border-slate-200/80 align-top"><CompList items={mostLearned} /></td>
+                          <td className="py-2.5 px-3 bg-amber-50/30 border-r border-slate-200/80 align-top"><CompList items={leastMastered} /></td>
+                          <td className="py-2.5 px-3 bg-rose-50/30 border-r border-slate-200/80 align-top"><CompList items={mostDifficult} /></td>
 
                           {/* Instructional Factors */}
                           <td className="py-2.5 px-3 text-[10px] text-slate-600 leading-snug bg-slate-50/50 align-top">{factors}</td>
 
                           {/* Status */}
                           <td className="py-2.5 px-3 text-center bg-slate-50/50">
-                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-black border capitalize ${statusColors[sub.status] ?? 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-semibold border capitalize ${statusColors[sub.status] ?? 'bg-slate-100 text-slate-700 border-slate-200'}`}>
                               {sub.status}
                             </span>
                           </td>
@@ -685,7 +685,7 @@ export function LearnerMismatchPage() {
                             <Link
                               to={`/admin/submissions/${sub.id}/edit`}
                               target="_blank"
-                              className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 hover:text-purple-900 bg-purple-100 hover:bg-purple-200 border border-purple-300 rounded px-2.5 py-1 transition-all shadow-2xs hover:shadow-xs"
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg px-2.5 py-1 transition-all shadow-xs"
                               title="Edit this submission in a new tab"
                             >
                               <Edit size={12} />
@@ -700,18 +700,18 @@ export function LearnerMismatchPage() {
               </div>
 
               {/* Table Footer */}
-              <div className="px-4 py-2.5 bg-[#F6EFFF]/60 border-t border-purple-100 flex items-center justify-between flex-wrap gap-2">
+              <div className="px-4 py-2.5 bg-slate-50/80 border-t border-slate-200/80 flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-3 flex-wrap">
-                  <p className="text-[10px] text-[#7A7289] font-semibold">
+                  <p className="text-[10px] text-slate-500 font-semibold">
                     {sortedRows.length} entries · {new Set(sortedRows.map(s => s.school_id)).size} schools · Scroll horizontally to view all columns
                   </p>
                   {stats.mismatchedCount > 0 && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-300 text-[9px] font-black">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[9px] font-bold">
                       ⚠ Rows highlighted in red have mismatched learner totals vs. performance level sums
                     </span>
                   )}
                 </div>
-                <span className="text-[10px] text-purple-600 font-bold">TERMCAT Data Quality Engine</span>
+                <span className="text-[10px] text-blue-600 font-semibold">TERMCAT Data Quality Engine</span>
               </div>
             </div>
           )

@@ -59,6 +59,7 @@ import {
 import {
   fetchAllAdmins,
   fetchSchools,
+  upsertStaffProfile,
   fetchDTRRecordsSupabase,
   saveDTRRecordSupabase,
   updateDTRRecordSupabase,
@@ -67,6 +68,7 @@ import {
   saveDTRCustomHolidaySupabase,
   deleteDTRCustomHolidaySupabase
 } from '@/lib/supabase/queries'
+
 
 export interface DTRDayEntry {
   dayNumber: number
@@ -103,6 +105,13 @@ export interface SavedDTRRecord {
   updatedAt: string
 }
 
+export const ALL_DTR_ROLES: { key: 'teacher' | 'ao_2' | 'school_head' | 'psds'; label: string; shortLabel: string }[] = [
+  { key: 'teacher', label: 'Teachers', shortLabel: 'Teachers' },
+  { key: 'ao_2', label: 'AO II (Administrative Officer)', shortLabel: 'AO II' },
+  { key: 'school_head', label: 'School Head / Principal', shortLabel: 'School Head' },
+  { key: 'psds', label: 'PSDS / District Supervisor', shortLabel: 'PSDS' }
+]
+
 export interface CustomHolidayItem {
   id: string
   dateStr: string // "MM-DD" for recurring or "YYYY-MM-DD" for specific date
@@ -110,6 +119,7 @@ export interface CustomHolidayItem {
   isRecurring: boolean
   isHalfDay?: boolean
   halfDaySession?: 'am' | 'pm' | 'half_day'
+  applicableRoles?: ('teacher' | 'ao_2' | 'school_head' | 'psds')[]
 }
 
 export interface LeaveRecordItem {
@@ -169,7 +179,7 @@ const dtrNavGroups: NavGroup[] = [
 ]
 
 export function DTRGeneratorPage() {
-  const { admin } = useAuth()
+  const { admin, canEditData } = useAuth()
   const { toast } = useToast()
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -198,9 +208,9 @@ export function DTRGeneratorPage() {
   const [selectedMonth, setSelectedMonth] = useState<number>(6) // Default June (1-indexed: 6)
 
   const [officialHoursText, setOfficialHoursText] = useState<string>(
-    'Regular days 7:00-11:30AM'
+    'Regular days 7:00-11:30AM / 1:00-5:00PM'
   )
-  const [saturdaysText, setSaturdaysText] = useState<string>('Saturdays: 1:00-5:00PM')
+  const [saturdaysText, setSaturdaysText] = useState<string>('Saturdays: _________________')
 
   // DTR Target Personnel Role Selector
   const [dtrTargetRole, setDtrTargetRole] = useState<'teacher' | 'ao_2' | 'school_head' | 'psds'>(() => {
@@ -237,6 +247,7 @@ export function DTRGeneratorPage() {
   const [selectedProxyStaffId, setSelectedProxyStaffId] = useState<string>('')
 
   // History Records State (Synced to Supabase)
+
   const [savedRecords, setSavedRecords] = useState<SavedDTRRecord[]>([])
   const [activeRecordId, setActiveRecordId] = useState<string | null>(null)
   const [isSavedRecordLoaded, setIsSavedRecordLoaded] = useState<boolean>(false)
@@ -277,6 +288,30 @@ export function DTRGeneratorPage() {
   const [newHolidayIsRecurring, setNewHolidayIsRecurring] = useState<boolean>(true)
   const [newHolidayIsHalfDay, setNewHolidayIsHalfDay] = useState<boolean>(false)
   const [newHolidayHalfDaySession, setNewHolidayHalfDaySession] = useState<'am' | 'pm'>('am')
+  const [newHolidayRoles, setNewHolidayRoles] = useState<('teacher' | 'ao_2' | 'school_head' | 'psds')[]>([
+    'teacher',
+    'ao_2',
+    'school_head',
+    'psds'
+  ])
+
+  const handleToggleHolidayRole = (roleKey: 'teacher' | 'ao_2' | 'school_head' | 'psds') => {
+    setNewHolidayRoles(prev => {
+      if (prev.includes(roleKey)) {
+        if (prev.length === 1) {
+          toast('At least one role must be selected for the local holiday.', 'info')
+          return prev
+        }
+        return prev.filter(r => r !== roleKey)
+      } else {
+        return [...prev, roleKey]
+      }
+    })
+  }
+
+  const handleSelectAllHolidayRoles = () => {
+    setNewHolidayRoles(['teacher', 'ao_2', 'school_head', 'psds'])
+  }
 
   // Generator Time Range Configurations (Default: Non-late working ranges)
   const [workingHoursPreset, setWorkingHoursPreset] = useState<'option_1' | 'option_2'>('option_1')
@@ -309,7 +344,7 @@ export function DTRGeneratorPage() {
     }
   }, [admin?.id])
 
-  const handleSavePersonalSettings = () => {
+  const handleSavePersonalSettings = async () => {
     const userId = admin?.id || 'default'
     const key = `termcat_dtr_user_settings_v1_${userId}`
     const dataToSave = {
@@ -323,21 +358,34 @@ export function DTRGeneratorPage() {
       updatedAt: new Date().toISOString()
     }
     localStorage.setItem(key, JSON.stringify(dataToSave))
+
+    // Persist preset choice to Supabase database profile so anyone generating DTR for this user gets their chosen preset
+    if (admin?.id) {
+      try {
+        await upsertStaffProfile({
+          id: admin.id,
+          working_hours_preset: workingHoursPreset
+        })
+      } catch (err) {
+        console.warn('Could not sync working_hours_preset to Supabase profile:', err)
+      }
+    }
+
     toast(`Saved personal working hours & generator settings for ${admin?.full_name || 'yourself'}!`, 'success')
   }
 
   const handleApplyPreset = (preset: 'option_1' | 'option_2') => {
     setWorkingHoursPreset(preset)
     if (preset === 'option_1') {
-      setOfficialHoursText('Regular days 7:00-11:30AM')
-      setSaturdaysText('Saturdays: 1:00-5:00PM')
+      setOfficialHoursText('Regular days 7:00-11:30AM / 1:00-5:00PM')
+      setSaturdaysText('Saturdays: _________________')
       setAmArrivalRange({ start: 15, end: 58 })
       setAmDepartureRange({ start: 30, end: 45 })
       setPmArrivalRange({ start: 22, end: 58 })
       setPmDepartureRange({ start: 0, end: 15 })
     } else {
-      setOfficialHoursText('Regular days 8:00-12:00NN')
-      setSaturdaysText('Saturdays: 8:00-12:00NN')
+      setOfficialHoursText('Regular days 8:00-12:00NN / 1:00-5:00PM')
+      setSaturdaysText('Saturdays: _________________')
       setAmArrivalRange({ start: 15, end: 58 })
       setAmDepartureRange({ start: 0, end: 15 })
       setPmArrivalRange({ start: 22, end: 58 })
@@ -410,7 +458,10 @@ export function DTRGeneratorPage() {
           title: h.title,
           isRecurring: h.is_recurring,
           isHalfDay: !!h.is_half_day,
-          halfDaySession: h.half_day_session || 'am'
+          halfDaySession: h.half_day_session || 'am',
+          applicableRoles: Array.isArray(h.applicable_roles) && h.applicable_roles.length > 0
+            ? h.applicable_roles
+            : ['teacher', 'ao_2', 'school_head', 'psds']
         }))
         setCustomHolidays(mappedHolidays)
       }
@@ -505,8 +556,12 @@ export function DTRGeneratorPage() {
       }
     }
 
-    // Add custom local holidays
+    // Add custom local holidays (Filtered by DTR target role)
     for (const h of customHolidays) {
+      if (h.applicableRoles && h.applicableRoles.length > 0 && !h.applicableRoles.includes(dtrTargetRole)) {
+        continue
+      }
+
       let cleanTitle = h.title.trim()
       if (cleanTitle.toUpperCase().startsWith('HOLIDAY (') && cleanTitle.endsWith(')')) {
         cleanTitle = cleanTitle.substring(9, cleanTitle.length - 1).trim()
@@ -522,7 +577,7 @@ export function DTRGeneratorPage() {
     }
 
     return map
-  }, [nationalHolidays, customHolidays])
+  }, [nationalHolidays, customHolidays, dtrTargetRole])
 
   // Auto-derive Signatory Name & Title based on official DepEd governance rules:
   // - Teacher & AO II -> Assigned School Head, Title: 'In-charge'
@@ -648,6 +703,7 @@ export function DTRGeneratorPage() {
       const pmDepHour = 5
 
       if (entry.isHoliday) {
+        const holidayLabel = entry.holidayTitle && entry.holidayTitle.trim() ? entry.holidayTitle.trim().toUpperCase() : 'HOLIDAY'
         if (entry.isHalfDay) {
           // Half day holiday generation:
           if (entry.halfDaySession === 'am') {
@@ -657,8 +713,8 @@ export function DTRGeneratorPage() {
             return {
               ...entry,
               status: 'work' as const,
-              amArrival: 'HOLIDAY',
-              amDeparture: 'HOLIDAY',
+              amArrival: holidayLabel,
+              amDeparture: holidayLabel,
               pmArrival: `${pmArrHour}:${String(pmArrMin).padStart(2, '0')}`,
               pmDeparture: `${pmDepHour}:${String(pmDepMin).padStart(2, '0')}`,
               undertimeHours: '',
@@ -673,8 +729,8 @@ export function DTRGeneratorPage() {
               status: 'work' as const,
               amArrival: `${amArrHour}:${String(amArrMin).padStart(2, '0')}`,
               amDeparture: `${amDepHour}:${String(amDepMin).padStart(2, '0')}`,
-              pmArrival: 'HOLIDAY',
-              pmDeparture: 'HOLIDAY',
+              pmArrival: holidayLabel,
+              pmDeparture: holidayLabel,
               undertimeHours: '',
               undertimeMinutes: ''
             }
@@ -766,7 +822,8 @@ export function DTRGeneratorPage() {
           title: newHolidayTitle.trim(),
           is_recurring: newHolidayIsRecurring,
           is_half_day: newHolidayIsHalfDay,
-          half_day_session: newHolidayIsHalfDay ? newHolidayHalfDaySession : 'am'
+          half_day_session: newHolidayIsHalfDay ? newHolidayHalfDaySession : 'am',
+          applicable_roles: newHolidayRoles
         })
 
         itemsToAdd.push({
@@ -775,7 +832,8 @@ export function DTRGeneratorPage() {
           title: newHolidayTitle.trim(),
           isRecurring: newHolidayIsRecurring,
           isHalfDay: newHolidayIsHalfDay,
-          halfDaySession: newHolidayIsHalfDay ? newHolidayHalfDaySession : undefined
+          halfDaySession: newHolidayIsHalfDay ? newHolidayHalfDaySession : undefined,
+          applicableRoles: newHolidayRoles
         })
       }
 
@@ -992,6 +1050,8 @@ export function DTRGeneratorPage() {
     }, 350)
   }
 
+
+
   // Delete Record from Supabase Database
   const handleDeleteRecord = async (id: string, name: string) => {
     if (confirm(`Are you sure you want to delete DTR record for "${name}" from Supabase database?`)) {
@@ -1081,40 +1141,61 @@ export function DTRGeneratorPage() {
     setEmployeeName(staffName)
     setDtrTargetRole(staff.role)
 
-    // Requirement 3: Schedule option defaults to option set on their account, else Option 1 default
+    // Prescribed Working Hours Schedule Option defaults to option set on their account/settings page, else Option 1 (7:00AM - 11:30AM & 1:00PM - 5:00PM) default
     let targetPreset: 'option_1' | 'option_2' = 'option_1'
+    let customOfficialHours: string | null = null
+    let customSaturdaysText: string | null = null
+    let targetAmArrival = { start: 15, end: 58 }
+    let targetAmDeparture = { start: 30, end: 45 }
+    let targetPmArrival = { start: 22, end: 58 }
+    let targetPmDeparture = { start: 0, end: 15 }
+
     if (staff.workingHoursPreset === 'option_1' || staff.workingHoursPreset === 'option_2') {
       targetPreset = staff.workingHoursPreset
-    } else {
-      const savedKey = `termcat_dtr_user_settings_v1_${staff.id}`
-      const saved = localStorage.getItem(savedKey)
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved)
-          if (parsed.workingHoursPreset === 'option_1' || parsed.workingHoursPreset === 'option_2') {
-            targetPreset = parsed.workingHoursPreset
-          }
-        } catch {}
+    }
+
+    const savedKey = `termcat_dtr_user_settings_v1_${staff.id}`
+    const saved = localStorage.getItem(savedKey)
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved)
+        if (parsed.workingHoursPreset === 'option_1' || parsed.workingHoursPreset === 'option_2') {
+          targetPreset = parsed.workingHoursPreset
+        }
+        if (parsed.officialHoursText) customOfficialHours = parsed.officialHoursText
+        if (parsed.saturdaysText !== undefined) customSaturdaysText = parsed.saturdaysText
+        if (parsed.amArrivalRange) targetAmArrival = parsed.amArrivalRange
+        if (parsed.amDepartureRange) targetAmDeparture = parsed.amDepartureRange
+        if (parsed.pmArrivalRange) targetPmArrival = parsed.pmArrivalRange
+        if (parsed.pmDepartureRange) targetPmDeparture = parsed.pmDepartureRange
+      } catch (err) {
+        console.error('Error loading staff personal settings:', err)
       }
+    }
+
+    if (targetPreset === 'option_2' && (!saved || !JSON.parse(saved || '{}').amDepartureRange)) {
+      targetAmDeparture = { start: 0, end: 15 }
     }
 
     // Apply active schedule preset & ranges for this staff
     setWorkingHoursPreset(targetPreset)
-    if (targetPreset === 'option_1') {
-      setOfficialHoursText('Regular days 7:00-11:30AM / 1:00-5:00PM')
-      setSaturdaysText('Saturdays: 1:00-5:00PM')
-      setAmArrivalRange({ start: 15, end: 58 })
-      setAmDepartureRange({ start: 30, end: 45 })
-      setPmArrivalRange({ start: 22, end: 58 })
-      setPmDepartureRange({ start: 0, end: 15 })
-    } else {
-      setOfficialHoursText('Regular days 8:00-12:00NN / 1:00-5:00PM')
-      setSaturdaysText('Saturdays: 8:00-12:00NN')
-      setAmArrivalRange({ start: 15, end: 58 })
-      setAmDepartureRange({ start: 0, end: 15 })
-      setPmArrivalRange({ start: 22, end: 58 })
-      setPmDepartureRange({ start: 0, end: 15 })
-    }
+    setAmArrivalRange(targetAmArrival)
+    setAmDepartureRange(targetAmDeparture)
+    setPmArrivalRange(targetPmArrival)
+    setPmDepartureRange(targetPmDeparture)
+
+    const finalOfficialHours = customOfficialHours
+      ? customOfficialHours
+      : (targetPreset === 'option_2'
+          ? 'Regular days 8:00-12:00NN / 1:00-5:00PM'
+          : 'Regular days 7:00-11:30AM / 1:00-5:00PM')
+
+    const finalSaturdaysText = customSaturdaysText !== null
+      ? customSaturdaysText
+      : 'Saturdays: _________________'
+
+    setOfficialHoursText(finalOfficialHours)
+    setSaturdaysText(finalSaturdaysText)
 
     // Check if staff already has an official DTR for the active month/year
     const existing = savedRecords.find(
@@ -1147,12 +1228,14 @@ export function DTRGeneratorPage() {
         const activeMode = staffSessions[firstSchool] || 'full_day'
         setDtrSessionMode(activeMode)
 
-        if (activeMode === 'am') {
-          setOfficialHoursText(targetPreset === 'option_2' ? 'Regular days 8:00-12:00NN (Morning A.M. Session)' : 'Regular days 7:00-11:30AM (Morning A.M. Session)')
-        } else if (activeMode === 'pm') {
-          setOfficialHoursText('Regular days 1:00-5:00PM (Afternoon P.M. Session)')
-        } else {
-          setOfficialHoursText(targetPreset === 'option_2' ? 'Regular days 8:00-12:00NN / 1:00-5:00PM' : 'Regular days 7:00-11:30AM / 1:00-5:00PM')
+        if (!customOfficialHours) {
+          if (activeMode === 'am') {
+            setOfficialHoursText(targetPreset === 'option_2' ? 'Regular days 8:00-12:00NN (Morning A.M. Session)' : 'Regular days 7:00-11:30AM (Morning A.M. Session)')
+          } else if (activeMode === 'pm') {
+            setOfficialHoursText('Regular days 1:00-5:00PM (Afternoon P.M. Session)')
+          } else {
+            setOfficialHoursText(targetPreset === 'option_2' ? 'Regular days 8:00-12:00NN / 1:00-5:00PM' : 'Regular days 7:00-11:30AM / 1:00-5:00PM')
+          }
         }
 
         // Generate fresh times for the active month based on session duty mode & schedule preset
@@ -1161,10 +1244,10 @@ export function DTRGeneratorPage() {
             return entry
           }
 
-          const amArrMin = getRandomInt(15, 58)
-          const amDepMin = getRandomInt(targetPreset === 'option_1' ? 30 : 0, targetPreset === 'option_1' ? 45 : 15)
-          const pmArrMin = getRandomInt(22, 58)
-          const pmDepMin = getRandomInt(0, 15)
+          const amArrMin = getRandomInt(targetAmArrival.start, targetAmArrival.end)
+          const amDepMin = getRandomInt(targetAmDeparture.start, targetAmDeparture.end)
+          const pmArrMin = getRandomInt(targetPmArrival.start, targetPmArrival.end)
+          const pmDepMin = getRandomInt(targetPmDeparture.start, targetPmDeparture.end)
 
           const amArrHour = targetPreset === 'option_2' ? 7 : 6
           const amDepHour = targetPreset === 'option_2' ? 12 : 11
@@ -1189,7 +1272,18 @@ export function DTRGeneratorPage() {
 
   // Print DTR Handler (2-in-1 Side-by-Side Dual Copy)
   const handlePrintDTR = () => {
+    const style = document.createElement('style')
+    style.id = 'dtr-print-page-style'
+    style.innerHTML = `@page { size: portrait; margin: 0.25in 0.3in; }`
+    document.head.appendChild(style)
+
+    document.body.classList.add('printing-dtr')
     window.print()
+
+    setTimeout(() => {
+      document.body.classList.remove('printing-dtr')
+      document.getElementById('dtr-print-page-style')?.remove()
+    }, 1000)
   }
 
   const monthYearLabel = `${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}`
@@ -1269,16 +1363,16 @@ export function DTRGeneratorPage() {
               <button
                 type="button"
                 onClick={() => setTab('generate')}
-                className="px-4 py-2 rounded-full bg-white border border-white text-[#2D2638] font-bold text-xs shadow-2xs hover:bg-[#F6EFFF] transition-all flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
               >
-                <Sparkles size={14} className="text-[#8B72F4]" />
+                <Sparkles size={14} className="text-blue-600" />
                 <span>Generate DTR</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setTab('my_dtrs')}
-                className="px-5 py-2 rounded-full bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] text-white font-black text-xs shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer active:animate-button-sparkle"
+                className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <FolderOpen size={14} />
                 <span>My DTRs ({userSavedRecords.length})</span>
@@ -1292,161 +1386,168 @@ export function DTRGeneratorPage() {
           <div className="space-y-6">
             {/* Stat Cards Row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="clay-card p-5 space-y-2 border-l-4 border-l-[#8B72F4]">
+              <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[#7A7289] uppercase tracking-wider">Saved DTRs</span>
-                  <FolderOpen size={20} className="text-[#8B72F4]" />
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Saved DTRs</span>
+                  <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                    <FolderOpen size={18} />
+                  </div>
                 </div>
-                <p className="text-2xl font-black text-[#2D2638] font-display">{userSavedRecords.length}</p>
-                <p className="text-[11px] text-[#7A7289]">Synced in Supabase DB</p>
+                <p className="text-2xl font-bold text-slate-900">{userSavedRecords.length}</p>
+                <p className="text-xs text-slate-500 font-medium">Synced in Supabase DB</p>
               </div>
 
-              <div className="clay-card p-5 space-y-2 border-l-4 border-l-amber-400">
+              <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[#7A7289] uppercase tracking-wider">Local Holidays</span>
-                  <PartyPopper size={20} className="text-amber-500" />
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Local Holidays</span>
+                  <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+                    <PartyPopper size={18} />
+                  </div>
                 </div>
-                <p className="text-2xl font-black text-[#2D2638] font-display">{customHolidays.length}</p>
-                <p className="text-[11px] text-[#7A7289]">District & Town Fiestas</p>
+                <p className="text-2xl font-bold text-slate-900">{customHolidays.length}</p>
+                <p className="text-xs text-slate-500 font-medium">District & Town Fiestas</p>
               </div>
 
-              <div className="clay-card p-5 space-y-2 border-l-4 border-l-emerald-400">
+              <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[#7A7289] uppercase tracking-wider">Active Staff</span>
-                  <Users size={20} className="text-emerald-500" />
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active Staff</span>
+                  <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                    <Users size={18} />
+                  </div>
                 </div>
-                <p className="text-2xl font-black text-[#2D2638] font-display">{allStaffProfiles.length || 1}</p>
-                <p className="text-[11px] text-[#7A7289]">Registered Personnel</p>
+                <p className="text-2xl font-bold text-slate-900">{allStaffProfiles.length || 1}</p>
+                <p className="text-xs text-slate-500 font-medium">Registered Personnel</p>
               </div>
 
-              <div className="clay-card p-5 space-y-2 border-l-4 border-l-purple-400">
+              <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[#7A7289] uppercase tracking-wider">Active Period</span>
-                  <Calendar size={20} className="text-purple-500" />
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active Period</span>
+                  <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                    <Calendar size={18} />
+                  </div>
                 </div>
-                <p className="text-lg font-black text-[#2D2638] font-display uppercase">{monthYearLabel}</p>
-                <p className="text-[11px] text-[#7A7289]">Target DTR Month</p>
+                <p className="text-base font-bold text-slate-900 uppercase">{monthYearLabel}</p>
+                <p className="text-xs text-slate-500 font-medium">Target DTR Month</p>
               </div>
             </div>
 
             {/* Quick Action Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               <div
                 onClick={() => setTab('generate')}
-                className="clay-card p-6 cursor-pointer hover:border-[#8B72F4] transition-all group space-y-3 bg-gradient-to-br from-white to-[#F6EFFF]/40"
+                className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 cursor-pointer hover:border-blue-300 hover:shadow-md transition-all group space-y-3"
               >
-                <div className="p-3 rounded-2xl bg-[#8B72F4] text-white w-fit group-hover:scale-110 transition-transform">
-                  <Sparkles size={24} />
+                <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold group-hover:scale-105 transition-transform">
+                  <Sparkles size={20} />
                 </div>
-                <h3 className="text-base font-black text-[#2D2638] font-display">Generate New DTR</h3>
-                <p className="text-xs text-[#7A7289]">
+                <h3 className="text-base font-bold text-slate-900">Generate New DTR</h3>
+                <p className="text-xs text-slate-500 font-medium">
                   Generate non-late punch times for teachers, AO II, School Head, or PSDS with 2-in-1 print preview.
                 </p>
-                <span className="text-xs font-extrabold text-[#8B72F4] inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                <span className="text-xs font-semibold text-blue-600 inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform">
                   Open Generator <ChevronRight size={14} />
                 </span>
               </div>
 
               <div
                 onClick={() => setTab('my_dtrs')}
-                className="clay-card p-6 cursor-pointer hover:border-[#8B72F4] transition-all group space-y-3 bg-gradient-to-br from-white to-[#EEF0FF]/40"
+                className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 cursor-pointer hover:border-blue-300 hover:shadow-md transition-all group space-y-3"
               >
-                <div className="p-3 rounded-2xl bg-[#3B49B8] text-white w-fit group-hover:scale-110 transition-transform">
-                  <FolderOpen size={24} />
+                <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold group-hover:scale-105 transition-transform">
+                  <FolderOpen size={20} />
                 </div>
-                <h3 className="text-base font-black text-[#2D2638] font-display">My Saved DTRs</h3>
-                <p className="text-xs text-[#7A7289]">
+                <h3 className="text-base font-bold text-slate-900">My Saved DTRs</h3>
+                <p className="text-xs text-slate-500 font-medium">
                   View, edit, update, delete, or print your archived Civil Service Form 48 DTRs.
                 </p>
-                <span className="text-xs font-extrabold text-[#3B49B8] inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                <span className="text-xs font-semibold text-slate-900 inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform">
                   View Saved DTRs <ChevronRight size={14} />
                 </span>
               </div>
 
               <div
                 onClick={() => setTab('holidays')}
-                className="clay-card p-6 cursor-pointer hover:border-amber-400 transition-all group space-y-3 bg-gradient-to-br from-white to-amber-50/40"
+                className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 cursor-pointer hover:border-amber-300 hover:shadow-md transition-all group space-y-3"
               >
-                <div className="p-3 rounded-2xl bg-amber-500 text-white w-fit group-hover:scale-110 transition-transform">
-                  <PartyPopper size={24} />
+                <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold group-hover:scale-105 transition-transform">
+                  <PartyPopper size={20} />
                 </div>
-                <h3 className="text-base font-black text-[#2D2638] font-display">Holidays Manager</h3>
-                <p className="text-xs text-[#7A7289]">
+                <h3 className="text-base font-bold text-slate-900">Holidays Manager</h3>
+                <p className="text-xs text-slate-500 font-medium">
                   Manage national holidays and add custom local district holidays/town fiestas.
                 </p>
-                <span className="text-xs font-extrabold text-amber-600 inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                <span className="text-xs font-semibold text-amber-600 inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform">
                   Manage Holidays <ChevronRight size={14} />
                 </span>
               </div>
             </div>
 
             {/* Recent DTR Records Preview Table */}
-            {/* Quick Actions & Recent DTRs */}
-            <div className="clay-card p-6 space-y-5">
-              <div className="flex items-center justify-between pb-3 border-b border-[#F0E6DD]">
-                <h3 className="text-base font-black text-[#2D2638] font-display flex items-center gap-2">
-                  <History className="text-[#8B72F4]" size={18} />
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-5">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-200/80">
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <History className="text-blue-600" size={18} />
                   Recently Generated DTR Records
                 </h3>
                 <button
                   type="button"
                   onClick={() => setTab('my_dtrs')}
-                  className="text-xs font-bold text-[#8B72F4] hover:underline cursor-pointer"
+                  className="text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer"
                 >
                   View All History ({userSavedRecords.length}) &rarr;
                 </button>
               </div>
 
-              <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+              <div className="overflow-x-auto rounded-xl border border-slate-200">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-slate-100 text-slate-700 font-extrabold uppercase border-b border-slate-200">
-                      <th className="py-3 px-4">Employee Name</th>
-                      <th className="py-3 px-4">Category</th>
-                      <th className="py-3 px-4">Month & Year</th>
-                      <th className="py-3 px-4">Generated By</th>
-                      <th className="py-3 px-4">Work Days</th>
-                      <th className="py-3 px-4 text-right">Actions</th>
+                    <tr className="bg-slate-50 text-slate-600 font-semibold uppercase tracking-wider border-b border-slate-200">
+                      <th className="py-3.5 px-4">Employee Name</th>
+                      <th className="py-3.5 px-4">Category</th>
+                      <th className="py-3.5 px-4">Month & Year</th>
+                      <th className="py-3.5 px-4">Generated By</th>
+                      <th className="py-3.5 px-4">Work Days</th>
+                      <th className="py-3.5 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-200">
+                  <tbody className="divide-y divide-slate-100">
                     {userSavedRecords.slice(0, 5).map(record => {
                       const isSelf = record.employeeName.trim().toUpperCase() === (admin?.full_name || '').trim().toUpperCase()
                       const generatorName = record.createdByName || 'Admin'
                       return (
-                        <tr key={record.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="py-3 px-4 font-bold text-slate-800">{record.employeeName}</td>
-                          <td className="py-3 px-4 font-semibold uppercase text-[#8B72F4]">{record.role}</td>
-                          <td className="py-3 px-4 font-semibold">
+                        <tr key={record.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="py-3 px-4 font-semibold text-slate-900">{record.employeeName}</td>
+                          <td className="py-3 px-4 font-bold uppercase text-blue-600">{record.role}</td>
+                          <td className="py-3 px-4 text-slate-700 font-medium">
                             {MONTH_NAMES[record.month - 1]} {record.year}
                           </td>
-                          <td className="py-3 px-4 font-semibold">
+                          <td className="py-3 px-4 font-medium">
                             {isSelf ? (
                               generatorName.toUpperCase() !== record.employeeName.trim().toUpperCase() ? (
-                                <span className="px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 text-[10px] font-black border border-purple-200 inline-flex items-center gap-1">
-                                  <UserCheck size={12} className="text-[#8B72F4]" />
+                                <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-semibold border border-blue-200 inline-flex items-center gap-1">
+                                  <UserCheck size={12} className="text-blue-600" />
                                   By {generatorName}
                                 </span>
                               ) : (
-                                <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold">
+                                <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-medium">
                                   Self-Generated
                                 </span>
                               )
                             ) : (
-                              <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px] font-black border border-amber-200 inline-flex items-center gap-1">
-                                <UserCheck size={12} className="text-amber-700" />
+                              <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 text-[10px] font-semibold border border-amber-200 inline-flex items-center gap-1">
+                                <UserCheck size={12} className="text-amber-600" />
                                 For {record.employeeName}
                               </span>
                             )}
                           </td>
-                          <td className="py-3 px-4 font-bold text-emerald-700">
+                          <td className="py-3 px-4 font-semibold text-emerald-700">
                             {record.entries.filter(e => e.status === 'work').length} Days
                           </td>
                           <td className="py-3 px-4 text-right space-x-2">
                             <button
                               type="button"
                               onClick={() => handleViewRecord(record)}
-                              className="px-2.5 py-1 rounded-lg bg-slate-700 hover:bg-slate-800 text-white font-bold text-[11px] inline-flex items-center gap-1"
+                              className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold text-xs shadow-xs transition-all inline-flex items-center gap-1 cursor-pointer"
                               title="View saved 2-in-1 preview"
                             >
                               <Eye size={12} />
@@ -1455,16 +1556,17 @@ export function DTRGeneratorPage() {
                             <button
                               type="button"
                               onClick={() => handlePrintRecord(record)}
-                              className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-[#8B72F4] to-[#795CEE] text-white font-bold text-[11px] inline-flex items-center gap-1"
+                              className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition-all inline-flex items-center gap-1 cursor-pointer"
                               title="Print DTR"
                             >
                               <Printer size={12} />
                               Print
                             </button>
+
                             <button
                               type="button"
                               onClick={() => handleDeleteRecord(record.id, record.employeeName)}
-                              className="p-1 rounded-lg text-slate-400 hover:text-red-600"
+                              className="p-1.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all cursor-pointer"
                             >
                               <Trash2 size={14} />
                             </button>
@@ -1488,35 +1590,35 @@ export function DTRGeneratorPage() {
 
         {/* VIEW 2: MY DTRS & HISTORY VIEW */}
         {currentTab === 'my_dtrs' && (
-          <div className="clay-card p-6 space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#F0E6DD]">
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200/80">
               <div>
-                <h3 className="text-base font-black text-[#2D2638] font-display flex items-center gap-2">
-                  <FolderOpen className="text-[#8B72F4]" size={20} />
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <FolderOpen className="text-blue-600" size={20} />
                   Saved District DTRs & History
-                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">
+                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">
                     1 DTR per Staff / Month Enforced
                   </span>
                 </h3>
-                <p className="text-xs text-[#7A7289]">View, print, or delete final archived DTRs. (To make changes, click 'New Session')</p>
+                <p className="text-xs text-slate-500 font-medium">View, print, or delete final archived DTRs. (To make changes, click 'New Session')</p>
               </div>
 
               <div className="flex items-center gap-2">
                 <div className="relative">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A39BAF]" />
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     type="text"
                     value={historySearch}
                     onChange={e => setHistorySearch(e.target.value)}
                     placeholder="Search by name or month..."
-                    className="pl-8 pr-3 py-2 rounded-xl text-xs font-medium bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638]"
+                    className="pl-8 pr-3.5 py-2.5 rounded-xl text-xs font-medium bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   />
                 </div>
 
                 <button
                   type="button"
                   onClick={handleNewDTR}
-                  className="px-4 py-2 rounded-xl bg-[#8B72F4] text-white font-extrabold text-xs shadow-md hover:opacity-95 transition-all flex items-center gap-1.5 cursor-pointer"
+                  className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
                 >
                   <PlusCircle size={16} />
                   New Session
@@ -1599,6 +1701,7 @@ export function DTRGeneratorPage() {
                             <Printer size={13} />
                             <span>Print</span>
                           </button>
+
                           <button
                             type="button"
                             onClick={() => handleDeleteRecord(record.id, record.employeeName)}
@@ -1651,33 +1754,33 @@ export function DTRGeneratorPage() {
 
             {/* CONTROLS & CONFIGURATION PANEL */}
             <div className="clay-card p-6 space-y-6">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-[#F0E6DD]">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-2xl bg-gradient-to-br from-[#A88BEB] to-[#8B72F4] text-white shadow-xs">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold shrink-0">
                     <Sliders size={18} />
                   </div>
                   <div>
-                    <h3 className="text-sm font-black text-[#2D2638] font-display">
+                    <h3 className="text-sm font-bold text-slate-900">
                       DTR Configuration & Parameters
                       {activeRecordId && (
-                        <span className="ml-2 px-2.5 py-0.5 rounded-full bg-[#8B72F4] text-white text-[10px] font-bold uppercase tracking-wider">
+                        <span className="ml-2 px-2.5 py-0.5 rounded-full bg-blue-600 text-white text-[10px] font-semibold uppercase tracking-wider">
                           Editing Supabase Record
                         </span>
                       )}
                     </h3>
-                    <p className="text-xs text-[#7A7289] font-medium">Set employee details, month/year, working hours, and non-late ranges</p>
+                    <p className="text-xs text-slate-500 font-medium">Set employee details, month/year, working hours, and non-late ranges</p>
                   </div>
                 </div>
 
                 {/* Sub-tab Navigation Controls */}
-                <div className="flex items-center gap-2 p-1 bg-[#FAF5F0] rounded-full border border-white shadow-2xs">
+                <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200">
                   <button
                     type="button"
                     onClick={() => setGenerateSubTab('preview')}
-                    className={`px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                    className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                       generateSubTab === 'preview'
-                        ? 'bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] text-white shadow-md'
-                        : 'text-[#7A7289] hover:text-[#2D2638]'
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
                     <Eye size={14} className="inline mr-1.5" />
@@ -1687,10 +1790,10 @@ export function DTRGeneratorPage() {
                   <button
                     type="button"
                     onClick={() => setGenerateSubTab('editor')}
-                    className={`px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                    className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                       generateSubTab === 'editor'
-                        ? 'bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] text-white shadow-md'
-                        : 'text-[#7A7289] hover:text-[#2D2638]'
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
                     <Edit3 size={14} className="inline mr-1.5" />
@@ -1940,7 +2043,7 @@ export function DTRGeneratorPage() {
                     className="py-2.5 px-3.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
                     title="Save current DTR to Supabase Database"
                   >
-                    {isSavingDb ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    <Save size={16} />
                     <span>{activeRecordId ? 'Update Supabase' : 'Save'}</span>
                   </button>
 
@@ -1969,14 +2072,26 @@ export function DTRGeneratorPage() {
                     </p>
                   </div>
 
-                  <button
-                    onClick={handleSaveToHistory}
-                    disabled={isSavingDb}
-                    className="px-5 py-2.5 rounded-full bg-gradient-to-r from-[#8B72F4] to-[#795CEE] text-white font-extrabold text-xs shadow-md hover:opacity-95 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
-                  >
-                    {isSavingDb ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                    <span>{activeRecordId ? 'Update DTR & View in My DTRs' : 'Save DTR & View in My DTRs'}</span>
-                  </button>
+                  <div className="flex items-center gap-2 flex-wrap">
+
+                    <button
+                      type="button"
+                      onClick={() => window.print()}
+                      className="px-4 py-2.5 rounded-full bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer"
+                      title="Print CS Form 48 DTR"
+                    >
+                      <Printer size={16} />
+                      <span>Print DTR</span>
+                    </button>
+                    <button
+                      onClick={handleSaveToHistory}
+                      disabled={isSavingDb}
+                      className="px-5 py-2.5 rounded-full bg-gradient-to-r from-[#8B72F4] to-[#795CEE] text-white font-extrabold text-xs shadow-md hover:opacity-95 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                    >
+                      <Save size={16} />
+                      <span>{activeRecordId ? 'Update DTR & View in My DTRs' : 'Save DTR & View in My DTRs'}</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Screen Preview Render */}
@@ -2165,7 +2280,18 @@ export function DTRGeneratorPage() {
                                 <td colSpan={4} className="py-2 px-3 text-center font-black tracking-wide uppercase text-slate-700 bg-slate-50/60 border-r border-slate-200">
                                   {entry.status === 'saturday' && 'SATURDAY'}
                                   {entry.status === 'sunday' && 'SUNDAY'}
-                                  {entry.status === 'holiday' && (entry.holidayTitle || 'HOLIDAY')}
+                                  {entry.status === 'holiday' && (
+                                    <div className="inline-flex items-center justify-center gap-1.5">
+                                      <span className="text-slate-400 text-[10px] font-bold uppercase">HOLIDAY NAME:</span>
+                                      <input
+                                        type="text"
+                                        value={entry.holidayTitle || ''}
+                                        onChange={e => handleCellChange(idx, 'holidayTitle', e.target.value)}
+                                        placeholder="HOLIDAY"
+                                        className="px-2 py-0.5 text-xs font-extrabold text-slate-800 bg-white border border-slate-300 rounded text-center max-w-[220px] focus:ring-2 focus:ring-amber-400 uppercase"
+                                      />
+                                    </div>
+                                  )}
                                   {entry.status === 'leave' && 'ON OFFICIAL LEAVE'}
                                   {entry.status === 'travel' && 'OFFICIAL BUSINESS (O.B.)'}
                                 </td>
@@ -2204,42 +2330,42 @@ export function DTRGeneratorPage() {
         {currentTab === 'holidays' && (
           <div className="space-y-6">
             {/* Local Holidays Section */}
-            <div className="clay-card p-6 space-y-5">
-              <div className="flex items-center justify-between pb-3 border-b border-[#F0E6DD]">
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-5">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-200/80">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-2xl bg-amber-400 text-amber-950 font-black shadow-xs">
-                    <PartyPopper size={22} />
+                  <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center font-bold">
+                    <PartyPopper size={20} />
                   </div>
                   <div>
-                    <h3 className="text-base font-black text-[#2D2638] font-display flex items-center gap-2">
+                    <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                       Local & District Custom Holidays
-                      <span className="text-[9px] px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-extrabold">
+                      <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">
                         Supabase Synced
                       </span>
                     </h3>
-                    <p className="text-xs text-[#7A7289]">Add district/town fiestas or local non-working days for Concepcion District</p>
+                    <p className="text-xs text-slate-500 font-medium">Add district/town fiestas or local non-working days for Concepcion District</p>
                   </div>
                 </div>
 
-                <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-900 text-xs font-bold border border-amber-200">
+                <span className="px-3 py-1 rounded-full bg-amber-50 text-amber-800 text-xs font-semibold border border-amber-200">
                   {customHolidays.length} Active Local Holidays
                 </span>
               </div>
 
               {/* Add Holiday Form */}
-              <form onSubmit={handleAddCustomHoliday} className="p-4 rounded-2xl bg-[#FAF5F0] border border-slate-200 space-y-3">
-                <h4 className="text-xs font-black text-[#2D2638] uppercase tracking-wide flex items-center gap-1.5">
-                  <CalendarPlus size={14} className="text-[#8B72F4]" />
+              <form onSubmit={handleAddCustomHoliday} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <CalendarPlus size={14} className="text-blue-600" />
                   Add New Local Holiday
                 </h4>
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                   <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1">Month</label>
+                    <label className="text-xs font-semibold text-slate-700 block mb-1">Month</label>
                     <select
                       value={newHolidayMonth}
                       onChange={e => setNewHolidayMonth(Number(e.target.value))}
-                      className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200 text-[#2D2638]"
+                      className="w-full px-3 py-2.5 rounded-xl text-xs font-medium bg-white border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                     >
                       {MONTH_NAMES.map((m, idx) => (
                         <option key={m} value={idx + 1}>
@@ -2250,7 +2376,7 @@ export function DTRGeneratorPage() {
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1">Start Day</label>
+                    <label className="text-xs font-semibold text-slate-700 block mb-1">Start Day</label>
                     <input
                       type="number"
                       min={1}
@@ -2261,12 +2387,12 @@ export function DTRGeneratorPage() {
                         setNewHolidayStartDay(val)
                         if (newHolidayEndDay < val) setNewHolidayEndDay(val)
                       }}
-                      className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200 text-[#2D2638]"
+                      className="w-full px-3 py-2.5 rounded-xl text-xs font-medium bg-white border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                     />
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                    <label className="text-xs font-semibold text-slate-700 block mb-1">
                       End Day <span className="text-slate-400 font-normal">(Range)</span>
                     </label>
                     <input
@@ -2276,47 +2402,88 @@ export function DTRGeneratorPage() {
                       value={newHolidayEndDay}
                       onChange={e => setNewHolidayEndDay(Number(e.target.value))}
                       placeholder="Same as start for 1 day"
-                      className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200 text-[#2D2638]"
+                      className="w-full px-3 py-2.5 rounded-xl text-xs font-medium bg-white border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                     />
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1">Holiday Title / Name</label>
+                    <label className="text-xs font-semibold text-slate-700 block mb-1">Holiday Title / Name</label>
                     <input
                       type="text"
                       value={newHolidayTitle}
                       onChange={e => setNewHolidayTitle(e.target.value)}
                       placeholder="e.g. Concepcion Town Fiesta"
-                      className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200 text-[#2D2638] focus:ring-2 focus:ring-[#8B72F4]/30"
+                      className="w-full px-3 py-2.5 rounded-xl text-xs font-medium bg-white border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                     />
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-slate-200/60 mt-2">
+                {/* Applicable Roles Selection */}
+                <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                      <Users size={14} className="text-blue-600" />
+                      Apply Holiday To Specific Roles:
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleSelectAllHolidayRoles}
+                      className="text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer"
+                    >
+                      Select All Roles
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {ALL_DTR_ROLES.map(r => {
+                      const isSelected = newHolidayRoles.includes(r.key)
+                      return (
+                        <button
+                          key={r.key}
+                          type="button"
+                          onClick={() => handleToggleHolidayRole(r.key)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer border ${
+                            isSelected
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                              : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          <span className={`w-3.5 h-3.5 rounded-md border flex items-center justify-center text-[9px] ${
+                            isSelected ? 'bg-white text-blue-600 border-white font-bold' : 'border-slate-300 bg-white'
+                          }`}>
+                            {isSelected ? '✓' : ''}
+                          </span>
+                          {r.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-200">
                   <div className="flex flex-wrap items-center gap-4">
-                    <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700">
                       <input
                         type="checkbox"
                         checked={newHolidayIsRecurring}
                         onChange={e => setNewHolidayIsRecurring(e.target.checked)}
-                        className="rounded text-[#8B72F4] focus:ring-[#8B72F4]"
+                        className="rounded text-blue-600 focus:ring-blue-500/20"
                       />
                       <span>Repeats every year (Annual)</span>
                     </label>
 
-                    <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200/80">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
                       <input
                         type="checkbox"
                         checked={newHolidayIsHalfDay}
                         onChange={e => setNewHolidayIsHalfDay(e.target.checked)}
-                        className="rounded text-amber-600 focus:ring-amber-500"
+                        className="rounded text-amber-600 focus:ring-amber-500/20"
                       />
                       <span>Half Day Only</span>
                     </label>
 
                     {newHolidayIsHalfDay && (
-                      <div className="flex items-center gap-3 text-xs font-bold text-slate-700 bg-white px-3 py-1 rounded-lg border border-slate-200 shadow-2xs animate-fade-in">
-                        <span className="text-[11px] text-slate-500 font-extrabold uppercase">Session:</span>
+                      <div className="flex items-center gap-3 text-xs font-semibold text-slate-700 bg-white px-3 py-1 rounded-lg border border-slate-200 shadow-xs">
+                        <span className="text-xs text-slate-500 uppercase tracking-wider">Session:</span>
                         <label className="flex items-center gap-1.5 cursor-pointer text-xs">
                           <input
                             type="radio"
@@ -2324,7 +2491,7 @@ export function DTRGeneratorPage() {
                             value="am"
                             checked={newHolidayHalfDaySession === 'am'}
                             onChange={() => setNewHolidayHalfDaySession('am')}
-                            className="text-[#8B72F4]"
+                            className="text-blue-600"
                           />
                           <span>Morning (A.M. Off)</span>
                         </label>
@@ -2335,7 +2502,7 @@ export function DTRGeneratorPage() {
                             value="pm"
                             checked={newHolidayHalfDaySession === 'pm'}
                             onChange={() => setNewHolidayHalfDaySession('pm')}
-                            className="text-[#8B72F4]"
+                            className="text-blue-600"
                           />
                           <span>Afternoon (P.M. Off)</span>
                         </label>
@@ -2345,7 +2512,7 @@ export function DTRGeneratorPage() {
 
                   <button
                     type="submit"
-                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#8B72F4] to-[#795CEE] text-white font-extrabold text-xs shadow-md hover:opacity-95 transition-all flex items-center gap-1.5 cursor-pointer ml-auto"
+                    className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer ml-auto"
                   >
                     <Plus size={16} />
                     Save Local Holiday
@@ -2358,20 +2525,36 @@ export function DTRGeneratorPage() {
                 {customHolidays.map(item => (
                   <div
                     key={item.id}
-                    className="p-3.5 rounded-2xl bg-white border border-slate-200 flex items-center justify-between gap-3 shadow-2xs hover:border-amber-300 transition-all"
+                    className="p-4 rounded-xl bg-white border border-slate-200/80 flex items-center justify-between gap-3 shadow-xs hover:border-amber-300 transition-all"
                   >
                     <div className="flex items-center gap-3">
                       <Tag size={16} className="text-amber-500 shrink-0" />
                       <div>
-                        <p className="text-xs font-extrabold text-[#2D2638]">{item.title}</p>
+                        <p className="text-xs font-bold text-slate-900">{item.title}</p>
                         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                          <span className="text-[10px] text-[#8B72F4] font-black">{item.dateStr}</span>
-                          <span className="text-[10px] text-slate-400">•</span>
-                          <span className="text-[10px] text-slate-500 font-bold">{item.isRecurring ? 'Annual' : 'Specific Year'}</span>
+                          <span className="text-xs text-blue-600 font-semibold">{item.dateStr}</span>
+                          <span className="text-xs text-slate-400">•</span>
+                          <span className="text-xs text-slate-500 font-medium">{item.isRecurring ? 'Annual' : 'Specific Year'}</span>
                           {item.isHalfDay && (
-                            <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300/60 text-[9px] font-black uppercase">
+                            <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-semibold uppercase">
                               Half Day ({item.halfDaySession === 'pm' ? 'P.M.' : 'A.M.'})
                             </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                          {(!item.applicableRoles || item.applicableRoles.length === ALL_DTR_ROLES.length) ? (
+                            <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-semibold">
+                              All Roles
+                            </span>
+                          ) : (
+                            item.applicableRoles.map(rKey => {
+                              const rMeta = ALL_DTR_ROLES.find(r => r.key === rKey)
+                              return (
+                                <span key={rKey} className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-semibold">
+                                  {rMeta?.shortLabel || rKey}
+                                </span>
+                              )
+                            })
                           )}
                         </div>
                       </div>
@@ -2380,7 +2563,7 @@ export function DTRGeneratorPage() {
                     <button
                       type="button"
                       onClick={() => handleDeleteCustomHoliday(item.id, item.title)}
-                      className="p-1.5 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all"
+                      className="p-1.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all cursor-pointer"
                       title="Delete Local Holiday"
                     >
                       <Trash2 size={16} />
@@ -2391,13 +2574,13 @@ export function DTRGeneratorPage() {
             </div>
 
             {/* National Holidays Section */}
-            <div className="clay-card p-6 space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-[#F0E6DD]">
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-200/80">
                 <div>
-                  <h3 className="text-base font-black text-[#2D2638] font-display">Official National Holidays</h3>
-                  <p className="text-xs text-[#7A7289]">Standard Philippine Regular & Special Non-Working Holidays</p>
+                  <h3 className="text-base font-bold text-slate-900">Official National Holidays</h3>
+                  <p className="text-xs text-slate-500 font-medium">Standard Philippine Regular & Special Non-Working Holidays</p>
                 </div>
-                <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-800 text-xs font-bold border border-blue-200">
+                <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold border border-blue-200">
                   {nationalHolidays.filter(h => h.isActive).length} Active National Holidays
                 </span>
               </div>
@@ -2407,18 +2590,18 @@ export function DTRGeneratorPage() {
                   <div
                     key={nh.key}
                     onClick={() => handleToggleNationalHoliday(nh.key)}
-                    className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                    className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
                       nh.isActive
-                        ? 'bg-white border-[#8B72F4]/60 shadow-2xs'
+                        ? 'bg-white border-blue-200 shadow-xs'
                         : 'bg-slate-50 border-slate-200 opacity-60'
                     }`}
                   >
                     <div className="space-y-0.5">
-                      <p className="text-xs font-extrabold text-[#2D2638]">{nh.name}</p>
-                      <p className="text-[10px] text-[#8B72F4] font-extrabold">{nh.dateStr}</p>
+                      <p className="text-xs font-bold text-slate-900">{nh.name}</p>
+                      <p className="text-xs text-blue-600 font-semibold">{nh.dateStr}</p>
                     </div>
 
-                    <button type="button" className="text-[#8B72F4]">
+                    <button type="button" className="text-blue-600">
                       {nh.isActive ? <ToggleRight size={22} /> : <ToggleLeft size={22} className="text-slate-400" />}
                     </button>
                   </div>
@@ -2430,59 +2613,59 @@ export function DTRGeneratorPage() {
 
         {/* VIEW 5: ABSENCES VIEW */}
         {currentTab === 'absences' && (
-          <div className="clay-card p-6 space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-[#F0E6DD]">
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-6">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200/80">
               <div>
-                <h3 className="text-base font-black text-[#2D2638] font-display flex items-center gap-2">
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                   <UserX className="text-rose-500" size={20} />
                   Personnel Absences Tracking
                 </h3>
-                <p className="text-xs text-[#7A7289]">Log and record absence days for personnel</p>
+                <p className="text-xs text-slate-500 font-medium">Log and record absence days for personnel</p>
               </div>
-              <span className="px-3 py-1 rounded-full bg-rose-50 text-rose-700 text-xs font-bold border border-rose-200">
+              <span className="px-3 py-1 rounded-full bg-rose-50 text-rose-700 text-xs font-semibold border border-rose-200">
                 {userAbsencesList.length} Logged Absences
               </span>
             </div>
 
             {/* Log Absence Form */}
-            <form onSubmit={handleAddAbsence} className="p-4 rounded-2xl bg-[#FAF5F0] border border-slate-200 space-y-3">
-              <h4 className="text-xs font-black text-[#2D2638] uppercase tracking-wide">Log New Absence</h4>
+            <form onSubmit={handleAddAbsence} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Log New Absence</h4>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Absence Date</label>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Absence Date</label>
                   <input
                     type="date"
                     value={newAbsenceDate}
                     onChange={e => setNewAbsenceDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200"
+                    className="w-full px-3 py-2.5 rounded-xl text-xs font-medium bg-white border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Reason / Explanation</label>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Reason / Explanation</label>
                   <input
                     type="text"
                     value={newAbsenceReason}
                     onChange={e => setNewAbsenceReason(e.target.value)}
                     placeholder="e.g. Family Emergency / Medical Absence"
-                    className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200"
+                    className="w-full px-3 py-2.5 rounded-xl text-xs font-medium bg-white border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   />
                 </div>
 
                 <div className="flex items-end gap-3">
-                  <label className="flex items-center gap-2 text-xs font-bold text-slate-700 mb-2 cursor-pointer">
+                  <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 mb-2 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={newAbsenceExcused}
                       onChange={e => setNewAbsenceExcused(e.target.checked)}
-                      className="rounded text-[#8B72F4]"
+                      className="rounded text-blue-600 focus:ring-blue-500/20"
                     />
                     <span>Excused Absence</span>
                   </label>
 
                   <button
                     type="submit"
-                    className="flex-1 py-2 px-4 rounded-xl bg-[#8B72F4] text-white font-extrabold text-xs shadow-md cursor-pointer"
+                    className="flex-1 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition-all cursor-pointer"
                   >
                     Log Absence
                   </button>
@@ -2491,26 +2674,26 @@ export function DTRGeneratorPage() {
             </form>
 
             {/* Absences Table */}
-            <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+            <div className="overflow-x-auto rounded-xl border border-slate-200">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="bg-slate-100 text-slate-700 font-extrabold uppercase border-b border-slate-200">
-                    <th className="py-3 px-4">Employee Name</th>
-                    <th className="py-3 px-4">Absence Date</th>
-                    <th className="py-3 px-4">Reason</th>
-                    <th className="py-3 px-4">Status</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
+                  <tr className="bg-slate-50 text-slate-600 font-semibold uppercase tracking-wider border-b border-slate-200">
+                    <th className="py-3.5 px-4">Employee Name</th>
+                    <th className="py-3.5 px-4">Absence Date</th>
+                    <th className="py-3.5 px-4">Reason</th>
+                    <th className="py-3.5 px-4">Status</th>
+                    <th className="py-3.5 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200">
+                <tbody className="divide-y divide-slate-100">
                   {userAbsencesList.map(item => (
-                    <tr key={item.id} className="hover:bg-slate-50">
-                      <td className="py-3.5 px-4 font-bold text-slate-800">{item.employeeName}</td>
-                      <td className="py-3.5 px-4 font-extrabold text-[#8B72F4]">{item.date}</td>
+                    <tr key={item.id} className="hover:bg-slate-50/50">
+                      <td className="py-3.5 px-4 font-semibold text-slate-900">{item.employeeName}</td>
+                      <td className="py-3.5 px-4 font-bold text-blue-600">{item.date}</td>
                       <td className="py-3.5 px-4 font-medium text-slate-700">{item.reason}</td>
                       <td className="py-3.5 px-4">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${
-                          item.isExcused ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                          item.isExcused ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'
                         }`}>
                           {item.isExcused ? 'Excused' : 'Unexcused'}
                         </span>
@@ -2519,7 +2702,7 @@ export function DTRGeneratorPage() {
                         <button
                           type="button"
                           onClick={() => handleDeleteAbsence(item.id)}
-                          className="p-1 rounded-lg text-slate-400 hover:text-red-600"
+                          className="p-1.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all cursor-pointer"
                         >
                           <Trash2 size={16} />
                         </button>
@@ -2539,30 +2722,30 @@ export function DTRGeneratorPage() {
 
         {/* VIEW 6: LEAVE (FORM 6) VIEW */}
         {currentTab === 'leave' && (
-          <div className="clay-card p-6 space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-[#F0E6DD]">
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-6">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200/80">
               <div>
-                <h3 className="text-base font-black text-[#2D2638] font-display flex items-center gap-2">
-                  <FileSpreadsheet className="text-blue-500" size={20} />
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <FileSpreadsheet className="text-blue-600" size={20} />
                   Form 6 Official Leave Records
                 </h3>
-                <p className="text-xs text-[#7A7289]">Track official Form 6 Application for Leave entries</p>
+                <p className="text-xs text-slate-500 font-medium">Track official Form 6 Application for Leave entries</p>
               </div>
-              <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-800 text-xs font-bold border border-blue-200">
+              <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold border border-blue-200">
                 {userLeaveRecords.length} Approved Leaves
               </span>
             </div>
 
             {/* File Leave Form */}
-            <form onSubmit={handleAddLeave} className="p-4 rounded-2xl bg-[#FAF5F0] border border-slate-200 space-y-3">
-              <h4 className="text-xs font-black text-[#2D2638] uppercase tracking-wide">File Form 6 Leave Record</h4>
+            <form onSubmit={handleAddLeave} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">File Form 6 Leave Record</h4>
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                 <div>
-                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Leave Category</label>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Leave Category</label>
                   <select
                     value={newLeaveType}
                     onChange={e => setNewLeaveType(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200"
+                    className="w-full px-3 py-2.5 rounded-xl text-xs font-medium bg-white border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   >
                     <option value="Vacation Leave">Vacation Leave</option>
                     <option value="Sick Leave">Sick Leave</option>
@@ -2574,29 +2757,29 @@ export function DTRGeneratorPage() {
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Start Date</label>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Start Date</label>
                   <input
                     type="date"
                     value={newLeaveStart}
                     onChange={e => setNewLeaveStart(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200"
+                    className="w-full px-3 py-2.5 rounded-xl text-xs font-medium bg-white border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-bold text-slate-700 block mb-1">End Date</label>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">End Date</label>
                   <input
                     type="date"
                     value={newLeaveEnd}
                     onChange={e => setNewLeaveEnd(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200"
+                    className="w-full px-3 py-2.5 rounded-xl text-xs font-medium bg-white border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   />
                 </div>
 
                 <div className="flex items-end">
                   <button
                     type="submit"
-                    className="w-full py-2 px-4 rounded-xl bg-[#8B72F4] text-white font-extrabold text-xs shadow-md cursor-pointer"
+                    className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition-all cursor-pointer"
                   >
                     File Leave Record
                   </button>
@@ -2605,27 +2788,27 @@ export function DTRGeneratorPage() {
             </form>
 
             {/* Leave Records Table */}
-            <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+            <div className="overflow-x-auto rounded-xl border border-slate-200">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="bg-slate-100 text-slate-700 font-extrabold uppercase border-b border-slate-200">
-                    <th className="py-3 px-4">Employee Name</th>
-                    <th className="py-3 px-4">Leave Type</th>
-                    <th className="py-3 px-4">Inclusive Dates</th>
-                    <th className="py-3 px-4">Status</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
+                  <tr className="bg-slate-50 text-slate-600 font-semibold uppercase tracking-wider border-b border-slate-200">
+                    <th className="py-3.5 px-4">Employee Name</th>
+                    <th className="py-3.5 px-4">Leave Type</th>
+                    <th className="py-3.5 px-4">Inclusive Dates</th>
+                    <th className="py-3.5 px-4">Status</th>
+                    <th className="py-3.5 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200">
+                <tbody className="divide-y divide-slate-100">
                   {userLeaveRecords.map(item => (
-                    <tr key={item.id} className="hover:bg-slate-50">
-                      <td className="py-3.5 px-4 font-bold text-slate-800">{item.employeeName}</td>
-                      <td className="py-3.5 px-4 font-extrabold text-[#8B72F4]">{item.leaveType}</td>
-                      <td className="py-3.5 px-4 font-bold">
+                    <tr key={item.id} className="hover:bg-slate-50/50">
+                      <td className="py-3.5 px-4 font-semibold text-slate-900">{item.employeeName}</td>
+                      <td className="py-3.5 px-4 font-bold text-blue-600">{item.leaveType}</td>
+                      <td className="py-3.5 px-4 font-medium text-slate-700">
                         {item.startDate} to {item.endDate}
                       </td>
                       <td className="py-3.5 px-4">
-                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold">
+                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-semibold">
                           {item.status}
                         </span>
                       </td>
@@ -2633,7 +2816,7 @@ export function DTRGeneratorPage() {
                         <button
                           type="button"
                           onClick={() => handleDeleteLeave(item.id)}
-                          className="p-1 rounded-lg text-slate-400 hover:text-red-600"
+                          className="p-1.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all cursor-pointer"
                         >
                           <Trash2 size={16} />
                         </button>
@@ -2653,30 +2836,30 @@ export function DTRGeneratorPage() {
 
         {/* VIEW 7: SETTINGS VIEW */}
         {currentTab === 'settings' && (
-          <div className="clay-card p-6 space-y-6">
-            <div className="pb-4 border-b border-slate-200 flex items-center justify-between flex-wrap gap-3">
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-6">
+            <div className="pb-4 border-b border-slate-200/80 flex items-center justify-between flex-wrap gap-3">
               <div>
-                <h3 className="text-base font-black text-[#2D2638] font-display flex items-center gap-2">
-                  <SettingsIcon className="text-[#FA6B6B]" size={20} />
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <SettingsIcon className="text-blue-600" size={20} />
                   Working Hours & DTR System Settings
                 </h3>
-                <p className="text-xs text-[#7A7289]">
+                <p className="text-xs text-slate-500 font-medium">
                   Customize your prescribed working hours, Saturday header text, and non-late generator minute ranges. Saved for yourself only.
                 </p>
               </div>
-              <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-[#FFEBEB] text-[#FA6B6B] border border-[#FFCCD4]">
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
                 <User size={14} />
                 Saved for {admin?.full_name || 'You'} Only
               </span>
             </div>
 
             {/* Prescribed Working Hours Schedule Selection */}
-            <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
-              <h4 className="text-xs font-black text-slate-800 uppercase tracking-wide flex items-center gap-1.5">
-                <Clock size={16} className="text-[#FA6B6B]" />
+            <div className="p-5 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                <Clock size={16} className="text-blue-600" />
                 Prescribed Working Hours Schedule Option
               </h4>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 font-medium">
                 Select between the two official DepEd working hour schedules:
               </p>
 
@@ -2686,18 +2869,18 @@ export function DTRGeneratorPage() {
                   onClick={() => handleApplyPreset('option_1')}
                   className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
                     workingHoursPreset === 'option_1'
-                      ? 'border-[#FA6B6B] bg-[#FFEBEB]/40 shadow-xs'
-                      : 'border-slate-200 hover:border-slate-300 bg-slate-50/50'
+                      ? 'border-blue-600 bg-white shadow-xs'
+                      : 'border-slate-200 hover:border-slate-300 bg-white/50'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-black text-slate-900">Option 1 (7:00AM – 11:30AM & 1:00PM – 5:00PM)</span>
+                    <span className="text-xs font-bold text-slate-900">Option 1 (7:00AM – 11:30AM & 1:00PM – 5:00PM)</span>
                     {workingHoursPreset === 'option_1' && (
-                      <CheckCircle2 size={18} className="text-[#FA6B6B]" />
+                      <CheckCircle2 size={18} className="text-blue-600" />
                     )}
                   </div>
-                  <p className="text-xs font-extrabold text-[#FA6B6B] mt-1">7:00 AM – 11:30 AM & 1:00 PM – 5:00 PM</p>
-                  <p className="text-[11px] text-slate-500 mt-1">
+                  <p className="text-xs font-semibold text-blue-600 mt-1">7:00 AM – 11:30 AM & 1:00 PM – 5:00 PM</p>
+                  <p className="text-[11px] text-slate-500 font-medium mt-1">
                     Morning Arrival: 6:xx AM • Morning Departure: 11:xx AM
                   </p>
                 </div>
@@ -2707,18 +2890,18 @@ export function DTRGeneratorPage() {
                   onClick={() => handleApplyPreset('option_2')}
                   className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
                     workingHoursPreset === 'option_2'
-                      ? 'border-[#FA6B6B] bg-[#FFEBEB]/40 shadow-xs'
-                      : 'border-slate-200 hover:border-slate-300 bg-slate-50/50'
+                      ? 'border-blue-600 bg-white shadow-xs'
+                      : 'border-slate-200 hover:border-slate-300 bg-white/50'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-black text-slate-900">Option 2 (8:00AM – 12:00PM & 1:00PM – 5:00PM)</span>
+                    <span className="text-xs font-bold text-slate-900">Option 2 (8:00AM – 12:00PM & 1:00PM – 5:00PM)</span>
                     {workingHoursPreset === 'option_2' && (
-                      <CheckCircle2 size={18} className="text-[#FA6B6B]" />
+                      <CheckCircle2 size={18} className="text-blue-600" />
                     )}
                   </div>
-                  <p className="text-xs font-extrabold text-[#FA6B6B] mt-1">8:00 AM – 12:00 PM & 1:00 PM – 5:00 PM</p>
-                  <p className="text-[11px] text-slate-500 mt-1">
+                  <p className="text-xs font-semibold text-blue-600 mt-1">8:00 AM – 12:00 PM & 1:00 PM – 5:00 PM</p>
+                  <p className="text-[11px] text-slate-500 font-medium mt-1">
                     Morning Arrival: 7:xx AM • Morning Departure: 12:xx PM
                   </p>
                 </div>
@@ -2727,132 +2910,132 @@ export function DTRGeneratorPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Working Hours Text Configurations */}
-              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
-                <h4 className="text-xs font-black text-[#2D2638] uppercase tracking-wide">Prescribed Working Hours Header Strings</h4>
+              <div className="p-5 rounded-xl bg-slate-50 border border-slate-200 space-y-4">
+                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Prescribed Working Hours Header Strings</h4>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Regular Days Working Hours Text</label>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Regular Days Working Hours Text</label>
                   <input
                     type="text"
                     value={officialHoursText}
                     onChange={e => setOfficialHoursText(e.target.value)}
                     placeholder="Regular days 7:00–11:30AM / 1:00–5:00PM"
-                    className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#FA6B6B]"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-xs font-medium bg-white border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   />
-                  <p className="text-[10px] text-slate-400 mt-1">Printed on Civil Service Form No. 48 header</p>
+                  <p className="text-[11px] text-slate-400 mt-1">Printed on Civil Service Form No. 48 header</p>
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Saturdays Schedule Text</label>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Saturdays Schedule Text</label>
                   <input
                     type="text"
                     value={saturdaysText}
                     onChange={e => setSaturdaysText(e.target.value)}
                     placeholder="e.g. Saturdays: 1:00-5:00PM or 8:00-12:00NN"
-                    className="w-full px-3 py-2 rounded-xl text-xs font-bold bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#FA6B6B]"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-xs font-medium bg-white border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   />
                 </div>
               </div>
 
               {/* Random Generator Minute Range Parameters */}
-              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
-                <h4 className="text-xs font-black text-[#2D2638] uppercase tracking-wide">
+              <div className="p-5 rounded-xl bg-slate-50 border border-slate-200 space-y-4">
+                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
                   Non-Late Random Generator Minute Ranges
                 </h4>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                    <label className="text-xs font-semibold text-slate-700 block mb-1">
                       A.M. Arrival ({workingHoursPreset === 'option_2' ? '7:xx AM' : '6:xx AM'})
                     </label>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1.5">
                       <input
                         type="number"
                         min={0}
                         max={59}
                         value={amArrivalRange.start}
                         onChange={e => setAmArrivalRange({ ...amArrivalRange, start: Number(e.target.value) })}
-                        className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#FA6B6B]"
+                        className="w-full px-2.5 py-2 rounded-xl text-xs font-medium bg-white border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                       />
-                      <span className="text-xs text-slate-400">to</span>
+                      <span className="text-xs text-slate-400 font-medium">to</span>
                       <input
                         type="number"
                         min={0}
                         max={59}
                         value={amArrivalRange.end}
                         onChange={e => setAmArrivalRange({ ...amArrivalRange, end: Number(e.target.value) })}
-                        className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#FA6B6B]"
+                        className="w-full px-2.5 py-2 rounded-xl text-xs font-medium bg-white border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                    <label className="text-xs font-semibold text-slate-700 block mb-1">
                       A.M. Departure ({workingHoursPreset === 'option_2' ? '12:xx PM' : '11:xx AM'})
                     </label>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1.5">
                       <input
                         type="number"
                         min={0}
                         max={59}
                         value={amDepartureRange.start}
                         onChange={e => setAmDepartureRange({ ...amDepartureRange, start: Number(e.target.value) })}
-                        className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#FA6B6B]"
+                        className="w-full px-2.5 py-2 rounded-xl text-xs font-medium bg-white border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                       />
-                      <span className="text-xs text-slate-400">to</span>
+                      <span className="text-xs text-slate-400 font-medium">to</span>
                       <input
                         type="number"
                         min={0}
                         max={59}
                         value={amDepartureRange.end}
                         onChange={e => setAmDepartureRange({ ...amDepartureRange, end: Number(e.target.value) })}
-                        className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#FA6B6B]"
+                        className="w-full px-2.5 py-2 rounded-xl text-xs font-medium bg-white border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1">P.M. Arrival (12:xx PM)</label>
-                    <div className="flex items-center gap-1">
+                    <label className="text-xs font-semibold text-slate-700 block mb-1">P.M. Arrival (12:xx PM)</label>
+                    <div className="flex items-center gap-1.5">
                       <input
                         type="number"
                         min={0}
                         max={59}
                         value={pmArrivalRange.start}
                         onChange={e => setPmArrivalRange({ ...pmArrivalRange, start: Number(e.target.value) })}
-                        className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#FA6B6B]"
+                        className="w-full px-2.5 py-2 rounded-xl text-xs font-medium bg-white border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                       />
-                      <span className="text-xs text-slate-400">to</span>
+                      <span className="text-xs text-slate-400 font-medium">to</span>
                       <input
                         type="number"
                         min={0}
                         max={59}
                         value={pmArrivalRange.end}
                         onChange={e => setPmArrivalRange({ ...pmArrivalRange, end: Number(e.target.value) })}
-                        className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#FA6B6B]"
+                        className="w-full px-2.5 py-2 rounded-xl text-xs font-medium bg-white border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1">P.M. Departure (5:xx PM)</label>
-                    <div className="flex items-center gap-1">
+                    <label className="text-xs font-semibold text-slate-700 block mb-1">P.M. Departure (5:xx PM)</label>
+                    <div className="flex items-center gap-1.5">
                       <input
                         type="number"
                         min={0}
                         max={59}
                         value={pmDepartureRange.start}
                         onChange={e => setPmDepartureRange({ ...pmDepartureRange, start: Number(e.target.value) })}
-                        className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#FA6B6B]"
+                        className="w-full px-2.5 py-2 rounded-xl text-xs font-medium bg-white border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                       />
-                      <span className="text-xs text-slate-400">to</span>
+                      <span className="text-xs text-slate-400 font-medium">to</span>
                       <input
                         type="number"
                         min={0}
                         max={59}
                         value={pmDepartureRange.end}
                         onChange={e => setPmDepartureRange({ ...pmDepartureRange, end: Number(e.target.value) })}
-                        className="w-full px-2 py-1 rounded-lg text-xs font-bold bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#FA6B6B]"
+                        className="w-full px-2.5 py-2 rounded-xl text-xs font-medium bg-white border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                       />
                     </div>
                   </div>
@@ -2864,7 +3047,7 @@ export function DTRGeneratorPage() {
               <button
                 type="button"
                 onClick={handleSavePersonalSettings}
-                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#FF7A70] to-[#FA6B6B] text-white font-extrabold text-xs shadow-md hover:opacity-95 transition-all flex items-center gap-2 cursor-pointer"
+                className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition-all flex items-center gap-2 cursor-pointer"
               >
                 <Save size={16} />
                 Save System Settings
@@ -2879,7 +3062,7 @@ export function DTRGeneratorPage() {
       </div>
 
       {/* STANDALONE PRINT AREA OUTSIDE SchoolConnectLayout */}
-      <div className="dtr-print-only-root official-termcat-print-area">
+      <div className="dtr-print-only-root">
         <CSForm48DualRender
           employeeName={employeeName}
           monthYearLabel={monthYearLabel}
@@ -2907,6 +3090,34 @@ interface CSForm48Props {
   supervisorTitle: string
 }
 
+function formatHolidayLabel(title?: string): string {
+  if (!title || !title.trim()) return 'HOLIDAY'
+  const t = title.trim().toUpperCase()
+  const match = t.match(/^HOLIDAY\s*\(([^)]+)\)$/)
+  if (match && match[1]) return match[1].trim()
+  return t
+}
+
+function isTimeStr(str?: string): boolean {
+  if (!str) return false
+  const s = str.trim()
+  return /^(\d{1,2}:\d{2}(\s*(AM|PM|am|pm))?|\d{1,2})$/.test(s)
+}
+
+function getNonTimeLabel(val1?: string, val2?: string, fallbackTitle?: string): string {
+  const v1 = (val1 || '').trim()
+  const v2 = (val2 || '').trim()
+  // If v1 or v2 has a specific custom title that isn't generic 'HOLIDAY', use it
+  if (v1 && !isTimeStr(v1) && v1.toUpperCase() !== 'HOLIDAY') return formatHolidayLabel(v1)
+  if (v2 && !isTimeStr(v2) && v2.toUpperCase() !== 'HOLIDAY') return formatHolidayLabel(v2)
+  // If fallbackTitle is provided (e.g. from holiday map/entry), prefer that
+  if (fallbackTitle && fallbackTitle.trim()) return formatHolidayLabel(fallbackTitle)
+  // Fall back to v1 or v2 if it's non-time (e.g. 'HOLIDAY')
+  if (v1 && !isTimeStr(v1)) return formatHolidayLabel(v1)
+  if (v2 && !isTimeStr(v2)) return formatHolidayLabel(v2)
+  return 'HOLIDAY'
+}
+
 function CSForm48DualRender({
   employeeName,
   monthYearLabel,
@@ -2918,7 +3129,7 @@ function CSForm48DualRender({
 }: CSForm48Props) {
   return (
     <div
-      className="dtr-dual-container flex flex-row justify-between items-start gap-4 w-full mx-auto bg-white text-black p-2"
+      className="dtr-dual-container flex flex-row justify-between items-start gap-3 w-full mx-auto bg-white text-black p-1"
       style={{ fontFamily: 'Arial, "Helvetica Neue", Helvetica, sans-serif' }}
     >
       {/* COPY 1 */}
@@ -2958,218 +3169,270 @@ function CSForm48SingleCard({
   supervisorName,
   supervisorTitle
 }: CSForm48Props) {
+  const totalUndertime = React.useMemo(() => {
+    let totalMins = 0
+    entries.forEach(e => {
+      if (e.undertimeHours) totalMins += (parseInt(e.undertimeHours, 10) || 0) * 60
+      if (e.undertimeMinutes) totalMins += (parseInt(e.undertimeMinutes, 10) || 0)
+    })
+    if (totalMins === 0) return { hours: '', minutes: '' }
+    const h = Math.floor(totalMins / 60)
+    const m = totalMins % 60
+    return {
+      hours: h > 0 ? String(h) : '',
+      minutes: m > 0 ? String(m) : ''
+    }
+  }, [entries])
+
   return (
-    <div className="dtr-card-cut-wrapper flex-1 relative border border-dashed border-black p-[0.1in] bg-white box-sizing-border font-sans">
+    <div className="dtr-card-cut-wrapper flex-1 relative border border-dashed border-black p-[0.08in] bg-white box-sizing-border font-sans h-[8.5in] max-h-[8.5in] overflow-hidden">
       {/* Scissor icon indicator */}
       <span className="dtr-scissor-tag absolute -top-2.5 left-3 bg-white px-1 text-[8pt] text-black font-mono flex items-center gap-1 z-10 select-none">
         ✂
       </span>
       <div
-        className="dtr-card-single border-2 border-black p-3 bg-white text-black text-[8.5pt] leading-tight select-none w-full"
+        className="dtr-card-single border-2 border-black p-2.5 bg-white text-black text-[8pt] leading-tight select-none w-full h-full flex flex-col justify-between overflow-hidden"
         style={{ fontFamily: 'Arial, "Helvetica Neue", Helvetica, sans-serif' }}
       >
-      {/* Form Title */}
-      <div className="text-center font-bold">
-        <p className="text-[7.5pt] tracking-tight">CIVIL SERVICE FORM No. 48</p>
-        <p className="text-[10pt] font-extrabold uppercase mt-0.5">DAILY TIME RECORD</p>
-        <div className="w-3/4 border-b border-black mx-auto my-1"></div>
+        {/* Form Title */}
+        <div className="text-center font-bold shrink-0">
+          <p className="text-[7.2pt] tracking-tight leading-tight">CIVIL SERVICE FORM No. 48</p>
+          <p className="text-[9.5pt] font-extrabold uppercase mt-0.5 leading-tight">DAILY TIME RECORD</p>
+          <div className="w-3/4 border-b border-black mx-auto my-1"></div>
 
-        {/* Employee Name Underline */}
-        <p className="text-[11pt] font-extrabold uppercase tracking-wide border-b border-black pb-0.5 mt-2">
-          {employeeName || 'MICHELLE S. MOSQUERA'}
-        </p>
-        <p className="text-[7pt] italic">(Name)</p>
-      </div>
-
-      {/* Month & Official Hours Header Info */}
-      <div className="mt-2 space-y-0.5 text-[7.5pt] leading-snug">
-        <div className="flex items-baseline justify-between">
-          <span className="font-semibold">For the month of:</span>
-          <span className="font-extrabold uppercase border-b border-black px-2 text-[8.5pt]">
-            {monthYearLabel}
-          </span>
+          {/* Employee Name Underline */}
+          <p className="text-[10pt] font-extrabold uppercase tracking-wide border-b border-black pb-0.5 mt-0.5 text-center whitespace-nowrap overflow-hidden text-ellipsis leading-tight">
+            {employeeName || 'MICHELLE S. MOSQUERA'}
+          </p>
+          <p className="text-[6.8pt] italic leading-tight">(Name)</p>
         </div>
 
-        <div className="flex items-start justify-between">
-          <div className="font-semibold">
-            <div>Office hours of arrival</div>
-            <div>and departure</div>
+        {/* Month & Official Hours Header Info */}
+        <div className="mt-1 space-y-0.5 text-[7pt] leading-tight shrink-0">
+          <div className="flex items-baseline justify-between">
+            <span className="font-semibold">For the month of:</span>
+            <span className="font-extrabold uppercase border-b border-black px-2 text-[8pt]">
+              {monthYearLabel}
+            </span>
           </div>
-          <div className="text-right">
-            <div className="font-bold">{officialHoursText || 'Regular days 7:00-11:30AM'}</div>
-            <div className="font-bold">
-              {saturdaysText
-                ? (saturdaysText.toLowerCase().startsWith('saturdays') ? saturdaysText : `Saturdays: ${saturdaysText}`)
-                : 'Saturdays: 1:00-5:00PM'}
+
+          <div className="flex items-start justify-between gap-1">
+            <div className="font-semibold shrink-0 text-[6.5pt]">
+              <div>Office hours of arrival</div>
+              <div>and departure</div>
+            </div>
+            <div className="text-right leading-tight">
+              <div className="font-bold whitespace-nowrap text-[6.8pt]">{officialHoursText || 'Regular days 7:00-11:30AM / 1:00-5:00PM'}</div>
+              <div className="font-bold whitespace-nowrap text-[6.8pt]">
+                {saturdaysText
+                  ? (saturdaysText.toLowerCase().startsWith('saturdays') ? saturdaysText : `Saturdays: ${saturdaysText}`)
+                  : 'Saturdays: _________________'}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main DTR Data Table */}
+        <table className="dtr-table w-full border-collapse border border-black text-center mt-1 text-[6.8pt] flex-1">
+          <colgroup>
+            <col style={{ width: '9%' }} />
+            <col style={{ width: '17%' }} />
+            <col style={{ width: '17%' }} />
+            <col style={{ width: '17%' }} />
+            <col style={{ width: '17%' }} />
+            <col style={{ width: '11.5%' }} />
+            <col style={{ width: '11.5%' }} />
+          </colgroup>
+          <thead>
+            <tr className="border-b border-black font-bold">
+              <th className="border-r border-black py-0.5" rowSpan={2}>
+                DAY
+              </th>
+              <th className="border-r border-black py-0.5" colSpan={2}>
+                A.M.
+              </th>
+              <th className="border-r border-black py-0.5" colSpan={2}>
+                P.M.
+              </th>
+              <th colSpan={2} className="py-0.5">UNDERTIME</th>
+            </tr>
+            <tr className="border-b border-black font-bold text-[6pt] tracking-tight">
+              <th className="border-r border-black py-0.5">Arrival</th>
+              <th className="border-r border-black py-0.5">Departure</th>
+              <th className="border-r border-black py-0.5">Arrival</th>
+              <th className="border-r border-black py-0.5">Departure</th>
+              <th className="border-r border-black py-0.5">Hours</th>
+              <th className="py-0.5">Minutes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {entries.map(e => {
+              if (e.status === 'blank') {
+                return (
+                  <tr key={e.dayNumber} className="border-b border-black bg-black text-black">
+                    <td className="border-r border-black bg-white text-black font-bold text-[6.8pt] py-[0.5px]">{e.dayNumber}</td>
+                    <td colSpan={6} className="bg-black text-black select-none py-[0.5px]">
+                      .
+                    </td>
+                  </tr>
+                )
+              }
+
+              if (e.status !== 'work') {
+                let label = formatHolidayLabel(e.holidayTitle)
+                if (e.status === 'saturday') label = 'SATURDAY'
+                else if (e.status === 'sunday') label = 'SUNDAY'
+                else if (e.status === 'leave') label = 'ON LEAVE'
+                else if (e.status === 'travel') label = 'OFFICIAL BUSINESS'
+
+                const currentIdx = entries.indexOf(e)
+                const prevEntry = currentIdx > 0 ? entries[currentIdx - 1] : null
+                let prevLabel = ''
+                if (prevEntry && prevEntry.status !== 'work' && prevEntry.status !== 'blank') {
+                  if (prevEntry.status === 'saturday') prevLabel = 'SATURDAY'
+                  else if (prevEntry.status === 'sunday') prevLabel = 'SUNDAY'
+                  else if (prevEntry.status === 'holiday') prevLabel = formatHolidayLabel(prevEntry.holidayTitle)
+                  else if (prevEntry.status === 'leave') prevLabel = 'ON LEAVE'
+                  else if (prevEntry.status === 'travel') prevLabel = 'OFFICIAL BUSINESS'
+                }
+
+                const isContinuation = prevEntry && prevEntry.status === e.status && prevLabel === label
+
+                let spanCount = 1
+                if (!isContinuation) {
+                  for (let j = currentIdx + 1; j < entries.length; j++) {
+                    const nextEntry = entries[j]
+                    if (!nextEntry || nextEntry.status !== e.status) break
+
+                    let nextLabel = ''
+                    if (nextEntry.status === 'saturday') nextLabel = 'SATURDAY'
+                    else if (nextEntry.status === 'sunday') nextLabel = 'SUNDAY'
+                    else if (nextEntry.status === 'holiday') nextLabel = formatHolidayLabel(nextEntry.holidayTitle)
+                    else if (nextEntry.status === 'leave') nextLabel = 'ON LEAVE'
+                    else if (nextEntry.status === 'travel') nextLabel = 'OFFICIAL BUSINESS'
+
+                    if (nextLabel === label) {
+                      spanCount++
+                    } else {
+                      break
+                    }
+                  }
+                }
+
+                return (
+                  <tr key={e.dayNumber} className="border-b border-black">
+                    <td className="border-r border-black font-bold py-[0.5px]">{e.dayNumber}</td>
+                    {!isContinuation && (
+                      <td
+                        colSpan={4}
+                        rowSpan={spanCount}
+                        className="border-r border-black font-extrabold text-[6.8pt] tracking-wider py-[0.5px] uppercase align-middle text-center px-1 whitespace-nowrap"
+                      >
+                        {label}
+                      </td>
+                    )}
+                    <td className="border-r border-black"></td>
+                    <td></td>
+                  </tr>
+                )
+              }
+
+              // ==========================================
+              // Regular Work Day Row (Supports Half-Day Merged Holiday / Non-Time Statuses)
+              // ==========================================
+              const isAmMerged = Boolean(
+                (e.amArrival && !isTimeStr(e.amArrival)) ||
+                (e.amDeparture && !isTimeStr(e.amDeparture)) ||
+                (e.amArrival && e.amArrival === e.amDeparture && !isTimeStr(e.amArrival))
+              )
+
+              const isPmMerged = Boolean(
+                (e.pmArrival && !isTimeStr(e.pmArrival)) ||
+                (e.pmDeparture && !isTimeStr(e.pmDeparture)) ||
+                (e.pmArrival && e.pmArrival === e.pmDeparture && !isTimeStr(e.pmArrival))
+              )
+
+              const amLabel = isAmMerged ? getNonTimeLabel(e.amArrival, e.amDeparture, e.holidayTitle) : ''
+              const pmLabel = isPmMerged ? getNonTimeLabel(e.pmArrival, e.pmDeparture, e.holidayTitle) : ''
+
+              return (
+                <tr key={e.dayNumber} className="border-b border-black">
+                  <td className="border-r border-black font-bold py-[0.5px]">{e.dayNumber}</td>
+
+                  {/* AM COLUMNS: Merged colSpan=2 if half-day holiday or non-time status */}
+                  {isAmMerged ? (
+                    <td
+                      colSpan={2}
+                      className="border-r border-black font-extrabold text-[6.8pt] tracking-tight py-[0.5px] uppercase align-middle text-center px-1 whitespace-nowrap"
+                    >
+                      {amLabel}
+                    </td>
+                  ) : (
+                    <>
+                      <td className="border-r border-black font-semibold whitespace-nowrap py-[0.5px]">{e.amArrival || ''}</td>
+                      <td className="border-r border-black font-semibold whitespace-nowrap py-[0.5px]">{e.amDeparture || ''}</td>
+                    </>
+                  )}
+
+                  {/* PM COLUMNS: Merged colSpan=2 if half-day holiday or non-time status */}
+                  {isPmMerged ? (
+                    <td
+                      colSpan={2}
+                      className="border-r border-black font-extrabold text-[6.8pt] tracking-tight py-[0.5px] uppercase align-middle text-center px-1 whitespace-nowrap"
+                    >
+                      {pmLabel}
+                    </td>
+                  ) : (
+                    <>
+                      <td className="border-r border-black font-semibold whitespace-nowrap py-[0.5px]">{e.pmArrival || ''}</td>
+                      <td className="border-r border-black font-semibold whitespace-nowrap py-[0.5px]">{e.pmDeparture || ''}</td>
+                    </>
+                  )}
+
+                  {/* UNDERTIME COLUMNS */}
+                  <td className="border-r border-black font-semibold whitespace-nowrap py-[0.5px]">{e.undertimeHours || ''}</td>
+                  <td className="font-semibold whitespace-nowrap py-[0.5px]">{e.undertimeMinutes || ''}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+          <tfoot>
+            <tr className="font-bold border-t border-black">
+              <td colSpan={5} className="border-r border-black text-right pr-2 py-0.5 font-extrabold text-[7.5pt]">
+                TOTAL
+              </td>
+              <td className="border-r border-black font-bold py-0.5 text-center">{totalUndertime.hours}</td>
+              <td className="font-bold py-0.5 text-center">{totalUndertime.minutes}</td>
+            </tr>
+          </tfoot>
+        </table>
+
+        {/* Certification & Verification Section */}
+        <div className="mt-2 text-[7.2pt] shrink-0 leading-tight">
+          <p className="text-justify leading-tight text-[6.8pt]">
+            I CERTIFY on my honor that the above is a true and correct report of the hours of work performed, record of which was made daily at the time of arrival and departure.
+          </p>
+
+          {/* Employee Signature Area with 20px Blank Space */}
+          <div style={{ height: '20px', minHeight: '20px' }}></div>
+          <div className="text-center">
+            <div className="w-4/5 border-b border-black mx-auto"></div>
+            <p className="text-[6.5pt] italic mt-0.5 leading-none">(Signature of Employee)</p>
+          </div>
+
+          {/* Supervisor / In-Charge Verification & Signature Area with 20px Blank Space */}
+          <div className="mt-2 text-[7pt]">
+            <p className="font-semibold italic leading-tight">Verified as to the prescribed office hours.</p>
+            <div style={{ height: '20px', minHeight: '20px' }}></div>
+            <div className="text-center">
+              <p className="font-extrabold uppercase border-b border-black inline-block px-6 text-[8.8pt] whitespace-nowrap leading-none">
+                {supervisorName || 'ROGER F. CAPA, CESO VI'}
+              </p>
+              <p className="text-[7.2pt] font-semibold text-slate-800 leading-none mt-1">{supervisorTitle || 'In-charge'}</p>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Main DTR Data Table */}
-      <table className="dtr-table w-full border-collapse border border-black text-center mt-2 text-[7.5pt]">
-        <thead>
-          <tr className="border-b border-black font-bold">
-            <th className="border-r border-black py-1 w-[8%]" rowSpan={2}>
-              DAY
-            </th>
-            <th className="border-r border-black py-0.5" colSpan={2}>
-              A.M.
-            </th>
-            <th className="border-r border-black py-0.5" colSpan={2}>
-              P.M.
-            </th>
-            <th colSpan={2}>UNDERTIME</th>
-          </tr>
-          <tr className="border-b border-black font-bold text-[6.5pt] tracking-tight">
-            <th className="border-r border-black w-[17%]">Arrival</th>
-            <th className="border-r border-black w-[17%]">Departure</th>
-            <th className="border-r border-black w-[17%]">Arrival</th>
-            <th className="border-r border-black w-[17%]">Departure</th>
-            <th className="border-r border-black w-[12%]">Hours</th>
-            <th className="w-[12%]">Minutes</th>
-          </tr>
-        </thead>
-        <tbody>
-          {entries.map(e => {
-            if (e.status === 'blank') {
-              return (
-                <tr key={e.dayNumber} className="border-b border-black bg-black text-black">
-                  <td className="border-r border-black bg-white text-black font-bold text-[7.5pt]">{e.dayNumber}</td>
-                  <td colSpan={6} className="bg-black text-black select-none">
-                    .
-                  </td>
-                </tr>
-              )
-            }
-
-            if (e.status !== 'work') {
-              let label = ''
-              if (e.status === 'saturday') label = 'SATURDAY'
-              else if (e.status === 'sunday') label = 'SUNDAY'
-              else if (e.status === 'holiday') {
-                label = (e.holidayTitle || '')
-                  .replace(/^HOLIDAY\s*(\(|\s*)/i, '')
-                  .replace(/\)$/, '')
-                  .trim()
-                  .toUpperCase()
-                if (!label) label = 'HOLIDAY'
-              }
-              else if (e.status === 'leave') label = 'ON LEAVE'
-              else if (e.status === 'travel') label = 'OFFICIAL BUSINESS'
-
-              const currentIdx = entries.indexOf(e)
-              const prevEntry = currentIdx > 0 ? entries[currentIdx - 1] : null
-              let prevLabel = ''
-              if (prevEntry && prevEntry.status !== 'work' && prevEntry.status !== 'blank') {
-                if (prevEntry.status === 'saturday') prevLabel = 'SATURDAY'
-                else if (prevEntry.status === 'sunday') prevLabel = 'SUNDAY'
-                else if (prevEntry.status === 'holiday') {
-                  prevLabel = (prevEntry.holidayTitle || '')
-                    .replace(/^HOLIDAY\s*(\(|\s*)/i, '')
-                    .replace(/\)$/, '')
-                    .trim()
-                    .toUpperCase()
-                  if (!prevLabel) prevLabel = 'HOLIDAY'
-                }
-                else if (prevEntry.status === 'leave') prevLabel = 'ON LEAVE'
-                else if (prevEntry.status === 'travel') prevLabel = 'OFFICIAL BUSINESS'
-              }
-
-              const isContinuation = prevEntry && prevEntry.status === e.status && prevLabel === label
-
-              let spanCount = 1
-              if (!isContinuation) {
-                for (let j = currentIdx + 1; j < entries.length; j++) {
-                  const nextEntry = entries[j]
-                  if (!nextEntry || nextEntry.status !== e.status) break
-
-                  let nextLabel = ''
-                  if (nextEntry.status === 'saturday') nextLabel = 'SATURDAY'
-                  else if (nextEntry.status === 'sunday') nextLabel = 'SUNDAY'
-                  else if (nextEntry.status === 'holiday') {
-                    nextLabel = (nextEntry.holidayTitle || '')
-                      .replace(/^HOLIDAY\s*(\(|\s*)/i, '')
-                      .replace(/\)$/, '')
-                      .trim()
-                      .toUpperCase()
-                    if (!nextLabel) nextLabel = 'HOLIDAY'
-                  }
-                  else if (nextEntry.status === 'leave') nextLabel = 'ON LEAVE'
-                  else if (nextEntry.status === 'travel') nextLabel = 'OFFICIAL BUSINESS'
-
-                  if (nextLabel === label) {
-                    spanCount++
-                  } else {
-                    break
-                  }
-                }
-              }
-
-              return (
-                <tr key={e.dayNumber} className="border-b border-black">
-                  <td className="border-r border-black font-bold py-0.5">{e.dayNumber}</td>
-                  {!isContinuation && (
-                    <td
-                      colSpan={4}
-                      rowSpan={spanCount}
-                      className="border-r border-black font-extrabold text-[7pt] tracking-wider py-0.5 uppercase align-middle text-center px-1"
-                    >
-                      {label}
-                    </td>
-                  )}
-                  <td className="border-r border-black"></td>
-                  <td></td>
-                </tr>
-              )
-            }
-
-            return (
-              <tr key={e.dayNumber} className="border-b border-black">
-                <td className="border-r border-black font-bold py-0.5">{e.dayNumber}</td>
-                <td className="border-r border-black font-semibold">{e.amArrival || ''}</td>
-                <td className="border-r border-black font-semibold">{e.amDeparture || ''}</td>
-                <td className="border-r border-black font-semibold">{e.pmArrival || ''}</td>
-                <td className="border-r border-black font-semibold">{e.pmDeparture || ''}</td>
-                <td className="border-r border-black font-semibold">{e.undertimeHours || ''}</td>
-                <td className="font-semibold">{e.undertimeMinutes || ''}</td>
-              </tr>
-            )
-          })}
-        </tbody>
-        <tfoot>
-          <tr className="font-bold border-t-2 border-black">
-            <td colSpan={5} className="border-r border-black text-right pr-2 py-1 font-extrabold text-[8pt]">
-              TOTAL
-            </td>
-            <td className="border-r border-black"></td>
-            <td></td>
-          </tr>
-        </tfoot>
-      </table>
-
-      {/* Certification & Verification Section */}
-      <div className="mt-2 space-y-3 text-[7.5pt]">
-        <p className="text-justify leading-snug">
-          I CERTIFY on my honor that the above is a true and correct report of the hours of work performed, record of which was made daily at the time of arrival and departure.
-        </p>
-
-        <div className="pt-3 text-center">
-          <div className="w-4/5 border-b border-black mx-auto"></div>
-          <p className="text-[6.5pt] italic mt-0.5">(Signature of Employee)</p>
-        </div>
-
-        <div className="pt-1 text-[7.5pt]">
-          <p className="font-semibold italic">Verified as to the prescribed office hours.</p>
-          <div className="pt-5 text-center">
-            <p className="font-extrabold uppercase border-b border-black inline-block px-4 text-[8.5pt]">
-              {supervisorName || 'ROGER F. CAPA, CESO VI'}
-            </p>
-            <p className="text-[7.5pt] font-semibold text-slate-800">{supervisorTitle || 'In-charge'}</p>
-          </div>
-        </div>
-      </div>
     </div>
-  </div>
-)
+  )
 }

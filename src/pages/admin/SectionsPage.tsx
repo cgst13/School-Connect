@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import { SchoolConnectLayout } from '@/components/layouts/SchoolConnectLayout'
+import { academicMasterDataNavGroups } from '@/config/navConfigs'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { DepEdSpinner } from '@/components/ui/DepEdSpinner'
@@ -347,8 +348,8 @@ export function SectionsPage() {
   const isSHSForm = selectedGradeObjForForm && selectedGradeObjForForm.grade_number >= 11
 
   return (
-    <SchoolConnectLayout systemTitle="School & Class Sections Master Data">
-      <div className="space-y-6 w-full pb-12 animate-fade-in">
+    <SchoolConnectLayout systemTitle="School & Class Sections Master Data" navGroups={academicMasterDataNavGroups}>
+      <div className="space-y-5 w-full pb-12 animate-fade-in">
         {/* Header Banner */}
         <PageHeader
           badge="Academic Structure & Master Data"
@@ -362,16 +363,16 @@ export function SectionsPage() {
                   setBatchGradeId(grades[0]?.id || '')
                   setIsBatchModalOpen(true)
                 }}
-                className="px-4 py-2.5 rounded-full bg-white text-[#8B72F4] font-black text-xs shadow-xs hover:bg-[#F6EFFF] transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-[#8B72F4]/30"
+                className="btn btn-secondary text-xs px-3.5 py-2 flex items-center gap-1.5"
               >
-                <Zap size={15} className="text-[#8B72F4]" />
+                <Zap size={14} className="text-[#2563EB]" />
                 <span>Batch Add Sections</span>
               </button>
               <button
                 onClick={(e) => handleOpenAdd(e)}
-                className="px-5 py-2.5 rounded-full bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] text-white font-black text-xs shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer active:animate-button-sparkle"
+                className="btn btn-primary text-xs px-4 py-2 flex items-center gap-1.5"
               >
-                <Plus size={16} />
+                <Plus size={15} />
                 <span>Add Class Section</span>
               </button>
             </div>
@@ -379,70 +380,66 @@ export function SectionsPage() {
         />
 
         {/* Summary Stat Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 font-sans">
-          <div className="p-4 rounded-3xl bg-gradient-to-br from-[#F2EEFD] to-[#E3D9FC] border-2 border-white shadow-xs space-y-1">
-            <div className="flex items-center justify-between text-purple-800">
-              <span className="text-xs font-black uppercase tracking-wider font-display">Total Class Sections</span>
-              <div className="p-2 rounded-xl bg-[#8B72F4] text-white shadow-xs">
-                <Layers size={16} />
-              </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+          <div className="card p-3.5 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-md bg-blue-50 text-[#2563EB] border border-blue-100 flex items-center justify-center shrink-0">
+              <Layers size={18} />
             </div>
-            <div className="text-2xl font-black text-purple-950 font-display">{sections.length}</div>
-            <p className="text-[11px] font-bold text-purple-800">Configured across all schools</p>
+            <div>
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Total Sections</span>
+              <p className="text-base font-bold text-slate-900">{sections.length}</p>
+            </div>
           </div>
 
-          <div className="p-4 rounded-3xl bg-gradient-to-br from-[#EDFAF3] to-[#D1F7E2] border-2 border-white shadow-xs space-y-1">
-            <div className="flex items-center justify-between text-emerald-800">
-              <span className="text-xs font-black uppercase tracking-wider font-display">Active Sections</span>
-              <div className="p-2 rounded-xl bg-emerald-600 text-white shadow-xs">
-                <Sparkles size={16} />
-              </div>
+          <div className="card p-3.5 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-md bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center shrink-0">
+              <Sparkles size={18} />
             </div>
-            <div className="text-2xl font-black text-emerald-950 font-display">{activeCount}</div>
-            <p className="text-[11px] font-bold text-emerald-800">Active evaluation sections</p>
+            <div>
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Active Sections</span>
+              <p className="text-base font-bold text-slate-900">{activeCount}</p>
+            </div>
           </div>
 
-          <div className="p-4 rounded-3xl bg-gradient-to-br from-[#EEF0FF] to-[#DCE2FF] border-2 border-white shadow-xs space-y-1">
-            <div className="flex items-center justify-between text-indigo-800">
-              <span className="text-xs font-black uppercase tracking-wider font-display">Elementary (ES)</span>
-              <div className="p-2 rounded-xl bg-indigo-600 text-white shadow-xs">
-                <Building2 size={16} />
-              </div>
+          <div className="card p-3.5 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-md bg-sky-50 text-sky-600 border border-sky-100 flex items-center justify-center shrink-0">
+              <Building2 size={18} />
             </div>
-            <div className="text-2xl font-black text-indigo-950 font-display">{esSectionCount}</div>
-            <p className="text-[11px] font-bold text-indigo-800">Grade 1 to 6 sections</p>
+            <div>
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Elementary (ES)</span>
+              <p className="text-base font-bold text-slate-900">{esSectionCount}</p>
+            </div>
           </div>
 
-          <div className="p-4 rounded-3xl bg-gradient-to-br from-[#FFF8E6] to-[#FFEBC2] border-2 border-white shadow-xs space-y-1">
-            <div className="flex items-center justify-between text-amber-800">
-              <span className="text-xs font-black uppercase tracking-wider font-display">High School (HS)</span>
-              <div className="p-2 rounded-xl bg-amber-500 text-white shadow-xs">
-                <GraduationCap size={16} />
-              </div>
+          <div className="card p-3.5 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-md bg-purple-50 text-purple-600 border border-purple-100 flex items-center justify-center shrink-0">
+              <GraduationCap size={18} />
             </div>
-            <div className="text-2xl font-black text-amber-950 font-display">{hsSectionCount}</div>
-            <p className="text-[11px] font-bold text-amber-800">JHS & SHS (Grade 7-12) sections</p>
+            <div>
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">High School (HS)</span>
+              <p className="text-base font-bold text-slate-900">{hsSectionCount}</p>
+            </div>
           </div>
         </div>
 
         {/* Filters & Control Bar */}
-        <div className="bg-white rounded-[28px] border-2 border-white p-4 sm:p-5 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4 font-sans">
+        <div className="card p-3 flex flex-col md:flex-row items-center justify-between gap-3">
           <div className="relative w-full md:w-80">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#A39BAF]" />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="Search section name, adviser, strand..."
-              className="w-full pl-10 pr-4 py-2.5 text-xs rounded-full border border-purple-100 bg-[#FAF5F0] focus:bg-white focus:outline-none focus:ring-4 focus:ring-[#8B72F4]/20 text-[#2D2638] font-semibold transition-all"
+              className="form-input pl-9"
             />
           </div>
 
-          <div className="flex items-center gap-2.5 w-full md:w-auto flex-wrap justify-end">
+          <div className="flex items-center gap-2 w-full md:w-auto flex-wrap justify-end">
             <select
               value={selectedSchoolFilter}
               onChange={e => setSelectedSchoolFilter(e.target.value)}
-              className="text-xs font-bold py-2.5 px-4 rounded-full border border-purple-100 bg-[#FAF5F0] text-[#2D2638] focus:outline-none cursor-pointer"
+              className="form-select py-1.5 w-auto"
             >
               <option value="all">All Schools ({schools.length})</option>
               {schools.map(sch => (
@@ -453,7 +450,7 @@ export function SectionsPage() {
             <select
               value={selectedGradeFilter}
               onChange={e => setSelectedGradeFilter(e.target.value)}
-              className="text-xs font-bold py-2.5 px-4 rounded-full border border-purple-100 bg-[#FAF5F0] text-[#2D2638] focus:outline-none cursor-pointer"
+              className="form-select py-1.5 w-auto"
             >
               <option value="all">All Grade Levels ({offeredGradesForFilter.length})</option>
               {offeredGradesForFilter.map(g => (
@@ -464,122 +461,84 @@ export function SectionsPage() {
         </div>
 
         {/* Data Table / List */}
-        <div className="bg-white rounded-[28px] border-2 border-white shadow-xs overflow-hidden">
+        <div className="card overflow-hidden">
           {loading ? (
             <div className="p-12">
               <DepEdSpinner size="lg" label="Loading Class Sections..." subtitle="Fetching sections and school grade assignments from Supabase" />
             </div>
           ) : filteredSections.length === 0 ? (
-            <div className="p-12 text-center text-[#7A7289]">
+            <div className="p-12 text-center text-slate-500">
               <EmptyState
                 title="No class sections found"
                 description={searchQuery ? `No sections matching "${searchQuery}".` : 'Get started by creating class sections for your schools.'}
-                icon={<Bookmark size={32} className="text-[#8B72F4]" />}
+                icon={<Bookmark size={32} className="text-[#2563EB]" />}
               />
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse font-sans">
+              <table className="data-table">
                 <thead>
-                  <tr className="bg-[#FAFBFF] border-b border-[#E8EAF0] text-[11px] font-extrabold uppercase tracking-wider text-[#64748B]">
-                    <th className="py-3.5 px-5">Section Name</th>
-                    <th className="py-3.5 px-4">School & Type</th>
-                    <th className="py-3.5 px-4">Grade Level</th>
-                    <th className="py-3.5 px-4">Track / Strand</th>
-                    <th className="py-3.5 px-4">Class Adviser</th>
-                    <th className="py-3.5 px-4">Status</th>
-                    <th className="py-3.5 px-5 text-right">Actions</th>
+                  <tr>
+                    <th>Section Name</th>
+                    <th>School & Type</th>
+                    <th>Grade Level</th>
+                    <th>Track / Strand</th>
+                    <th>Class Adviser</th>
+                    <th>Status</th>
+                    <th className="text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#F0F2F7]">
+                <tbody>
                   {filteredSections.map(sec => {
                     const schObj = schools.find(s => s.id === sec.school_id)
                     const gObj = grades.find(g => g.id === sec.grade_level_id)
 
                     return (
-                      <tr key={sec.id} className="hover:bg-[#FAFBFF] transition-colors">
-                        <td className="py-4 px-5">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-2xl bg-[#F2EEFD] text-[#8B72F4] font-black text-xs flex items-center justify-center shrink-0 border border-[#E2D5FE] shadow-2xs font-display">
-                              <Bookmark size={15} />
-                            </div>
-                            <div>
-                              <h4 className="text-xs font-extrabold text-[#1F2937]">{sec.name}</h4>
-                              <p className="text-[10px] text-[#64748B]">ID: {sec.id.slice(0, 8)}...</p>
-                            </div>
-                          </div>
+                      <tr key={sec.id}>
+                        <td>
+                          <div className="font-semibold text-slate-900">{sec.name}</div>
                         </td>
-
-                        <td className="py-4 px-4">
-                          <div className="flex items-center gap-2">
-                            <Building2 size={14} className="text-[#8B72F4] shrink-0" />
-                            <div>
-                              <span className="text-xs font-bold text-[#1F2937] block">{schObj?.name || 'Unassigned'}</span>
-                              <span className="text-[9px] font-extrabold px-2 py-0.2 rounded-full bg-[#EEF0FF] text-[#3B49B8] border border-[#BFD7FF] uppercase">
-                                {schObj?.school_type === 'elementary' ? 'ES (Elem)' : 'HS (Sec)'}
-                              </span>
-                            </div>
-                          </div>
+                        <td>
+                          <span className="text-xs font-medium text-slate-700">{schObj?.name || 'N/A'}</span>
                         </td>
-
-                        <td className="py-4 px-4">
-                          <span className="px-2.5 py-1 rounded-full text-xs font-extrabold bg-[#F2EEFD] text-[#6D4AE4] border border-[#E2D5FE]">
-                            {gObj?.name || 'Grade Level'}
+                        <td>
+                          <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-[#2563EB] border border-blue-200">
+                            {gObj?.name || 'N/A'}
                           </span>
                         </td>
-
-                        <td className="py-4 px-4">
-                          {sec.track_strand ? (
-                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-purple-100 text-purple-800 border border-purple-200 uppercase">
-                              {sec.track_strand}
+                        <td>
+                          <span className="text-xs font-normal text-slate-500">{sec.track_strand || 'General Academic'}</span>
+                        </td>
+                        <td>
+                          <span className="text-xs font-medium text-slate-800">{sec.adviser_name || 'Unassigned'}</span>
+                        </td>
+                        <td>
+                          {sec.is_active ? (
+                            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              Active
                             </span>
                           ) : (
-                            <span className="text-xs text-[#94A3B8] italic">—</span>
+                            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                              Inactive
+                            </span>
                           )}
                         </td>
-
-                        <td className="py-4 px-4">
-                          {sec.adviser_name ? (
-                            <div className="flex items-center gap-1.5">
-                              <User size={13} className="text-emerald-600 shrink-0" />
-                              <span className="text-xs font-extrabold text-emerald-950">{sec.adviser_name}</span>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-[#94A3B8] italic">No Adviser Assigned</span>
-                          )}
-                        </td>
-
-                        <td className="py-4 px-4">
-                          <button
-                            type="button"
-                            onClick={() => upsertSection({ ...sec, is_active: !sec.is_active }).then(loadData)}
-                            className={`text-[10px] font-bold px-3 py-1 rounded-full border transition-all cursor-pointer ${
-                              sec.is_active
-                                ? 'bg-[#F0FAF5] text-[#1E6B48] border-[#BFE8D5] hover:bg-[#E2F7ED]'
-                                : 'bg-[#FFF0F5] text-[#992B54] border-[#FFCCD8] hover:bg-[#FFE5EE]'
-                            }`}
-                          >
-                            {sec.is_active ? 'Active' : 'Inactive'}
-                          </button>
-                        </td>
-
-                        <td className="py-4 px-5 text-right">
+                        <td className="text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             <button
-                              type="button"
                               onClick={(e) => handleOpenEdit(sec, e)}
-                              className="p-1.5 rounded-xl text-[#64748B] hover:text-[#6675E8] hover:bg-[#EEF0FF] border border-[#E2E8F0] transition-all cursor-pointer"
+                              className="btn btn-secondary btn-sm px-2 py-1"
                               title="Edit Section"
                             >
-                              <Edit2 size={14} />
+                              <Edit2 size={13} />
+                              <span>Edit</span>
                             </button>
                             <button
-                              type="button"
                               onClick={() => setSectionToDelete(sec)}
-                              className="p-1.5 rounded-xl text-[#64748B] hover:text-[#E11D48] hover:bg-[#FFF0F5] border border-[#E2E8F0] transition-all cursor-pointer"
+                              className="btn btn-danger btn-sm p-1"
                               title="Delete Section"
                             >
-                              <Trash2 size={14} />
+                              <Trash2 size={13} />
                             </button>
                           </div>
                         </td>

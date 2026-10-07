@@ -73,11 +73,11 @@ export function StatusBadge({ status, label, icon, size = 'md', className = '' }
     defaultLabel: status,
   }
 
-  const padding = size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-3 py-1 text-xs'
+  const padding = size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-0.5 text-xs'
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full font-bold shadow-xs border ${padding} ${current.bg} ${current.text} ${current.border} ${className}`}
+      className={`inline-flex items-center gap-1.5 rounded-md font-semibold border ${padding} ${current.bg} ${current.text} ${current.border} ${className}`}
     >
       <span className="w-1.5 h-1.5 rounded-full bg-current opacity-75 shrink-0" />
       {icon}

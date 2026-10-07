@@ -231,19 +231,19 @@ export function SubmissionEditPage() {
   if (!isSchoolPermitted(submission.school_id)) {
     return (
       <AdminLayout>
-        <div className="bg-[#EFF3F9] rounded-[32px] p-8 shadow-neu-out border border-white/80 text-center max-w-lg mx-auto my-12 space-y-5">
-          <div className="w-16 h-16 rounded-3xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto shadow-neu-out-sm border border-rose-200">
+        <div className="bg-white rounded-2xl p-8 shadow-xs border border-slate-200/80 text-center max-w-lg mx-auto my-12 space-y-5">
+          <div className="w-16 h-16 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto border border-rose-100">
             <Lock className="w-8 h-8" />
           </div>
           <div>
-            <h2 className="text-xl font-black text-[#2D3748]">Access Restricted</h2>
-            <p className="text-xs text-[#64748B] mt-2 leading-relaxed font-medium">
+            <h2 className="text-xl font-bold text-slate-900">Access Restricted</h2>
+            <p className="text-xs text-slate-500 mt-2 leading-relaxed font-medium">
               You are only authorized to view and edit submissions for your assigned school.
             </p>
           </div>
           <Link
             to="/admin/submissions"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-bold text-white bg-gradient-to-r from-[#7181F5] to-[#5463DA] shadow-neu-btn"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition-all"
           >
             <ArrowLeft size={16} />
             Back to Submissions

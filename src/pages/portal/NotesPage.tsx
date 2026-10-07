@@ -375,7 +375,7 @@ export function NotesPage() {
           actions={
             <button
               onClick={() => handleOpenModal()}
-              className="inline-flex items-center gap-2 py-2.5 px-5 rounded-full text-xs font-black text-white bg-gradient-to-r from-[#A88BEB] via-[#8B72F4] to-[#795CEE] shadow-md hover:shadow-lg transition-all cursor-pointer"
+              className="inline-flex items-center gap-2 py-2.5 px-4 rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition-all cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Add Note / Credentials</span>
@@ -384,7 +384,7 @@ export function NotesPage() {
         />
 
         {/* Search & Color Filter Toolbar */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 sm:px-4 sm:py-3 rounded-[28px] border border-white shadow-xs">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
 
           {/* Left Side: Search & Color Filter Dots */}
           <div className="flex items-center gap-3 w-full sm:w-auto flex-wrap sm:flex-nowrap">
@@ -499,7 +499,7 @@ export function NotesPage() {
             </div>
             <button
               onClick={() => handleOpenModal()}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-xs font-black text-white bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] shadow-md hover:scale-105 transition-all cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition-all cursor-pointer"
             >
               <Plus className="h-4 w-4" />
               <span>Create First Item</span>

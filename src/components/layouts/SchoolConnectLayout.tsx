@@ -199,64 +199,60 @@ export function SchoolConnectLayout({
   const hasSidebar = navGroups.length > 0
 
   return (
-    <div className="h-dvh max-h-dvh relative bg-[#F5F6FA] text-slate-900 flex flex-col w-full overflow-hidden font-sans">
-      {/* Micro-Grid Texture Overlay */}
-      <div 
-        className="fixed inset-0 w-screen h-[100dvh] opacity-[0.025] pointer-events-none z-0 no-print" 
-        style={{ backgroundImage: `radial-gradient(#475569 1px, transparent 1px)`, backgroundSize: '24px 24px' }} 
-      />
-
-      {/* 3D Claymorphic Top Header Navbar */}
-      <header className="relative z-40 shrink-0 bg-transparent px-4 sm:px-8 py-3.5 flex items-center justify-between no-print">
+    <div className="h-dvh max-h-dvh relative bg-[#F4F6F9] text-slate-900 flex flex-col w-full overflow-hidden font-sans">
+      {/* Top Header Navbar */}
+      <header className="relative z-40 shrink-0 bg-white border-b border-slate-200 px-4 sm:px-6 py-2.5 flex items-center justify-between no-print shadow-2xs">
         <div className="flex items-center gap-3 sm:gap-4">
           {hasSidebar && (
             <button
               onClick={() => setMobileOpen(true)}
-              className="p-2.5 rounded-2xl bg-white shadow-sm text-[#7A7289] hover:text-[#8B72F4] lg:hidden transition-all cursor-pointer border border-white"
+              className="p-1.5 rounded-md bg-white border border-slate-200 text-slate-600 hover:text-[#2563EB] hover:bg-slate-50 lg:hidden transition-all cursor-pointer"
               aria-label="Open navigation menu"
             >
-              <Menu size={20} />
+              <Menu size={18} />
             </button>
           )}
 
-          {/* Top Header Branding with Official Logo & Greeting */}
-          <div className="flex items-center gap-4 min-w-0">
-            <Link to="/portal" className="flex items-center group shrink-0" title="School Connect Portal">
+          {/* Top Header Branding */}
+          <div className="flex items-center gap-3 min-w-0">
+            <Link to="/portal" className="flex items-center gap-2 group shrink-0" title="School Connect Portal">
               <img
                 src="/images/school_connect_logo.png"
-                alt="School Connect Official Logo"
-                className="h-14 sm:h-18 lg:h-22 w-auto object-contain group-hover:scale-105 transition-transform duration-300"
+                alt="School Connect Logo"
+                className="h-9 sm:h-10 w-auto object-contain"
               />
+              <span className="font-bold text-sm sm:text-base text-slate-900 tracking-tight hidden xs:inline-block font-sans">
+                School<span className="text-[#2563EB]">Connect</span>
+              </span>
             </Link>
 
-            <div className="hidden xs:block min-w-0 border-l border-slate-200/80 pl-4">
-              <h1 className="text-base sm:text-xl font-black text-[#2D2638] tracking-tight flex items-center gap-1.5 font-display truncate">
-                <span>Good day, {admin?.full_name?.split(' ')[0] || 'Administrator'}!</span>
-                <span className="text-lg">👋</span>
+            <div className="hidden sm:block min-w-0 border-l border-slate-200 pl-3">
+              <h1 className="text-xs sm:text-sm font-semibold text-slate-800 tracking-tight truncate">
+                {systemTitle}
               </h1>
-              <p className="text-xs text-[#7A7289] font-medium hidden sm:block truncate">
-                {systemSubtitle || `Welcome to ${systemTitle}`}
+              <p className="text-[11px] text-slate-500 font-normal truncate">
+                {systemSubtitle}
               </p>
             </div>
           </div>
         </div>
 
-        {/* Header Right: Search Pill & Notification Bell */}
-        <div className="flex items-center gap-3">
-          {/* Search Pill */}
+        {/* Header Right: Search Input, Bell, & User Profile Pill */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Search Input (Matching CRM reference "Search anything...") */}
           <div className="relative hidden md:flex items-center">
-            <Search size={15} className="absolute left-3.5 text-[#A39BAF]" />
+            <Search size={14} className="absolute left-3 text-slate-400" />
             <input
               type="text"
-              placeholder="Search..."
-              className="pl-9 pr-4 py-2 text-xs rounded-full bg-white border border-white/90 shadow-xs text-[#2D2638] placeholder-[#A39BAF] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30 w-56 sm:w-64 transition-all font-medium"
+              placeholder="Search anything..."
+              className="pl-8 pr-3 py-1.5 text-xs rounded-md bg-slate-50 border border-slate-200 text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] w-48 sm:w-60 transition-all"
             />
           </div>
 
           {/* Notification Bell */}
-          <button className="relative p-2.5 rounded-full bg-white shadow-xs border border-white text-[#7A7289] hover:text-[#8B72F4] transition-all cursor-pointer">
-            <Bell size={18} />
-            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#FFD6E0] text-[#E11D48] text-[10px] font-black flex items-center justify-center border border-white shadow-xs">
+          <button className="relative p-2 rounded-md bg-white border border-slate-200 text-slate-600 hover:text-[#2563EB] hover:bg-slate-50 transition-all cursor-pointer">
+            <Bell size={16} />
+            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center border border-white">
               3
             </span>
           </button>
@@ -269,25 +265,21 @@ export function SchoolConnectLayout({
                   captureGenieOrigin(e)
                   setIsAccountMenuOpen(prev => !prev)
                 }}
-                className="flex items-center gap-2.5 bg-white p-1.5 pr-3.5 rounded-full shadow-xs border border-white hover:bg-[#F6EFFF] hover:shadow-md transition-all cursor-pointer"
+                className="flex items-center gap-2 bg-white px-2.5 py-1 rounded-md border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all cursor-pointer"
                 title="Account Settings & User Profile"
               >
                 <img
                   src={admin.avatar_url || "/images/clay/avatar_girl.jpg"}
                   alt="User Avatar"
-                  className="w-8 h-8 rounded-full object-cover border border-white shadow-xs shrink-0 bg-[#F6EFFF]"
+                  className="w-7 h-7 rounded-full object-cover border border-slate-200 shrink-0 bg-slate-100"
                 />
                 <div className="text-left hidden xs:block sm:block min-w-0">
-                  <span className="text-xs font-black text-[#2D2638] truncate block leading-tight">
+                  <span className="text-xs font-semibold text-slate-900 truncate block leading-tight">
                     {admin.full_name}
                   </span>
-                  <span className="text-[10px] font-bold text-[#8B72F4] uppercase tracking-wider block">
+                  <span className="text-[10px] text-slate-500 font-medium truncate block">
                     {admin.role === 'ao_2'
-                      ? admin.district_name && admin.assigned_school_ids && admin.assigned_school_ids.length > 0
-                        ? 'AO II (District & School Admin)'
-                        : admin.district_name
-                        ? 'AO II (District Admin)'
-                        : 'AO II'
+                      ? 'AO II Admin'
                       : admin.role === 'school_head'
                       ? 'School Head'
                       : admin.role === 'psds'
@@ -297,45 +289,40 @@ export function SchoolConnectLayout({
                       : 'System Admin'}
                   </span>
                 </div>
-                <ChevronDown size={14} className={`text-[#7A7289] transition-transform duration-200 ${isAccountMenuOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown size={13} className={`text-slate-400 transition-transform duration-200 ${isAccountMenuOpen ? 'rotate-180' : ''}`} />
               </button>
 
               {/* Account Quick Dropdown Menu */}
               {isAccountMenuOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setIsAccountMenuOpen(false)} />
-                  <div className="absolute right-0 mt-2 w-72 bg-white rounded-[28px] border-2 border-white shadow-[0_16px_36px_rgba(139,114,244,0.22)] z-50 p-3 space-y-2 animate-fade-in font-sans">
+                  <div className="absolute right-0 mt-1.5 w-64 bg-white rounded-lg border border-slate-200 shadow-lg z-50 p-2 space-y-1 animate-fade-in font-sans">
                     {/* Menu Header Card */}
-                    <div className="p-3 rounded-2xl bg-gradient-to-r from-[#F6EFFF] via-[#EEF0FF] to-[#FAF5F0] border border-[#8B72F4]/20 flex items-center gap-3">
+                    <div className="p-2.5 rounded-md bg-slate-50 border border-slate-200 flex items-center gap-2.5">
                       <img
                         src={admin.avatar_url || "/images/clay/avatar_girl.jpg"}
                         alt="User Avatar"
-                        className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-xs shrink-0"
+                        className="w-9 h-9 rounded-full object-cover border border-slate-200 shrink-0"
                       />
                       <div className="min-w-0 flex-1">
-                        <h4 className="text-xs font-black text-[#2D2638] truncate font-display">{admin.full_name}</h4>
-                        <p className="text-[10px] font-semibold text-[#7A7289] truncate">{admin.email}</p>
-                        <span className="inline-block px-2 py-0.5 mt-1 rounded-full text-[9px] font-extrabold bg-[#8B72F4] text-white shadow-2xs">
+                        <h4 className="text-xs font-bold text-slate-900 truncate">{admin.full_name}</h4>
+                        <p className="text-[10px] text-slate-500 truncate">{admin.email}</p>
+                        <span className="inline-block px-1.5 py-0.5 mt-0.5 rounded text-[9px] font-semibold bg-blue-50 text-[#2563EB] border border-blue-100">
                           {admin.role.replace('_', ' ').toUpperCase()}
                         </span>
                       </div>
                     </div>
 
-                    <div className="space-y-1 pt-1">
+                    <div className="space-y-0.5 pt-1">
                       <button
                         onClick={(e) => {
                           setIsAccountMenuOpen(false)
                           handleOpenSettings(e)
                         }}
-                        className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl text-xs font-extrabold text-[#2D2638] hover:bg-[#F6EFFF] hover:text-[#8B72F4] transition-all cursor-pointer text-left"
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium text-slate-700 hover:bg-slate-100 hover:text-[#2563EB] transition-all cursor-pointer text-left"
                       >
-                        <div className="p-2 rounded-xl bg-[#FAF5F0] text-[#8B72F4] shadow-2xs">
-                          <Settings size={15} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <span className="block leading-tight font-black">Account Settings</span>
-                          <span className="text-[10px] text-[#7A7289] font-medium block">Update Name, Email & Password</span>
-                        </div>
+                        <Settings size={14} className="text-slate-400" />
+                        <span>Account Settings</span>
                       </button>
 
                       <button
@@ -344,15 +331,10 @@ export function SchoolConnectLayout({
                           captureGenieOrigin(e)
                           setShowLogoutConfirm(true)
                         }}
-                        className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl text-xs font-extrabold text-[#E11D48] hover:bg-rose-50 transition-all cursor-pointer text-left"
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium text-rose-600 hover:bg-rose-50 transition-all cursor-pointer text-left"
                       >
-                        <div className="p-2 rounded-xl bg-rose-50 text-[#E11D48] shadow-2xs">
-                          <LogOut size={15} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <span className="block leading-tight font-black">Sign Out</span>
-                          <span className="text-[10px] text-rose-400 font-medium block">End current session</span>
-                        </div>
+                        <LogOut size={14} className="text-rose-500" />
+                        <span>Sign Out</span>
                       </button>
                     </div>
                   </div>
@@ -362,7 +344,7 @@ export function SchoolConnectLayout({
           ) : (
             <Link
               to="/"
-              className="px-4 py-2 rounded-full text-xs font-bold text-white bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] shadow-md transition-all flex items-center gap-1.5"
+              className="px-3 py-1.5 rounded-md text-xs font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] transition-all flex items-center gap-1.5"
             >
               <ShieldCheck size={14} />
               Sign In
@@ -372,73 +354,92 @@ export function SchoolConnectLayout({
       </header>
 
       {/* Main Body Shell */}
-      <div className="flex-1 flex min-w-0 min-h-0 overflow-hidden px-4 sm:px-6 pb-4 gap-5">
-        {/* 3D Claymorphic Left Sidebar Navigation */}
+      <div className="flex-1 flex min-w-0 min-h-0 overflow-hidden">
+        {/* Minimal Left Sidebar Navigation */}
         {hasSidebar && (
           <>
             {/* Desktop Sidebar */}
             <aside
-              className={`hidden lg:flex flex-col flex-shrink-0 bg-white rounded-2xl border border-[#EAECEF] h-full transition-all duration-300 z-30 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.03)] no-print ${
-                isCollapsed ? 'w-20 p-3' : 'w-64 p-4'
+              className={`hidden lg:flex flex-col flex-shrink-0 bg-white border-r border-slate-200 h-full transition-all duration-200 z-30 no-print ${
+                isCollapsed ? 'w-16 p-2' : 'w-60 p-3'
               }`}
             >
-              {/* 3D Profile Frame */}
+              {/* Profile Frame */}
               {!isCollapsed ? (
-                <div className="text-center pb-4 mb-2 border-b border-purple-200/50">
-                  <div className="relative inline-block mb-2">
+                <div className="flex items-center justify-between gap-2 p-2 rounded-md bg-slate-50 border border-slate-200 mb-2">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
                     <img
                       src={admin?.avatar_url || "/images/clay/avatar_girl.jpg"}
                       alt="User Avatar"
-                      className="w-20 h-20 rounded-full object-cover mx-auto shadow-md border-4 border-white"
+                      className="w-7 h-7 rounded-full object-cover border border-slate-200 shrink-0"
                     />
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-xs font-bold text-slate-900 truncate">
+                        {admin?.full_name || 'Administrator'}
+                      </h3>
+                      <p className="text-[10px] text-slate-500 font-medium truncate">
+                        {admin?.role.replace('_', ' ') || 'User'}
+                      </p>
+                    </div>
                   </div>
-                  <h3 className="text-sm font-black text-[#2D2638] tracking-tight flex items-center justify-center gap-1">
-                    <span>{admin?.full_name || 'Emily'}</span>
-                    <span className="text-xs text-[#8B72F4]">💜</span>
-                  </h3>
-                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#795CEE] px-2.5 py-0.5 rounded-full bg-white/70 border border-white/90 mt-1 shadow-2xs">
-                    <span>{admin?.role.replace('_', ' ') || 'Productivity Explorer'}</span>
-                    <span>✨</span>
-                  </span>
+                  <button
+                    onClick={toggleCollapse}
+                    className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-all cursor-pointer"
+                    title="Collapse sidebar"
+                  >
+                    <PanelLeftClose size={14} />
+                  </button>
                 </div>
               ) : (
-                <div className="text-center pb-3 mb-2 border-b border-purple-200/50">
+                <div className="text-center pb-2 mb-2 border-b border-slate-100 flex flex-col items-center gap-1.5">
+                  <button
+                    onClick={toggleCollapse}
+                    className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all cursor-pointer"
+                    title="Expand sidebar"
+                  >
+                    <PanelLeftOpen size={14} />
+                  </button>
                   <img
                     src={admin?.avatar_url || "/images/clay/avatar_girl.jpg"}
                     alt="User Avatar"
-                    className="w-10 h-10 rounded-full object-cover mx-auto shadow-sm border-2 border-white"
+                    className="w-7 h-7 rounded-full object-cover border border-slate-200"
                   />
                 </div>
               )}
 
               {/* Navigation Items */}
-              <nav className="flex-1 my-2 space-y-3 overflow-y-auto min-h-0 pr-1">
+              <nav className="flex-1 my-1 space-y-3 overflow-y-auto min-h-0 pr-0.5">
                 {navGroups.map(group => (
                   <div key={group.title} className="space-y-1">
                     {!isCollapsed && (
-                      <div className="px-3 text-[10px] font-bold uppercase tracking-wider text-[#A39BAF] mb-1">
+                      <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 font-sans">
                         {group.title}
                       </div>
                     )}
                     {group.items.map(item => {
-                      const isActive = location.pathname === item.to || (item.to !== '/admin' && location.pathname.startsWith(item.to))
+                      const isActive = item.to.includes('?')
+                        ? (location.pathname + location.search === item.to || (!location.search && item.to.endsWith('tab=dashboard') && location.pathname === item.to.split('?')[0]))
+                        : (location.search && (item.to === '/notes' || item.to === '/dtr') ? false : (item.to === '/admin' || item.to === '/portal' ? location.pathname === item.to : (location.pathname === item.to || location.pathname.startsWith(item.to + '/'))))
+
                       return (
                         <Link
                           key={item.to}
                           to={item.to}
                           title={isCollapsed ? item.label : undefined}
-                          className={`flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-extrabold transition-all ${
+                          className={`flex items-center gap-3 py-2.5 px-3 rounded-xl text-xs transition-all duration-150 ${
                             isCollapsed ? 'justify-center px-2' : ''
                           } ${
                             isActive
-                              ? 'bg-[#FFEBEB] text-[#FA6B6B] shadow-2xs font-black'
-                              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                              ? 'bg-[#2563EB] text-white font-semibold shadow-xs'
+                              : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900 font-medium'
                           }`}
                         >
-                          <span className={`flex-shrink-0 ${isActive ? 'text-[#FA6B6B]' : 'text-slate-400'}`}>{item.icon}</span>
+                          <span className={`flex-shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`}>{item.icon}</span>
                           {!isCollapsed && <span className="truncate">{item.label}</span>}
                           {!isCollapsed && item.badge && (
-                            <span className="ml-auto text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-[#FFEBEB] text-[#FA6B6B]">
+                            <span className={`ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              isActive ? 'bg-white/20 text-white' : 'bg-blue-50 text-[#2563EB] border border-blue-100'
+                            }`}>
                               {item.badge}
                             </span>
                           )}
@@ -449,48 +450,17 @@ export function SchoolConnectLayout({
                 ))}
               </nav>
 
-              {/* Bottom Monthly Target Widget (Matching Reference Dashboard Sidebar) */}
-              {!isCollapsed && (
-                <div className="my-2 p-3 rounded-2xl bg-gradient-to-br from-[#F8F9FD] to-[#F1F3FB] border border-[#EAECEF] text-center space-y-1.5 shrink-0">
-                  <div className="relative w-12 h-12 mx-auto flex items-center justify-center">
-                    <svg className="w-12 h-12 transform -rotate-90" viewBox="0 0 36 36">
-                      <path
-                        className="text-slate-200"
-                        strokeWidth="3.5"
-                        stroke="currentColor"
-                        fill="none"
-                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                      />
-                      <path
-                        className="text-[#FA6B6B]"
-                        strokeDasharray="78, 100"
-                        strokeWidth="3.5"
-                        strokeLinecap="round"
-                        stroke="currentColor"
-                        fill="none"
-                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                      />
-                    </svg>
-                    <span className="absolute text-[11px] font-black text-[#1E202A]">78%</span>
-                  </div>
-                  <div>
-                    <h4 className="text-[11px] font-bold text-[#1E202A] leading-tight">Monthly Progress</h4>
-                    <p className="text-[10px] text-slate-400 font-medium">Concepcion District</p>
-                  </div>
-                </div>
-              )}
-
               {/* Bottom Back to Portal Button */}
-              <div className="pt-2 border-t border-[#EAECEF] mt-auto shrink-0">
+              <div className="pt-2 border-t border-slate-200 mt-auto shrink-0">
                 <Link
                   to="/portal"
                   title={isCollapsed ? "Back to Portal" : undefined}
-                  className={`flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-bold text-[#FA6B6B] bg-[#FFEBEB] border border-[#FFCCD4]/60 hover:bg-[#FFD6D6] transition-all ${
-                    isCollapsed ? 'justify-center px-2' : ''
+                  className={`flex items-center gap-2 py-1.5 px-2.5 rounded-md text-xs font-medium text-slate-600 hover:bg-slate-100 transition-all ${
+                    isCollapsed ? 'justify-center px-1.5' : ''
                   }`}
                 >
-                  <ArrowLeft size={16} className="shrink-0 text-[#FA6B6B]" />
-                  {!isCollapsed && <span>Back to Portal</span>}
+                  <ArrowLeft size={15} className="shrink-0 text-slate-500" />
+                  {!isCollapsed && <span>Back to Hub</span>}
                 </Link>
               </div>
             </aside>
@@ -498,18 +468,18 @@ export function SchoolConnectLayout({
             {/* Mobile Drawer */}
             {mobileOpen && (
               <div className="fixed inset-0 z-50 lg:hidden flex animate-fade-in">
-                <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-xs" onClick={() => setMobileOpen(false)} />
-                <div className="relative w-64 max-w-[80vw] h-full bg-[#EFF3F9] border-r border-white/80 flex flex-col z-10 p-4 space-y-4 shadow-neu-out-lg">
-                  <div className="flex items-center justify-between pb-3 border-b border-black/5">
-                    <span className="text-sm font-black text-[#2D3748]">{systemTitle}</span>
-                    <button onClick={() => setMobileOpen(false)} className="p-2 rounded-2xl bg-[#EFF3F9] shadow-neu-out-sm text-[#64748B]">
-                      <X size={18} />
+                <div className="fixed inset-0 bg-slate-900/40" onClick={() => setMobileOpen(false)} />
+                <div className="relative w-64 max-w-[80vw] h-full bg-white border-r border-slate-200 flex flex-col z-10 p-4 space-y-3 shadow-xl">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                    <span className="text-xs font-bold text-slate-900">{systemTitle}</span>
+                    <button onClick={() => setMobileOpen(false)} className="p-1 rounded-md text-slate-500 hover:bg-slate-100">
+                      <X size={16} />
                     </button>
                   </div>
-                  <nav className="flex-1 space-y-4 overflow-y-auto">
+                  <nav className="flex-1 space-y-3 overflow-y-auto">
                     {navGroups.map(group => (
-                      <div key={group.title} className="space-y-1.5">
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-[#94A3B8] mb-1">
+                      <div key={group.title} className="space-y-1">
+                        <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
                           {group.title}
                         </div>
                         {group.items.map(item => (
@@ -517,7 +487,7 @@ export function SchoolConnectLayout({
                             key={item.to}
                             to={item.to}
                             onClick={() => setMobileOpen(false)}
-                            className="flex items-center gap-3 py-3 px-3.5 rounded-2xl text-xs font-bold text-[#64748B] hover:bg-white hover:text-[#6675E8]"
+                            className="flex items-center gap-2.5 py-2 px-2.5 rounded-md text-xs font-medium text-slate-700 hover:bg-slate-100 hover:text-[#2563EB]"
                           >
                             <span>{item.icon}</span>
                             <span>{item.label}</span>
@@ -527,14 +497,14 @@ export function SchoolConnectLayout({
                     ))}
                   </nav>
 
-                  <div className="pt-3 border-t border-black/5 mt-auto shrink-0">
+                  <div className="pt-2 border-t border-slate-200 mt-auto shrink-0">
                     <Link
                       to="/portal"
                       onClick={() => setMobileOpen(false)}
-                      className="flex items-center gap-2.5 py-3 px-3.5 rounded-2xl text-xs font-bold text-[#1D4ED8] bg-white shadow-neu-out-sm"
+                      className="flex items-center gap-2 py-2 px-2.5 rounded-md text-xs font-medium text-slate-700 hover:bg-slate-100"
                     >
-                      <ArrowLeft size={16} />
-                      <span>Back to Portal</span>
+                      <ArrowLeft size={15} />
+                      <span>Back to Hub</span>
                     </Link>
                   </div>
                 </div>
@@ -543,17 +513,17 @@ export function SchoolConnectLayout({
           </>
         )}
 
-        {/* Neumorphic Content & Footer Scroll Area */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-y-auto rounded-[28px]">
-          <main className="flex-1 min-w-0 p-2 sm:p-4 md:p-6 space-y-6">
+        {/* Minimal Canvas Scroll Area */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+          <main className="flex-1 min-w-0 p-3 sm:p-5 space-y-5">
             {children}
           </main>
 
           {/* Global School Connect Footer */}
-          <footer className="border-t border-black/5 bg-[#EFF3F9] py-4 px-6 text-center text-xs text-[#64748B] no-print mt-auto rounded-b-[28px]">
-            <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-2">
-              <span className="font-semibold">School Connect &copy; {new Date().getFullYear()} &bull; Concepcion District, Concepcion, Romblon</span>
-              <span className="text-[11px] text-[#94A3B8] font-bold">Department of Education &bull; Division of Romblon</span>
+          <footer className="border-t border-slate-200 bg-white py-3 px-6 text-center text-xs text-slate-500 no-print mt-auto">
+            <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-1">
+              <span className="font-normal text-[11px]">School Connect &copy; {new Date().getFullYear()} &bull; Concepcion District, Concepcion, Romblon</span>
+              <span className="text-[11px] text-slate-400">Department of Education &bull; Division of Romblon</span>
             </div>
           </footer>
         </div>
@@ -564,39 +534,39 @@ export function SchoolConnectLayout({
         <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${settingsModalBackdropClass}`}>
           <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-xs" onClick={closeSettingsModal} />
 
-          <div className={`relative w-full max-w-lg bg-[#FAF5F0] rounded-[36px] border-4 border-white shadow-[0_24px_50px_rgba(139,114,244,0.3)] z-10 overflow-hidden ${settingsModalContainerClass} font-sans`}>
+          <div className={`relative w-full max-w-lg bg-white rounded-lg border border-slate-200 shadow-xl z-10 overflow-hidden ${settingsModalContainerClass} font-sans`}>
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-[#A88BEB] via-[#8B72F4] to-[#795CEE] p-6 text-white flex items-center justify-between border-b-4 border-white">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-2xl bg-white/20 border border-white/30 backdrop-blur-md shadow-xs">
-                  <Settings size={20} className="text-white" />
+            <div className="bg-[#2563EB] px-5 py-3.5 text-white flex items-center justify-between border-b border-slate-200">
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 rounded-md bg-white/10 text-white">
+                  <Settings size={18} />
                 </div>
                 <div>
-                  <h3 className="text-base font-black tracking-tight font-display">Account Settings</h3>
-                  <p className="text-xs text-purple-100 font-medium">Manage your personal profile credentials</p>
+                  <h3 className="text-sm font-bold tracking-tight">Account Settings</h3>
+                  <p className="text-[11px] text-blue-100">Manage your personal profile credentials</p>
                 </div>
               </div>
               <button
                 onClick={closeSettingsModal}
-                className="p-2 rounded-2xl bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+                className="p-1 rounded-md bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer text-xs"
               >
-                <X size={18} />
+                <X size={16} />
               </button>
             </div>
 
             {/* Modal Body Form */}
-            <form onSubmit={handleSaveAccountSettings} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto custom-scrollbar">
+            <form onSubmit={handleSaveAccountSettings} className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
               {/* Profile Photo Selector */}
-              <div className="p-4 rounded-[24px] bg-white border-2 border-white shadow-xs flex items-center gap-4">
+              <div className="p-3.5 rounded-md bg-slate-50 border border-slate-200 flex items-center gap-4">
                 <img
                   src={settingsAvatarUrl || '/images/clay/avatar_girl.jpg'}
                   alt="Profile Avatar"
-                  className="w-16 h-16 rounded-full object-cover border-4 border-[#FAF5F0] shadow-md bg-[#F6EFFF] shrink-0"
+                  className="w-14 h-14 rounded-full object-cover border border-slate-200 bg-slate-100 shrink-0"
                 />
-                <div className="flex-1 space-y-2">
-                  <label className="block text-xs font-black text-[#2D2638] font-display">Profile Avatar Photo</label>
+                <div className="flex-1 space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-900">Profile Avatar Photo</label>
                   <div className="flex items-center gap-2">
-                    <label className="cursor-pointer text-xs font-extrabold text-[#8B72F4] bg-[#FAF5F0] hover:bg-[#F6EFFF] border border-[#8B72F4]/30 px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-all shadow-2xs">
+                    <label className="cursor-pointer text-xs font-semibold text-[#2563EB] bg-white hover:bg-slate-100 border border-slate-200 px-3 py-1 rounded-md flex items-center gap-1.5 transition-all shadow-2xs">
                       <Upload size={13} />
                       Upload Photo
                       <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
@@ -606,7 +576,7 @@ export function SchoolConnectLayout({
                       placeholder="Or image URL..."
                       value={settingsAvatarUrl}
                       onChange={e => setSettingsAvatarUrl(e.target.value)}
-                      className="flex-1 px-3 py-1.5 text-[11px] rounded-full bg-[#FAF5F0] border border-white text-[#2D2638] font-medium focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/20"
+                      className="flex-1 form-input text-[11px] py-1"
                     />
                   </div>
                 </div>
@@ -614,34 +584,34 @@ export function SchoolConnectLayout({
 
               {/* Full Name */}
               <div>
-                <label className="block text-xs font-black text-[#2D2638] mb-1.5 font-display">Full Name *</label>
+                <label className="block text-xs font-semibold text-slate-800 mb-1">Full Name *</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Christian S. Tolentino"
                   value={settingsName}
                   onChange={e => setSettingsName(e.target.value)}
-                  className="w-full px-4 py-3 text-xs rounded-2xl bg-white border-2 border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.04)] text-[#2D2638] font-bold focus:outline-none focus:ring-4 focus:ring-[#8B72F4]/20 transition-all"
+                  className="form-input"
                 />
               </div>
 
               {/* Email Address */}
               <div>
-                <label className="block text-xs font-black text-[#2D2638] mb-1.5 font-display">Email Address *</label>
+                <label className="block text-xs font-semibold text-slate-800 mb-1">Email Address *</label>
                 <input
                   type="email"
                   required
                   placeholder="e.g. c.tolentino@deped.gov.ph"
                   value={settingsEmail}
                   onChange={e => setSettingsEmail(e.target.value)}
-                  className="w-full px-4 py-3 text-xs rounded-2xl bg-white border-2 border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.04)] text-[#2D2638] font-bold focus:outline-none focus:ring-4 focus:ring-[#8B72F4]/20 transition-all"
+                  className="form-input"
                 />
               </div>
 
               {/* Password */}
               <div>
-                <label className="block text-xs font-black text-[#2D2638] mb-1.5 font-display">
-                  Login Password <span className="text-[#7A7289] font-normal">(Leave blank to keep unchanged)</span>
+                <label className="block text-xs font-semibold text-slate-800 mb-1">
+                  Login Password <span className="text-slate-400 font-normal">(Leave blank to keep unchanged)</span>
                 </label>
                 <div className="relative">
                   <input
@@ -649,12 +619,12 @@ export function SchoolConnectLayout({
                     placeholder="Enter new password..."
                     value={settingsPassword}
                     onChange={e => setSettingsPassword(e.target.value)}
-                    className="w-full pl-4 pr-10 py-3 text-xs rounded-2xl bg-white border-2 border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.04)] text-[#2D2638] font-mono focus:outline-none focus:ring-4 focus:ring-[#8B72F4]/20 transition-all"
+                    className="form-input pr-9 font-mono"
                   />
                   <button
                     type="button"
                     onClick={() => setSettingsShowPassword(v => !v)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#A39BAF] hover:text-[#2D2638] p-1 transition-colors"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 transition-colors"
                   >
                     {settingsShowPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
@@ -662,18 +632,18 @@ export function SchoolConnectLayout({
               </div>
 
               {/* Action Buttons */}
-              <div className="pt-3 flex items-center justify-end gap-3 border-t border-[#F0E6DD]">
+              <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={closeSettingsModal}
-                  className="px-5 py-2.5 rounded-full text-xs font-bold text-[#7A7289] hover:bg-white transition-all cursor-pointer"
+                  className="btn btn-secondary text-xs px-4 py-1.5"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={savingAccount}
-                  className="px-6 py-2.5 rounded-full bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] text-white text-xs font-black shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50"
+                  className="btn btn-primary text-xs px-4 py-1.5 flex items-center gap-1.5"
                 >
                   {savingAccount ? (
                     <span>Saving...</span>

@@ -460,13 +460,13 @@ export function SubjectConsistencyPage() {
         </div>
 
         {/* Top Metric Switcher Tabs */}
-        <div className="bg-white p-2.5 rounded-2xl border border-purple-200 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 print:hidden">
+        <div className="bg-white p-2.5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 print:hidden">
           <div className="flex items-center gap-1.5 bg-slate-100 p-1.5 rounded-xl flex-wrap">
             <button
               onClick={() => setMetricType('learners')}
-              className={`px-3.5 py-2 text-xs font-extrabold rounded-lg transition-all flex items-center gap-2 ${
+              className={`px-3.5 py-2 text-xs font-semibold rounded-lg transition-all flex items-center gap-2 ${
                 metricType === 'learners'
-                  ? 'bg-[#8B72F4] text-white shadow-sm'
+                  ? 'bg-blue-600 text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >
@@ -479,9 +479,9 @@ export function SubjectConsistencyPage() {
                 setMetricType('competencies')
                 setCompetencyMetric('intended')
               }}
-              className={`px-3.5 py-2 text-xs font-extrabold rounded-lg transition-all flex items-center gap-2 ${
+              className={`px-3.5 py-2 text-xs font-semibold rounded-lg transition-all flex items-center gap-2 ${
                 metricType === 'competencies' && competencyMetric === 'intended'
-                  ? 'bg-[#8B72F4] text-white shadow-sm'
+                  ? 'bg-blue-600 text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >
@@ -494,9 +494,9 @@ export function SubjectConsistencyPage() {
                 setMetricType('competencies')
                 setCompetencyMetric('taught')
               }}
-              className={`px-3.5 py-2 text-xs font-extrabold rounded-lg transition-all flex items-center gap-2 ${
+              className={`px-3.5 py-2 text-xs font-semibold rounded-lg transition-all flex items-center gap-2 ${
                 metricType === 'competencies' && competencyMetric === 'taught'
-                  ? 'bg-emerald-600 text-white shadow-sm'
+                  ? 'bg-emerald-600 text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >
@@ -509,9 +509,9 @@ export function SubjectConsistencyPage() {
                 setMetricType('competencies')
                 setCompetencyMetric('not_taught')
               }}
-              className={`px-3.5 py-2 text-xs font-extrabold rounded-lg transition-all flex items-center gap-2 ${
+              className={`px-3.5 py-2 text-xs font-semibold rounded-lg transition-all flex items-center gap-2 ${
                 metricType === 'competencies' && competencyMetric === 'not_taught'
-                  ? 'bg-rose-600 text-white shadow-sm'
+                  ? 'bg-rose-600 text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >
@@ -521,34 +521,34 @@ export function SubjectConsistencyPage() {
           </div>
 
           {metricType === 'competencies' && (
-            <div className="flex items-center gap-1 bg-purple-50 p-1 rounded-xl border border-purple-200 shrink-0">
-              <span className="text-[11px] font-bold text-purple-900 px-2">Metric:</span>
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl shrink-0">
+              <span className="text-[11px] font-semibold text-slate-700 px-2">Metric:</span>
               <button
                 onClick={() => setCompetencyMetric('intended')}
-                className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all ${
+                className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all ${
                   competencyMetric === 'intended'
-                    ? 'bg-purple-700 text-white shadow-xs'
-                    : 'text-purple-800 hover:bg-purple-100'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-700 hover:bg-slate-200/60'
                 }`}
               >
                 Intended
               </button>
               <button
                 onClick={() => setCompetencyMetric('taught')}
-                className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all ${
+                className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all ${
                   competencyMetric === 'taught'
-                    ? 'bg-emerald-700 text-white shadow-xs'
-                    : 'text-emerald-900 hover:bg-emerald-100'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-slate-700 hover:bg-slate-200/60'
                 }`}
               >
                 Taught
               </button>
               <button
                 onClick={() => setCompetencyMetric('not_taught')}
-                className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all ${
+                className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all ${
                   competencyMetric === 'not_taught'
-                    ? 'bg-rose-700 text-white shadow-xs'
-                    : 'text-rose-900 hover:bg-rose-100'
+                    ? 'bg-rose-600 text-white shadow-xs'
+                    : 'text-slate-700 hover:bg-slate-200/60'
                 }`}
               >
                 Not Taught
@@ -558,12 +558,12 @@ export function SubjectConsistencyPage() {
         </div>
 
         {/* Filters Bar */}
-        <div className="bg-white border border-purple-100 rounded-2xl p-4 shadow-sm space-y-4 print:hidden">
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs space-y-4 print:hidden">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             {/* Grade Level Selection */}
             <div>
-              <label className="block text-xs font-bold text-purple-900 mb-1 flex items-center gap-1">
-                <GraduationCap size={13} className="text-[#8B72F4]" />
+              <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
+                <GraduationCap size={13} className="text-slate-400" />
                 Grade Level
               </label>
               <select
@@ -572,7 +572,7 @@ export function SubjectConsistencyPage() {
                   setGradeFilter(e.target.value)
                   setLaFilter('all')
                 }}
-                className="deped-input text-xs w-full font-bold bg-purple-50/50 border-purple-200 text-purple-950 focus:ring-[#8B72F4]"
+                className="w-full text-xs font-semibold px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
               >
                 <option value="all">All Grade Levels ({gradeLevels.length})</option>
                 {gradeLevels.map(g => (
@@ -585,14 +585,14 @@ export function SubjectConsistencyPage() {
 
             {/* Learning Area Filter */}
             <div>
-              <label className="block text-xs font-bold text-purple-900 mb-1 flex items-center gap-1">
-                <BookOpen size={13} className="text-[#8B72F4]" />
+              <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
+                <BookOpen size={13} className="text-slate-400" />
                 Learning Area
               </label>
               <select
                 value={laFilter}
                 onChange={e => setLaFilter(e.target.value)}
-                className="deped-input text-xs w-full font-bold bg-purple-50/50 border-purple-200 text-purple-950 focus:ring-[#8B72F4]"
+                className="w-full text-xs font-semibold px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
               >
                 <option value="all">All Learning Areas ({availableLearningAreas.length})</option>
                 {availableLearningAreas.map(la => (
@@ -811,15 +811,15 @@ export function SubjectConsistencyPage() {
           </div>
         ) : (
           initialized && (
-            <div className="clay-card bg-white border border-purple-200 rounded-3xl overflow-hidden shadow-sm">
+            <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-xs">
               {/* Matrix Context Header */}
-              <div className="px-5 py-3.5 bg-slate-50 border-b border-purple-100 flex items-center justify-between flex-wrap gap-2">
+              <div className="px-5 py-3.5 bg-slate-50 border-b border-slate-200/80 flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-xs">
+                  <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs">
                     {metricType === 'learners' ? <Users size={14} /> : <BookOpen size={14} />}
                   </div>
                   <div>
-                    <h3 className="text-xs font-extrabold text-slate-900">
+                    <h3 className="text-xs font-bold text-slate-900">
                       {metricType === 'learners' ? 'Subject Learner Comparison Matrix' : `Subject Competency Matrix (${competencyMetric.toUpperCase()})`} {selectedGradeObj && `— ${selectedGradeObj.name}`}
                     </h3>
                     <p className="text-[10px] text-slate-500 font-medium">
@@ -829,11 +829,11 @@ export function SubjectConsistencyPage() {
                 </div>
 
                 <div className="flex items-center gap-3 text-xs">
-                  <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-100 text-red-800 border border-red-300 text-[10px] font-bold">
-                    <span className="w-2 h-2 rounded-full bg-red-600 inline-block" />
+                  <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-semibold">
+                    <span className="w-2 h-2 rounded-full bg-rose-600 inline-block" />
                     Highlighted Red: Encoded Mismatch
                   </span>
-                  <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-bold">
+                  <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-semibold">
                     <span className="w-2 h-2 rounded-full bg-emerald-600 inline-block" />
                     Green / Slate: Encoded Count Uniform
                   </span>
@@ -843,11 +843,11 @@ export function SubjectConsistencyPage() {
               {/* Grid Matrix Table */}
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs" style={{ minWidth: `${350 + matrixColumns.length * 110}px` }}>
-                  <thead className="bg-[#2D2638] text-white font-extrabold uppercase tracking-wider text-[10px]">
+                  <thead className="bg-slate-800 text-white font-bold uppercase tracking-wider text-[10px]">
                     <tr>
-                      <th className="py-3 px-3 w-10 text-center border-r border-white/20">#</th>
-                      <th className="py-3 px-4 min-w-[200px] border-r border-white/20">School Name</th>
-                      <th className="py-3 px-3 min-w-[90px] text-center border-r border-white/20">Grade</th>
+                      <th className="py-3 px-3 w-10 text-center border-r border-slate-700">#</th>
+                      <th className="py-3 px-4 min-w-[200px] border-r border-slate-700">School Name</th>
+                      <th className="py-3 px-3 min-w-[90px] text-center border-r border-slate-700">Grade</th>
 
                       {/* Dynamic Subject Columns */}
                       {matrixColumns.map(la => {
@@ -855,12 +855,12 @@ export function SubjectConsistencyPage() {
                         const colMaj = gradeFilter !== 'all' ? columnMajorityMap.get(colKey) : null
 
                         return (
-                          <th key={la.id} className="py-3 px-3 text-center min-w-[105px] border-r border-white/15 bg-[#3B3248]">
+                          <th key={la.id} className="py-3 px-3 text-center min-w-[105px] border-r border-slate-700 bg-slate-900">
                             <div className="flex flex-col items-center">
                               <span className="font-bold text-white leading-tight truncate max-w-[100px]" title={la.name}>
                                 {la.name}
                               </span>
-                              <span className="text-[8px] text-purple-200/80 font-normal">
+                              <span className="text-[8px] text-slate-300 font-normal">
                                 {metricType === 'learners'
                                   ? 'Enc. Learners'
                                   : colMaj
@@ -872,17 +872,17 @@ export function SubjectConsistencyPage() {
                         )
                       })}
 
-                      <th className="py-3 px-4 text-center min-w-[130px] bg-[#433854]">Consistency Result</th>
+                      <th className="py-3 px-4 text-center min-w-[130px] bg-slate-800">Consistency Result</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-purple-100">
+                  <tbody className="divide-y divide-slate-100">
                     {filteredRows.map((row, idx) => {
                       return (
                         <tr
                           key={row.key}
                           className={`transition-colors align-middle ${
                             row.isInconsistent
-                              ? 'bg-red-50/70 hover:bg-red-100/60 border-l-4 border-l-red-500'
+                              ? 'bg-rose-50/70 hover:bg-rose-100/60 border-l-4 border-l-rose-500'
                               : idx % 2 === 0
                               ? 'bg-white hover:bg-slate-50'
                               : 'bg-slate-50/60 hover:bg-slate-100/60'
@@ -891,7 +891,7 @@ export function SubjectConsistencyPage() {
                           {/* # Index */}
                           <td className="py-3 px-3 text-center font-bold">
                             {row.isInconsistent ? (
-                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-600 text-white text-[10px]" title="Competency/Learner count differs from division majority!">
+                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-rose-600 text-white text-[10px]" title="Competency/Learner count differs from division majority!">
                                 ⚠
                               </span>
                             ) : row.counts.length > 0 ? (
@@ -909,7 +909,7 @@ export function SubjectConsistencyPage() {
                               <div
                                 className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold ${
                                   row.isInconsistent
-                                    ? 'bg-red-100 text-red-700 border border-red-300'
+                                    ? 'bg-rose-100 text-rose-700 border border-rose-300'
                                     : row.submittedCount > 0
                                     ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
                                     : 'bg-slate-100 text-slate-500 border border-slate-200'
@@ -918,7 +918,7 @@ export function SubjectConsistencyPage() {
                                 <Building2 size={12} />
                               </div>
                               <div>
-                                <span className={`font-bold text-xs leading-snug block ${row.isInconsistent ? 'text-red-950 font-black' : 'text-slate-800'}`}>
+                                <span className={`font-bold text-xs leading-snug block ${row.isInconsistent ? 'text-rose-950 font-bold' : 'text-slate-800'}`}>
                                   {row.schoolName}
                                 </span>
                                 {row.schoolCode && (
@@ -931,7 +931,7 @@ export function SubjectConsistencyPage() {
                           </td>
 
                           {/* Grade Level */}
-                          <td className="py-3 px-3 font-semibold text-center text-slate-700 whitespace-nowrap border-r border-purple-100">
+                          <td className="py-3 px-3 font-semibold text-center text-slate-700 whitespace-nowrap border-r border-slate-200/80">
                             {row.gradeName}
                           </td>
 
@@ -940,7 +940,7 @@ export function SubjectConsistencyPage() {
                             const cell = row.subjectMap.get(la.id)
                             if (!cell) {
                               return (
-                                <td key={la.id} className="py-3 px-3 text-center text-slate-300 border-r border-purple-100 font-mono italic text-[11px]">
+                                <td key={la.id} className="py-3 px-3 text-center text-slate-300 border-r border-slate-200/80 font-mono italic text-[11px]">
                                   —
                                 </td>
                               )
@@ -966,16 +966,16 @@ export function SubjectConsistencyPage() {
                             return (
                               <td
                                 key={la.id}
-                                className={`py-3 px-3 text-center border-r border-purple-100 ${
+                                className={`py-3 px-3 text-center border-r border-slate-200/80 ${
                                   isCellMismatch
-                                    ? 'bg-red-100/90 text-red-900 border-2 border-red-400 font-black shadow-2xs'
+                                    ? 'bg-rose-100/90 text-rose-900 border-2 border-rose-400 font-extrabold shadow-2xs'
                                     : row.isInconsistent
                                     ? 'bg-white text-slate-800 font-bold'
                                     : 'bg-emerald-50/50 text-emerald-900 font-bold'
                                 }`}
                               >
                                 <div className="flex flex-col items-center">
-                                  <span className={`text-xs ${isCellMismatch ? 'text-red-950 font-black text-sm' : ''}`}>
+                                  <span className={`text-xs ${isCellMismatch ? 'text-rose-950 font-bold text-sm' : ''}`}>
                                     {val}
                                   </span>
                                   {metricType === 'competencies' && (
@@ -990,7 +990,7 @@ export function SubjectConsistencyPage() {
                                     </span>
                                   )}
                                   {isCellMismatch && (
-                                    <span className="text-[8px] font-extrabold text-red-700 bg-red-200 px-1 rounded mt-0.5 leading-none" title={`Division majority count is ${colMajVal ?? row.majorityCount}`}>
+                                    <span className="text-[8px] font-bold text-rose-700 bg-rose-200 px-1 rounded mt-0.5 leading-none" title={`Division majority count is ${colMajVal ?? row.majorityCount}`}>
                                       {diffVal > 0 ? `+${diffVal}` : `${diffVal}`}
                                     </span>
                                   )}
@@ -1004,10 +1004,10 @@ export function SubjectConsistencyPage() {
                                       href={`/admin/submissions/${cell.sub.id}/edit`}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className={`mt-1 inline-flex items-center gap-0.5 text-[9px] font-extrabold px-1.5 py-0.5 rounded transition-all print:hidden shadow-2xs hover:scale-105 ${
+                                      className={`mt-1 inline-flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded transition-all print:hidden shadow-xs hover:scale-105 ${
                                         isCellMismatch
-                                          ? 'bg-red-600 text-white hover:bg-red-700 shadow-xs'
-                                          : 'bg-purple-100 text-purple-900 hover:bg-purple-200 border border-purple-300/80'
+                                          ? 'bg-rose-600 text-white hover:bg-rose-700 shadow-xs'
+                                          : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200'
                                       }`}
                                       title="Edit this submission in a new tab"
                                     >
@@ -1025,20 +1025,20 @@ export function SubjectConsistencyPage() {
                           <td className="py-3 px-4 text-center">
                             {row.isInconsistent ? (
                               <div className="flex flex-col items-center gap-0.5">
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-red-100 text-red-900 border border-red-300 font-black text-xs">
-                                  <AlertCircle size={12} className="text-red-600" />
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-100 text-rose-900 border border-rose-300 font-bold text-xs">
+                                  <AlertCircle size={12} className="text-rose-600" />
                                   {metricType === 'competencies'
                                     ? `${row.mismatchesCount} ${row.mismatchesCount === 1 ? 'Subj' : 'Subjs'} Mismatch`
                                     : `±${row.discrepancy} Learners`}
                                 </span>
-                                <span className="text-[9px] text-red-600 font-bold">
+                                <span className="text-[9px] text-rose-600 font-semibold">
                                   {metricType === 'competencies'
                                     ? 'Differs from majority'
                                     : `Range: ${row.minCount} – ${row.maxCount}`}
                                 </span>
                               </div>
                             ) : row.submittedCount > 0 ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-300 font-semibold text-xs">
                                 <CheckCircle2 size={12} />
                                 {metricType === 'competencies' ? 'Matches Division' : `Uniform (${row.majorityCount})`}
                               </span>
@@ -1056,22 +1056,22 @@ export function SubjectConsistencyPage() {
               </div>
 
               {/* Matrix Footer */}
-              <div className="px-5 py-3 bg-slate-50 border-t border-purple-100 flex items-center justify-between flex-wrap gap-2 text-xs">
+              <div className="px-5 py-3 bg-slate-50 border-t border-slate-200/80 flex items-center justify-between flex-wrap gap-2 text-xs">
                 <div className="flex items-center gap-3 flex-wrap">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-100 text-red-900 border border-red-300 text-[10px] font-bold">
-                    <span className="w-2 h-2 rounded-full bg-red-600 inline-block" />
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-semibold">
+                    <span className="w-2 h-2 rounded-full bg-rose-600 inline-block" />
                     {metricType === 'competencies'
                       ? 'Red Highlight: Encoded competencies differ from majority of schools for that subject'
                       : 'Red Highlight: Encoded learner count differs across assigned subjects in school'}
                   </span>
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-bold">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-semibold">
                     <span className="w-2 h-2 rounded-full bg-emerald-600 inline-block" />
                     {metricType === 'competencies'
                       ? 'Green Highlight: Encoded competencies match majority of schools'
                       : 'Green Highlight: Encoded learner count is uniform across all subjects'}
                   </span>
                 </div>
-                <span className="text-[10px] text-purple-600 font-bold">TERMCAT Matrix Consistency Engine</span>
+                <span className="text-[10px] text-blue-600 font-semibold">TERMCAT Matrix Consistency Engine</span>
               </div>
             </div>
           )

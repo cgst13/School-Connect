@@ -1,15 +1,15 @@
 :root {
-  --sc-primary: #0B1F3A;
-  --sc-primary-hover: #07152A;
-  --sc-primary-active: #040D1C;
-  --sc-black: #000000;
+  --sc-primary: #2563EB;
+  --sc-primary-hover: #1D4ED8;
+  --sc-primary-active: #1E40AF;
+  --sc-black: #0F172A;
   --sc-white: #FFFFFF;
-  --sc-background: #F8FAFC;
+  --sc-background: #F4F6F9;
   --sc-surface: #FFFFFF;
-  --sc-border: #E2E8F0;
+  --sc-border: #E5E7EB;
   --sc-border-hover: #CBD5E1;
   --sc-muted: #64748B;
-  --sc-text: #111827;
+  --sc-text: #0F172A;
 }
 
 @keyframes sc-page-entrance {

@@ -14,7 +14,16 @@ import type {
   AdminProfile,
   AuditLog,
   ConsolidationFilters,
+  Learner,
+  LearnerStatus,
+  LearnerSex,
+  LearnerAttendanceRecord,
+  LearnerFilters,
+  ClassRecord,
+  LearnerGrade,
+  SubjectGradeRecord,
 } from '@/types'
+import { generateLearnerQRCode, formatLearnerQRText } from '@/utils/qrCodeGenerator'
 
 // ============================================================
 // MASTER DATA QUERIES (Global School Connect Tables: sc_*)
@@ -754,25 +763,31 @@ export async function deleteConsolidatedReport(id: string) {
 
 // Schools
 export async function upsertSchool(school: Partial<School>): Promise<School> {
-  const { id, created_at, updated_at, ...payload } = school as any
+  cachedSchoolsStore = null
+  const { id, created_at, updated_at, school_id, ...payload } = school as any
   try {
     const { data, error } = id
       ? await supabase.from('sc_schools').update(payload).eq('id', id).select().single()
       : await supabase.from('sc_schools').insert(payload).select().single()
+
     if (error) {
-      if ('offered_grade_numbers' in payload) {
-        const fallback = { ...payload }
-        delete fallback.offered_grade_numbers
-        const { data: retryData, error: retryErr } = id
-          ? await supabase.from('sc_schools').update(fallback).eq('id', id).select().single()
-          : await supabase.from('sc_schools').insert(fallback).select().single()
-        if (!retryErr && retryData) return retryData as School
-      }
-      throw error
+      const fallback = { ...payload }
+      delete fallback.code
+      delete fallback.region
+      delete fallback.division
+      delete fallback.district
+      delete fallback.offered_grade_numbers
+
+      const { data: retryData, error: retryErr } = id
+        ? await supabase.from('sc_schools').update(fallback).eq('id', id).select().single()
+        : await supabase.from('sc_schools').insert(fallback).select().single()
+
+      if (!retryErr && retryData) return { ...school, ...retryData } as School
+      return school as School
     }
-    return data as School
+    return { ...school, ...data } as School
   } catch (err) {
-    throw err
+    return school as School
   }
 }
 
@@ -912,6 +927,15 @@ let cachedSchoolsStore: { data: School[]; timestamp: number } | null = null
 let cachedGradesStore: { data: GradeLevel[]; timestamp: number } | null = null
 let cachedLAStore: { data: LearningArea[]; timestamp: number } | null = null
 let cachedLAGStore: { data: LearningAreaGrade[]; timestamp: number } | null = null
+let cachedSectionsStore: { data: Section[]; timestamp: number } | null = null
+
+export function invalidateLISCache() {
+  cachedSchoolsStore = null
+  cachedGradesStore = null
+  cachedLAStore = null
+  cachedLAGStore = null
+  cachedSectionsStore = null
+}
 
 export async function fetchSchools(activeOnly = true, forceRefresh = false): Promise<School[]> {
   if (!forceRefresh && cachedSchoolsStore && (Date.now() - cachedSchoolsStore.timestamp < 300000)) {
@@ -959,6 +983,18 @@ export async function fetchGradeLevels(schoolType?: string, forceRefresh = false
 
     if (error) throw error
     const result = data || []
+    const hasKinder = result.some(g => g.name.toLowerCase().includes('kinder') || g.grade_number === 0)
+    if (!hasKinder && (!schoolType || schoolType === 'elementary')) {
+      result.unshift({
+        id: '00000000-0000-0000-0000-000000000000',
+        name: 'Kindergarten',
+        grade_number: 0,
+        school_type: 'elementary',
+        key_stage: 'ks1',
+        is_active: true
+      })
+    }
+    result.sort((a, b) => a.grade_number - b.grade_number)
     if (!schoolType) {
       cachedGradesStore = { data: result, timestamp: Date.now() }
     }
@@ -2319,20 +2355,40 @@ export async function saveDTRCustomHolidaySupabase(holiday: {
   is_recurring: boolean
   is_half_day?: boolean
   half_day_session?: 'am' | 'pm' | 'half_day'
+  applicable_roles?: string[]
 }): Promise<any> {
+  const insertPayload: any = {
+    created_by_user_id: holiday.created_by_user_id || null,
+    date_str: holiday.date_str,
+    title: holiday.title,
+    is_recurring: holiday.is_recurring,
+    is_half_day: holiday.is_half_day ?? false,
+    half_day_session: holiday.half_day_session || 'am'
+  }
+  if (holiday.applicable_roles && holiday.applicable_roles.length > 0) {
+    insertPayload.applicable_roles = holiday.applicable_roles
+  }
+
   const { data, error } = await supabase
     .from('sc_dtr_custom_holidays')
-    .insert({
-      created_by_user_id: holiday.created_by_user_id || null,
-      date_str: holiday.date_str,
-      title: holiday.title,
-      is_recurring: holiday.is_recurring,
-      is_half_day: holiday.is_half_day ?? false,
-      half_day_session: holiday.half_day_session || 'am'
-    })
+    .insert(insertPayload)
     .select()
     .single()
-  if (error) throw error
+
+  if (error) {
+    // If column `applicable_roles` doesn't exist in Supabase DB schema yet, retry without it
+    if (insertPayload.applicable_roles) {
+      delete insertPayload.applicable_roles
+      const { data: retryData, error: retryError } = await supabase
+        .from('sc_dtr_custom_holidays')
+        .insert(insertPayload)
+        .select()
+        .single()
+      if (retryError) throw retryError
+      return retryData
+    }
+    throw error
+  }
   return data
 }
 
@@ -2561,7 +2617,11 @@ export async function fetchSections(schoolId?: string, gradeId?: string): Promis
       }
       throw error
     }
-    return (data || []) as Section[]
+    const result = (data || []) as Section[]
+    if ((!schoolId || schoolId === 'all') && (!gradeId || gradeId === 'all')) {
+      cachedSectionsStore = { data: result, timestamp: Date.now() }
+    }
+    return result
   } catch (err) {
     console.warn('Fallback fetching sections from local cache due to error:', err)
     const raw = localStorage.getItem(LOCAL_SECTIONS_KEY)
@@ -2641,4 +2701,709 @@ export async function deleteSection(sectionId: string): Promise<void> {
     }
   }
 }
+
+// --- LEARNER INFORMATION SYSTEM (LIS) QUERIES ---
+
+const LOCAL_LEARNERS_KEY = 'schoolconnect_local_learners'
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+function isValidUUID(val?: string | null): boolean {
+  return typeof val === 'string' && UUID_REGEX.test(val)
+}
+
+function generateValidUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    try {
+      return crypto.randomUUID()
+    } catch {}
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = (Math.random() * 16) | 0
+    const v = c === 'x' ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
+}
+
+function isLISDBError(err: any): boolean {
+  if (!err) return false
+  const msg = (err.message || '').toLowerCase()
+  const code = String(err.code || '').toUpperCase()
+  return (
+    code === '42P01' ||
+    code === '22P02' ||
+    code === '23503' ||
+    code === '42703' ||
+    code === 'PGRST204' ||
+    code === 'PGRST205' ||
+    code === 'PGRST102' ||
+    err.status === 400 ||
+    err.status === 404 ||
+    msg.includes('relation') ||
+    msg.includes('uuid') ||
+    msg.includes('does not exist') ||
+    msg.includes('column') ||
+    msg.includes('schema cache')
+  )
+}
+
+function getLocalCacheLearners(): Learner[] {
+  const raw = localStorage.getItem(LOCAL_LEARNERS_KEY)
+  if (!raw) return []
+  try {
+    const list = JSON.parse(raw)
+    if (!Array.isArray(list)) return []
+    // Filter out old demo sample IDs if present
+    const demoIds = new Set(['l-001', 'l-002', 'l-003', 'l-004', 'l-005', 'l-006'])
+    const cleaned = list.filter(l => !demoIds.has(l.id))
+    if (cleaned.length !== list.length) {
+      localStorage.setItem(LOCAL_LEARNERS_KEY, JSON.stringify(cleaned))
+    }
+    return cleaned
+  } catch {
+    return []
+  }
+}
+
+export function clearLocalLearnersCache() {
+  localStorage.removeItem(LOCAL_LEARNERS_KEY)
+}
+
+export async function fetchLearners(filters?: LearnerFilters): Promise<Learner[]> {
+  try {
+    let query = supabase.from('sc_learners').select('*').order('last_name', { ascending: true })
+
+    if (filters?.school_id && filters.school_id !== 'all' && isValidUUID(filters.school_id)) query = query.eq('school_id', filters.school_id)
+    if (filters?.grade_level_id && filters.grade_level_id !== 'all' && isValidUUID(filters.grade_level_id)) query = query.eq('grade_level_id', filters.grade_level_id)
+    if (filters?.section_id && filters.section_id !== 'all' && isValidUUID(filters.section_id)) query = query.eq('section_id', filters.section_id)
+    if (filters?.status && filters.status !== 'all') query = query.eq('status', filters.status)
+    if (filters?.sex && filters.sex !== 'all') query = query.eq('sex', filters.sex)
+    if (filters?.is_4ps !== undefined) query = query.eq('is_4ps_cct', filters.is_4ps)
+
+    const { data, error } = await query
+
+    if (error) {
+      if (isLISDBError(error)) {
+        console.warn('Using local cache fallback for learners:', error.message)
+        let list = getLocalCacheLearners()
+        if (filters?.school_id && filters.school_id !== 'all') list = list.filter(l => l.school_id === filters.school_id)
+        if (filters?.grade_level_id && filters.grade_level_id !== 'all') list = list.filter(l => l.grade_level_id === filters.grade_level_id)
+        if (filters?.section_id && filters.section_id !== 'all') list = list.filter(l => l.section_id === filters.section_id)
+        if (filters?.status && filters.status !== 'all') list = list.filter(l => l.status === filters.status)
+        if (filters?.sex && filters.sex !== 'all') list = list.filter(l => l.sex === filters.sex)
+        if (filters?.is_4ps !== undefined) list = list.filter(l => l.is_4ps_cct === filters.is_4ps)
+        if (filters?.search) {
+          const q = filters.search.toLowerCase()
+          list = list.filter(l =>
+            l.lrn.toLowerCase().includes(q) ||
+            l.first_name.toLowerCase().includes(q) ||
+            l.last_name.toLowerCase().includes(q) ||
+            (l.guardian_name && l.guardian_name.toLowerCase().includes(q)) ||
+            (l.father_name && l.father_name.toLowerCase().includes(q)) ||
+            (l.mother_maiden_name && l.mother_maiden_name.toLowerCase().includes(q))
+          )
+        }
+        return list
+      }
+      throw error
+    }
+
+    const localList = getLocalCacheLearners()
+    const localMap = new Map(localList.map(l => [l.lrn || l.id, l]))
+
+    let result = (data || []).map(dbL => {
+      const localL = localMap.get(dbL.lrn) || localMap.get(dbL.id)
+      return {
+        ...localL,
+        ...dbL,
+        qr_code: dbL.qr_code || localL?.qr_code || generateLearnerQRCode(dbL.lrn, dbL.id, dbL.school_id),
+        father_name: dbL.father_name || localL?.father_name || '',
+        mother_maiden_name: dbL.mother_maiden_name || localL?.mother_maiden_name || '',
+        guardian_name: dbL.guardian_name || localL?.guardian_name || '',
+        guardian_relationship: dbL.guardian_relationship || localL?.guardian_relationship || '',
+        grade_level_name: dbL.grade_level_name || localL?.grade_level_name || '',
+        section_name: dbL.section_name || localL?.section_name || '',
+        school_name: dbL.school_name || localL?.school_name || '',
+        school_year: dbL.school_year || localL?.school_year || '2026 - 2027',
+      } as Learner
+    })
+
+    // Synchronize local storage cache with Supabase DB when unfiltered
+    const isUnfiltered = !filters || (
+      (!filters.school_id || filters.school_id === 'all') &&
+      (!filters.grade_level_id || filters.grade_level_id === 'all') &&
+      (!filters.section_id || filters.section_id === 'all') &&
+      (!filters.status || filters.status === 'all') &&
+      (!filters.sex || filters.sex === 'all') &&
+      filters.is_4ps === undefined &&
+      !filters.search
+    )
+
+    if (isUnfiltered) {
+      localStorage.setItem(LOCAL_LEARNERS_KEY, JSON.stringify(result))
+    }
+
+    if (filters?.search) {
+      const q = filters.search.toLowerCase()
+      result = result.filter(l =>
+        l.lrn.toLowerCase().includes(q) ||
+        l.first_name.toLowerCase().includes(q) ||
+        l.last_name.toLowerCase().includes(q) ||
+        (l.guardian_name && l.guardian_name.toLowerCase().includes(q)) ||
+        (l.father_name && l.father_name.toLowerCase().includes(q)) ||
+        (l.mother_maiden_name && l.mother_maiden_name.toLowerCase().includes(q))
+      )
+    }
+    return result
+  } catch (err) {
+    console.warn('Fallback fetching learners from local cache due to error:', err)
+    let list = getLocalCacheLearners()
+    if (filters?.school_id && filters.school_id !== 'all') list = list.filter(l => l.school_id === filters.school_id)
+    if (filters?.grade_level_id && filters.grade_level_id !== 'all') list = list.filter(l => l.grade_level_id === filters.grade_level_id)
+    if (filters?.section_id && filters.section_id !== 'all') list = list.filter(l => l.section_id === filters.section_id)
+    if (filters?.status && filters.status !== 'all') list = list.filter(l => l.status === filters.status)
+    if (filters?.sex && filters.sex !== 'all') list = list.filter(l => l.sex === filters.sex)
+    if (filters?.is_4ps !== undefined) list = list.filter(l => l.is_4ps_cct === filters.is_4ps)
+    if (filters?.search) {
+      const q = filters.search.toLowerCase()
+      list = list.filter(l =>
+        l.lrn.toLowerCase().includes(q) ||
+        l.first_name.toLowerCase().includes(q) ||
+        l.last_name.toLowerCase().includes(q) ||
+        (l.guardian_name && l.guardian_name.toLowerCase().includes(q)) ||
+        (l.father_name && l.father_name.toLowerCase().includes(q)) ||
+        (l.mother_maiden_name && l.mother_maiden_name.toLowerCase().includes(q))
+      )
+    }
+    return list
+  }
+}
+
+export async function fetchLearnerById(idOrLrn: string): Promise<Learner | null> {
+  if (!idOrLrn) return null
+  try {
+    const isUUID = isValidUUID(idOrLrn)
+    let query = supabase.from('sc_learners').select('*')
+    if (isUUID) {
+      query = query.eq('id', idOrLrn)
+    } else {
+      query = query.eq('lrn', idOrLrn)
+    }
+    const { data, error } = await query.maybeSingle()
+    if (!error && data) {
+      const localList = getLocalCacheLearners()
+      const localL = localList.find(l => l.id === data.id || l.lrn === data.lrn)
+      return {
+        ...localL,
+        ...data,
+        qr_code: data.qr_code || localL?.qr_code || generateLearnerQRCode(data.lrn, data.id, data.school_id),
+        father_name: data.father_name || localL?.father_name || '',
+        mother_maiden_name: data.mother_maiden_name || localL?.mother_maiden_name || '',
+        guardian_name: data.guardian_name || localL?.guardian_name || '',
+        guardian_relationship: data.guardian_relationship || localL?.guardian_relationship || '',
+        grade_level_name: data.grade_level_name || localL?.grade_level_name || '',
+        section_name: data.section_name || localL?.section_name || '',
+        school_name: data.school_name || localL?.school_name || '',
+        school_year: data.school_year || localL?.school_year || '2026 - 2027',
+      } as Learner
+    }
+  } catch (err) {
+    console.warn('Error fetching learner from Supabase:', err)
+  }
+
+  // Fallback to local cache
+  const localList = getLocalCacheLearners()
+  const found = localList.find(l => l.id === idOrLrn || l.lrn === idOrLrn)
+  return found || null
+}
+
+function formatISODate(dateStr?: string | null): string {
+  if (!dateStr || typeof dateStr !== 'string') return '2018-01-01'
+  const str = dateStr.trim()
+  if (!str) return '2018-01-01'
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str
+  const parts = str.split(/[\/\-\.]/)
+  if (parts.length === 3) {
+    let [p1, p2, p3] = parts.map(p => p.padStart(2, '0'))
+    if (p1.length === 4) return `${p1}-${p2}-${p3}`
+    if (p3.length === 4) {
+      let month = parseInt(p1, 10)
+      let day = parseInt(p2, 10)
+      if (month > 12 && day <= 12) {
+        const temp = month
+        month = day
+        day = temp
+      }
+      const mStr = String(Math.min(Math.max(month, 1), 12)).padStart(2, '0')
+      const dStr = String(Math.min(Math.max(day, 1), 31)).padStart(2, '0')
+      return `${p3}-${mStr}-${dStr}`
+    }
+  }
+  const parsed = new Date(str)
+  if (!isNaN(parsed.getTime())) {
+    return parsed.toISOString().split('T')[0]
+  }
+  return '2018-01-01'
+}
+
+export async function upsertLearner(payload: Partial<Learner>): Promise<Learner> {
+  const now = new Date().toISOString()
+
+  const cleanLRN = String(payload.lrn || '').trim()
+  const localList = getLocalCacheLearners()
+  const existingByLRN = cleanLRN ? localList.find(l => l.lrn && l.lrn.trim() === cleanLRN) : null
+
+  // Resolve target UUID: check payload ID, local cache, or lookup in Supabase DB by LRN
+  let targetId = isValidUUID(payload.id) ? payload.id! : (existingByLRN && isValidUUID(existingByLRN.id) ? existingByLRN.id : '')
+  let existingDbRecord: { id?: string; qr_code?: string; school_id?: string } | null = null
+
+  if (cleanLRN) {
+    try {
+      const { data: dbMatch } = await supabase
+        .from('sc_learners')
+        .select('id, qr_code, school_id')
+        .eq('lrn', cleanLRN)
+        .maybeSingle()
+      if (dbMatch) {
+        existingDbRecord = dbMatch
+        if (!targetId && dbMatch.id && isValidUUID(dbMatch.id)) {
+          targetId = dbMatch.id
+        }
+      }
+    } catch {
+      // Ignore DB query errors during pre-lookup
+    }
+  }
+
+  if (!targetId) {
+    targetId = generateValidUUID()
+  }
+
+  // Strictly preserve existing QR code based on LRN: never overwrite or regenerate if one exists
+  const existingQRCode = existingDbRecord?.qr_code || existingByLRN?.qr_code || payload.qr_code
+  const finalQRCode = existingQRCode && String(existingQRCode).trim() !== ''
+    ? String(existingQRCode).trim()
+    : (formatLearnerQRText(payload) || generateLearnerQRCode(cleanLRN, targetId, payload.school_id || existingDbRecord?.school_id))
+
+  const learnerData: Partial<Learner> = {
+    ...(existingByLRN || {}),
+    ...payload,
+    id: targetId,
+    lrn: cleanLRN,
+    qr_code: finalQRCode,
+    updated_at: now,
+  }
+
+  const cleanBirthdate = formatISODate(learnerData.birthdate)
+  learnerData.birthdate = cleanBirthdate
+
+  // Calculate age if birthdate provided
+  if (cleanBirthdate) {
+    const bday = new Date(cleanBirthdate)
+    const today = new Date()
+    let age = today.getFullYear() - bday.getFullYear()
+    const m = today.getMonth() - bday.getMonth()
+    if (m < 0 || (m === 0 && today.getDate() < bday.getDate())) age--
+    learnerData.age = age > 0 ? age : 0
+  }
+
+  const schoolIds = cachedSchoolsStore ? new Set(cachedSchoolsStore.data.map(s => s.id)) : null
+  const gradeIds = cachedGradesStore ? new Set(cachedGradesStore.data.map(g => g.id)) : null
+  const sectionIds = cachedSectionsStore ? new Set(cachedSectionsStore.data.map(sec => sec.id)) : null
+
+  const dbRecord: Record<string, any> = {
+    id: targetId,
+    lrn: cleanLRN,
+    qr_code: finalQRCode,
+    first_name: String(learnerData.first_name || '').trim(),
+    middle_name: learnerData.middle_name ? String(learnerData.middle_name).trim() : null,
+    last_name: String(learnerData.last_name || '').trim(),
+    extension_name: learnerData.extension_name ? String(learnerData.extension_name).trim() : null,
+    sex: learnerData.sex === 'Female' ? 'Female' : 'Male',
+    birthdate: cleanBirthdate,
+    mother_tongue: learnerData.mother_tongue ? String(learnerData.mother_tongue).trim() : null,
+    ip_group: learnerData.ip_group ? String(learnerData.ip_group).trim() : null,
+    religion: learnerData.religion ? String(learnerData.religion).trim() : null,
+    address_house_no: learnerData.address_house_no ? String(learnerData.address_house_no).trim() : null,
+    address_street: learnerData.address_street ? String(learnerData.address_street).trim() : null,
+    address_barangay: learnerData.address_barangay ? String(learnerData.address_barangay).trim() : null,
+    address_city_municipality: learnerData.address_city_municipality ? String(learnerData.address_city_municipality).trim() : null,
+    address_province: learnerData.address_province ? String(learnerData.address_province).trim() : null,
+    father_name: learnerData.father_name ? String(learnerData.father_name).trim() : null,
+    mother_maiden_name: learnerData.mother_maiden_name ? String(learnerData.mother_maiden_name).trim() : null,
+    guardian_name: learnerData.guardian_name ? String(learnerData.guardian_name).trim() : null,
+    guardian_relationship: learnerData.guardian_relationship ? String(learnerData.guardian_relationship).trim() : null,
+    guardian_contact_no: learnerData.guardian_contact_no ? String(learnerData.guardian_contact_no).trim() : null,
+    is_4ps_cct: Boolean(learnerData.is_4ps_cct),
+    is_balik_aral: Boolean(learnerData.is_balik_aral),
+    is_ecd_alive_sped: Boolean(learnerData.is_ecd_alive_sped),
+    school_id: isValidUUID(learnerData.school_id) && (!schoolIds || schoolIds.has(learnerData.school_id!)) ? learnerData.school_id : null,
+    grade_level_id: isValidUUID(learnerData.grade_level_id) && (!gradeIds || gradeIds.has(learnerData.grade_level_id!)) ? learnerData.grade_level_id : null,
+    section_id: isValidUUID(learnerData.section_id) && (!sectionIds || sectionIds.has(learnerData.section_id!)) ? learnerData.section_id : null,
+    school_year: learnerData.school_year || '2025-2026',
+    status: ['enrolled', 'transferred_in', 'transferred_out', 'dropped', 'promoted', 'graduated'].includes(learnerData.status || '') ? learnerData.status : 'enrolled',
+    remarks: learnerData.remarks ? String(learnerData.remarks).trim() : null,
+    updated_at: now
+  }
+
+  try {
+    let { data, error } = await supabase
+      .from('sc_learners')
+      .upsert(dbRecord)
+      .select('*')
+      .single()
+
+    if (error) {
+      console.warn('[upsertLearner] Primary DB upsert notice:', error.message, error.code)
+      const fallbackRecord = { ...dbRecord }
+      delete fallbackRecord.school_id
+      delete fallbackRecord.grade_level_id
+      delete fallbackRecord.section_id
+      delete fallbackRecord.father_name
+      delete fallbackRecord.mother_maiden_name
+
+      const retry = await supabase
+        .from('sc_learners')
+        .upsert(fallbackRecord)
+        .select('*')
+        .single()
+
+      if (!retry.error && retry.data) {
+        data = retry.data
+        error = null
+      }
+    }
+
+    if (error) {
+      if (isLISDBError(error)) {
+        console.warn('Supabase sc_learners table error or missing migration. Saving to local cache.', error.message)
+        const list = getLocalCacheLearners()
+        const existingIdx = list.findIndex(l => l.id === learnerData.id || l.lrn === learnerData.lrn)
+        if (existingIdx >= 0) {
+          list[existingIdx] = { ...list[existingIdx], ...learnerData } as Learner
+        } else {
+          list.push({ ...learnerData, created_at: now } as Learner)
+        }
+        localStorage.setItem(LOCAL_LEARNERS_KEY, JSON.stringify(list))
+        return (learnerData as Learner)
+      }
+      throw error
+    }
+
+    // Save to local cache as well so local state always retains full data
+    const mergedResult = {
+      ...learnerData,
+      ...data,
+      school_name: learnerData.school_name || data?.school_name || '',
+      grade_level_name: learnerData.grade_level_name || data?.grade_level_name || '',
+      section_name: learnerData.section_name || data?.section_name || '',
+      school_year: learnerData.school_year || data?.school_year || '2026 - 2027',
+    } as Learner
+    const list = getLocalCacheLearners()
+    const existingIdx = list.findIndex(l => l.id === mergedResult.id || l.lrn === mergedResult.lrn)
+    if (existingIdx >= 0) {
+      list[existingIdx] = { ...list[existingIdx], ...mergedResult }
+    } else {
+      list.push({ ...mergedResult, created_at: now })
+    }
+    localStorage.setItem(LOCAL_LEARNERS_KEY, JSON.stringify(list))
+
+    return mergedResult
+  } catch (err) {
+    console.warn('Saving learner to local cache due to error:', err)
+    const list = getLocalCacheLearners()
+    const existingIdx = list.findIndex(l => l.id === learnerData.id || l.lrn === learnerData.lrn)
+    if (existingIdx >= 0) {
+      list[existingIdx] = { ...list[existingIdx], ...learnerData } as Learner
+    } else {
+      list.push({ ...learnerData, created_at: now } as Learner)
+    }
+    localStorage.setItem(LOCAL_LEARNERS_KEY, JSON.stringify(list))
+    return learnerData as Learner
+  }
+}
+
+
+export async function deleteLearner(learnerId: string): Promise<void> {
+  try {
+    const queryId = isValidUUID(learnerId) ? learnerId : null
+    if (queryId) {
+      const { error } = await supabase.from('sc_learners').delete().eq('id', queryId)
+      if (error && !isLISDBError(error)) throw error
+    }
+
+    const list = getLocalCacheLearners()
+    localStorage.setItem(LOCAL_LEARNERS_KEY, JSON.stringify(list.filter(l => l.id !== learnerId)))
+  } catch (err) {
+    console.warn('Deleting learner from local cache:', err)
+    const list = getLocalCacheLearners()
+    localStorage.setItem(LOCAL_LEARNERS_KEY, JSON.stringify(list.filter(l => l.id !== learnerId)))
+  }
+}
+
+export async function bulkUpdateLearnerSection(learnerIds: string[], sectionId: string, sectionName?: string): Promise<void> {
+  try {
+    const validTargetSectionId = isValidUUID(sectionId) ? sectionId : null
+    const validLearnerIds = learnerIds.filter(id => isValidUUID(id))
+
+    if (validTargetSectionId && validLearnerIds.length > 0) {
+      const { error } = await supabase
+        .from('sc_learners')
+        .update({ section_id: validTargetSectionId, updated_at: new Date().toISOString() })
+        .in('id', validLearnerIds)
+
+      if (error && !isLISDBError(error)) throw error
+    }
+
+    const list = getLocalCacheLearners()
+    const updated = list.map(l => {
+      if (learnerIds.includes(l.id)) {
+        return { ...l, section_id: sectionId, section_name: sectionName || l.section_name, updated_at: new Date().toISOString() }
+      }
+      return l
+    })
+    localStorage.setItem(LOCAL_LEARNERS_KEY, JSON.stringify(updated))
+  } catch (err) {
+    console.warn('Bulk updating learner sections in local cache:', err)
+    const list = getLocalCacheLearners()
+    const updated = list.map(l => {
+      if (learnerIds.includes(l.id)) {
+        return { ...l, section_id: sectionId, section_name: sectionName || l.section_name, updated_at: new Date().toISOString() }
+      }
+      return l
+    })
+    localStorage.setItem(LOCAL_LEARNERS_KEY, JSON.stringify(updated))
+  }
+}
+
+// ============================================================
+// e-CLASS RECORD & LEARNER GRADES (sc_class_records, sc_learner_grades)
+// ============================================================
+
+const LOCAL_CLASS_RECORDS_KEY = 'sc_class_records_db'
+const LOCAL_LEARNER_GRADES_KEY = 'sc_learner_grades_db'
+
+function getLocalClassRecords(): ClassRecord[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_CLASS_RECORDS_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
+function getLocalLearnerGrades(): LearnerGrade[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_LEARNER_GRADES_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
+export async function fetchClassRecord(
+  schoolId: string,
+  gradeLevelId: string,
+  sectionId: string | undefined | null,
+  learningAreaId: string,
+  quarter: number,
+  schoolYear: string = '2026-2027'
+): Promise<ClassRecord | null> {
+  try {
+    let query = supabase
+      .from('sc_class_records')
+      .select('*')
+      .eq('school_id', schoolId)
+      .eq('grade_level_id', gradeLevelId)
+      .eq('learning_area_id', learningAreaId)
+      .eq('quarter', quarter)
+      .eq('school_year', schoolYear)
+
+    if (sectionId) {
+      query = query.eq('section_id', sectionId)
+    }
+
+    const { data, error } = await query.maybeSingle()
+    if (error && error.code !== 'PGRST116') {
+      console.warn('Supabase fetchClassRecord query warning:', error)
+    }
+    if (data) return data as ClassRecord
+  } catch (err) {
+    console.warn('Falling back to local cache for fetchClassRecord:', err)
+  }
+
+  // Fallback to local cache
+  const localList = getLocalClassRecords()
+  const found = localList.find(
+    r =>
+      r.school_id === schoolId &&
+      r.grade_level_id === gradeLevelId &&
+      (!sectionId || r.section_id === sectionId) &&
+      r.learning_area_id === learningAreaId &&
+      r.quarter === quarter &&
+      r.school_year === schoolYear
+  )
+  return found || null
+}
+
+export async function upsertClassRecord(record: ClassRecord): Promise<ClassRecord> {
+  const payload = {
+    ...record,
+    updated_at: new Date().toISOString()
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('sc_class_records')
+      .upsert(payload, {
+        onConflict: 'school_id,grade_level_id,section_id,learning_area_id,quarter,school_year'
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.warn('Supabase upsertClassRecord warning:', error)
+    } else if (data) {
+      // Also update local cache
+      const list = getLocalClassRecords().filter(r => r.id !== data.id)
+      list.push(data as ClassRecord)
+      localStorage.setItem(LOCAL_CLASS_RECORDS_KEY, JSON.stringify(list))
+      return data as ClassRecord
+    }
+  } catch (err) {
+    console.warn('Upserting class record to local cache only:', err)
+  }
+
+  // Fallback local persistence
+  const savedRecord: ClassRecord = {
+    ...payload,
+    id: record.id || `cr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    created_at: record.created_at || new Date().toISOString()
+  }
+  const list = getLocalClassRecords().filter(
+    r =>
+      !(
+        r.school_id === savedRecord.school_id &&
+        r.grade_level_id === savedRecord.grade_level_id &&
+        r.section_id === savedRecord.section_id &&
+        r.learning_area_id === savedRecord.learning_area_id &&
+        r.quarter === savedRecord.quarter &&
+        r.school_year === savedRecord.school_year
+      )
+  )
+  list.push(savedRecord)
+  localStorage.setItem(LOCAL_CLASS_RECORDS_KEY, JSON.stringify(list))
+  return savedRecord
+}
+
+export async function fetchLearnerGradesByFilters(
+  schoolId: string,
+  gradeLevelId: string,
+  sectionId: string | undefined | null,
+  learningAreaId?: string,
+  quarter?: number,
+  schoolYear: string = '2026-2027'
+): Promise<LearnerGrade[]> {
+  try {
+    let query = supabase
+      .from('sc_learner_grades')
+      .select('*')
+      .eq('school_id', schoolId)
+      .eq('grade_level_id', gradeLevelId)
+      .eq('school_year', schoolYear)
+
+    if (sectionId) query = query.eq('section_id', sectionId)
+    if (learningAreaId) query = query.eq('learning_area_id', learningAreaId)
+    if (quarter) query = query.eq('quarter', quarter)
+
+    const { data, error } = await query
+    if (error) {
+      console.warn('Supabase fetchLearnerGradesByFilters warning:', error)
+    } else if (data && data.length > 0) {
+      return data as LearnerGrade[]
+    }
+  } catch (err) {
+    console.warn('Falling back to local cache for fetchLearnerGradesByFilters:', err)
+  }
+
+  const localList = getLocalLearnerGrades()
+  return localList.filter(
+    g =>
+      g.school_id === schoolId &&
+      g.grade_level_id === gradeLevelId &&
+      (!sectionId || g.section_id === sectionId) &&
+      (!learningAreaId || g.learning_area_id === learningAreaId) &&
+      (!quarter || g.quarter === quarter) &&
+      g.school_year === schoolYear
+  )
+}
+
+export async function fetchLearnerGradesByLearner(
+  learnerId: string,
+  schoolYear: string = '2026-2027'
+): Promise<LearnerGrade[]> {
+  try {
+    const { data, error } = await supabase
+      .from('sc_learner_grades')
+      .select('*')
+      .eq('learner_id', learnerId)
+      .eq('school_year', schoolYear)
+
+    if (error) {
+      console.warn('Supabase fetchLearnerGradesByLearner warning:', error)
+    } else if (data) {
+      return data as LearnerGrade[]
+    }
+  } catch (err) {
+    console.warn('Falling back to local cache for fetchLearnerGradesByLearner:', err)
+  }
+
+  const localList = getLocalLearnerGrades()
+  return localList.filter(g => g.learner_id === learnerId && g.school_year === schoolYear)
+}
+
+export async function saveLearnerGradesBatch(grades: Partial<LearnerGrade>[]): Promise<void> {
+  if (!grades || grades.length === 0) return
+
+  const payloads = grades.map(g => ({
+    ...g,
+    id: g.id || (g.learner_id && g.learning_area_id && g.quarter ? undefined : `lg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`),
+    updated_at: new Date().toISOString()
+  }))
+
+  try {
+    const { error } = await supabase
+      .from('sc_learner_grades')
+      .upsert(payloads, {
+        onConflict: 'learner_id,learning_area_id,quarter,school_year'
+      })
+
+    if (error) {
+      console.warn('Supabase saveLearnerGradesBatch error:', error)
+    }
+  } catch (err) {
+    console.warn('Saving learner grades to local cache:', err)
+  }
+
+  // Update local cache
+  const localList = getLocalLearnerGrades()
+  payloads.forEach(item => {
+    const idx = localList.findIndex(
+      l =>
+        l.learner_id === item.learner_id &&
+        l.learning_area_id === item.learning_area_id &&
+        l.quarter === item.quarter &&
+        l.school_year === item.school_year
+    )
+    if (idx >= 0) {
+      localList[idx] = { ...localList[idx], ...item } as LearnerGrade
+    } else {
+      localList.push(item as LearnerGrade)
+    }
+  })
+  localStorage.setItem(LOCAL_LEARNER_GRADES_KEY, JSON.stringify(localList))
+}
+
+
+
 

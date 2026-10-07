@@ -33,21 +33,21 @@ export function ConfirmationDialog({
     switch (variant) {
       case 'danger':
         return {
-          iconBg: 'from-[#FECACA] to-[#FCA5A5] text-[#B91C1C]',
-          icon: <AlertTriangle size={22} className="text-[#B91C1C]" />,
-          btn: 'bg-gradient-to-r from-rose-500 to-red-600 text-white shadow-md shadow-rose-500/30'
+          iconBg: 'bg-rose-50 border-rose-200 text-rose-600',
+          icon: <AlertTriangle size={20} className="text-rose-600" />,
+          btn: 'bg-rose-600 hover:bg-rose-700 text-white shadow-xs'
         }
       case 'warning':
         return {
-          iconBg: 'from-[#FDE68A] to-[#FCD34D] text-[#B45309]',
-          icon: <AlertCircle size={22} className="text-[#B45309]" />,
-          btn: 'bg-gradient-to-r from-amber-500 to-yellow-600 text-white shadow-md shadow-amber-500/30'
+          iconBg: 'bg-amber-50 border-amber-200 text-amber-700',
+          icon: <AlertCircle size={20} className="text-amber-600" />,
+          btn: 'bg-amber-600 hover:bg-amber-700 text-white shadow-xs'
         }
       default:
         return {
-          iconBg: 'from-[#DDD6FE] to-[#C4B5FD] text-[#6D28D9]',
-          icon: <Info size={22} className="text-[#6D28D9]" />,
-          btn: 'bg-gradient-to-r from-[#7181F5] to-[#5463DA] text-white shadow-neu-btn'
+          iconBg: 'bg-blue-50 border-blue-200 text-[#2563EB]',
+          icon: <Info size={20} className="text-[#2563EB]" />,
+          btn: 'bg-[#2563EB] hover:bg-[#1D4ED8] text-white shadow-xs'
         }
     }
   }
@@ -56,41 +56,41 @@ export function ConfirmationDialog({
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2D2638]/40 backdrop-blur-md ${backdropClass}`}
+      className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs ${backdropClass}`}
       role="dialog"
       aria-modal="true"
       aria-labelledby="dialog-title"
     >
       <div className="absolute inset-0" onClick={triggerClose} />
 
-      <div className={`relative w-full max-w-md bg-[#FAF5F0] rounded-[36px] p-6 sm:p-8 shadow-[0_25px_60px_rgba(139,114,244,0.22)] border-4 border-white space-y-5 overflow-hidden z-10 ${containerClass}`}>
+      <div className={`relative w-full max-w-md bg-white rounded-2xl p-6 shadow-xl border border-slate-200/80 space-y-4 overflow-hidden z-10 ${containerClass} font-sans`}>
         <button
           onClick={triggerClose}
-          className="absolute top-4 right-4 p-2 rounded-full bg-white text-[#7A7289] hover:text-[#2D2638] shadow-2xs border border-white transition-all cursor-pointer active:scale-95"
+          className="absolute top-4 right-4 p-1.5 rounded-lg bg-white text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all cursor-pointer"
           aria-label="Close dialog"
           disabled={isLoading}
         >
           <X size={16} />
         </button>
 
-        <div className="flex items-start gap-4 pr-6">
-          <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${styles.iconBg} flex items-center justify-center shrink-0 shadow-md border-2 border-white`}>
+        <div className="flex items-start gap-3.5 pr-6">
+          <div className={`w-11 h-11 rounded-xl border ${styles.iconBg} flex items-center justify-center shrink-0`}>
             {styles.icon}
           </div>
           <div className="flex-1 min-w-0 pt-0.5">
-            <h2 id="dialog-title" className="text-lg font-black text-[#2D2638] tracking-tight font-display">
+            <h2 id="dialog-title" className="text-base font-bold text-slate-900 tracking-tight">
               {title}
             </h2>
-            <div className="text-xs sm:text-sm text-[#7A7289] mt-1.5 leading-relaxed font-semibold">
+            <div className="text-xs text-slate-600 mt-1 leading-relaxed font-normal">
               {message}
             </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#F0E6DD]">
+        <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100">
           <button
             type="button"
-            className="px-6 py-2.5 rounded-full text-xs font-black text-[#7A7289] bg-white hover:bg-[#F6EFFF] hover:text-[#2D2638] shadow-2xs border border-white transition-all cursor-pointer disabled:opacity-50 active:scale-95"
+            className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition-all cursor-pointer disabled:opacity-50"
             onClick={triggerClose}
             disabled={isLoading}
           >
@@ -98,15 +98,15 @@ export function ConfirmationDialog({
           </button>
           <button
             type="button"
-            className={`px-6 py-2.5 rounded-full text-xs font-black transition-all cursor-pointer flex items-center gap-2 disabled:opacity-50 border border-white/40 active:animate-button-sparkle ${styles.btn}`}
+            className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1.5 ${styles.btn}`}
             onClick={onConfirm}
             disabled={isLoading}
           >
-            {isLoading && <Loader2 size={14} className="animate-spin" />}
-            {isLoading ? 'Processing...' : confirmLabel}
+            <span>{isLoading ? 'Processing...' : confirmLabel}</span>
           </button>
         </div>
       </div>
     </div>
   )
 }
+

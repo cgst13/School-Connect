@@ -37,7 +37,7 @@ export function TermcatSettingsPage() {
       <PageHeader>
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-[#0B1F3A] text-white rounded">
+            <span className="px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-blue-50 text-blue-700 rounded-full border border-blue-200">
               TERMCAT Settings
             </span>
           </div>
@@ -51,25 +51,25 @@ export function TermcatSettingsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Settings Card */}
         <div className="lg:col-span-2 space-y-6">
-          <Section>
+          <Section className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6">
             <SectionHeader
               title="Public Teacher Submission Link"
               description="Share this link with school teachers to submit evaluation forms and view district compliance matrix."
             />
 
             <div className="space-y-4 pt-2">
-              <div className="p-4 rounded-xl bg-slate-50 border border-[#E2E8F0] space-y-3">
-                <label className="block text-xs font-bold text-[#111827]">
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-3">
+                <label className="block text-xs font-bold text-slate-900">
                   Official Public Portal URL
                 </label>
                 <div className="flex items-center gap-2">
                   <div className="relative flex-1">
-                    <Globe className="w-4 h-4 text-[#64748B] absolute left-3 top-1/2 -translate-y-1/2" />
+                    <Globe className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
                       readOnly
                       value={publicPortalUrl}
-                      className="w-full pl-9 pr-3 py-2 text-xs font-mono font-medium bg-white border border-[#E2E8F0] rounded-lg text-[#111827] select-all focus:outline-none"
+                      className="w-full pl-9 pr-3 py-2 text-xs font-mono font-medium bg-white border border-slate-200 rounded-xl text-slate-900 select-all focus:outline-none"
                     />
                   </div>
 
@@ -85,27 +85,27 @@ export function TermcatSettingsPage() {
                     href={publicPortalUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-white bg-[#0B1F3A] hover:bg-[#07152A] rounded-lg transition-colors shadow-xs"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-all shadow-xs"
                   >
                     <span>Open Link</span>
                     <ExternalLink size={14} />
                   </a>
                 </div>
 
-                <div className="flex items-center gap-2 text-[11px] text-[#64748B] pt-1">
+                <div className="flex items-center gap-2 text-[11px] text-slate-500 pt-1">
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                   <span>No teacher login required for public submissions.</span>
                 </div>
               </div>
 
               {/* Submission Controls */}
-              <div className="pt-4 border-t border-[#E2E8F0] space-y-3">
-                <h4 className="text-xs font-bold text-[#111827]">Public Access Control</h4>
+              <div className="pt-4 border-t border-slate-200/80 space-y-3">
+                <h4 className="text-xs font-bold text-slate-900">Public Access Control</h4>
                 
-                <div className="flex items-center justify-between p-3 rounded-lg border border-[#E2E8F0] bg-white">
+                <div className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200/80 bg-white">
                   <div>
-                    <div className="text-xs font-bold text-[#111827]">Allow Public Submissions</div>
-                    <div className="text-[11px] text-[#64748B]">
+                    <div className="text-xs font-bold text-slate-900">Allow Public Submissions</div>
+                    <div className="text-[11px] text-slate-500">
                       When active, teachers with the public link can submit evaluation forms.
                     </div>
                   </div>
@@ -117,7 +117,7 @@ export function TermcatSettingsPage() {
                       toast(`Public submissions ${!allowPublicSubmissions ? 'enabled' : 'disabled'}.`, 'info')
                     }}
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
-                      allowPublicSubmissions ? 'bg-[#0B1F3A]' : 'bg-slate-300'
+                      allowPublicSubmissions ? 'bg-blue-600' : 'bg-slate-300'
                     }`}
                   >
                     <span
@@ -132,7 +132,7 @@ export function TermcatSettingsPage() {
           </Section>
 
           {/* District Branding Info */}
-          <Section>
+          <Section className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6">
             <SectionHeader
               title="District & Department Information"
               description="Institutional identifiers applied to official printouts and exported consolidation reports."
@@ -140,22 +140,22 @@ export function TermcatSettingsPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs pt-2">
               <div>
-                <label className="block font-bold text-[#111827] mb-1">Region & Division</label>
+                <label className="block font-bold text-slate-900 mb-1">Region & Division</label>
                 <input
                   type="text"
                   readOnly
                   value="Region IV-B (MIMAROPA) · Division of Romblon"
-                  className="w-full px-3 py-2 bg-slate-50 border border-[#E2E8F0] rounded-lg text-[#64748B]"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-600 font-medium"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-[#111827] mb-1">District Name</label>
+                <label className="block font-bold text-slate-900 mb-1">District Name</label>
                 <input
                   type="text"
                   readOnly
                   value="District of Concepcion"
-                  className="w-full px-3 py-2 bg-slate-50 border border-[#E2E8F0] rounded-lg text-[#64748B]"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-600 font-medium"
                 />
               </div>
             </div>
@@ -164,11 +164,11 @@ export function TermcatSettingsPage() {
 
         {/* Right Info Panel */}
         <div className="space-y-6">
-          <Section>
+          <Section className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6">
             <SectionHeader title="Public Link Quick Instructions" />
-            <div className="space-y-3 text-xs text-[#64748B]">
+            <div className="space-y-3 text-xs text-slate-600">
               <p>
-                1. Copy the official public link using the <strong className="text-[#111827]">Copy Link</strong> button above.
+                1. Copy the official public link using the <strong className="text-slate-900">Copy Link</strong> button above.
               </p>
               <p>
                 2. Distribute the link to School Heads and Teachers via official DepEd communication channels.
@@ -179,9 +179,9 @@ export function TermcatSettingsPage() {
             </div>
           </Section>
 
-          <Section className="bg-[#0B1F3A] text-white">
+          <Section className="bg-slate-900 text-white rounded-2xl shadow-xs p-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-white/10 text-white">
+              <div className="p-2.5 rounded-xl bg-white/10 text-white">
                 <Shield size={20} />
               </div>
               <div>

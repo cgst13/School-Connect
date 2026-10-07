@@ -79,14 +79,14 @@ export function TeacherSubmissionsPage() {
     return (
       <PublicLayout>
         <div className="w-full px-4 sm:px-8 py-12 space-y-4">
-          <Link to="/" className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-white border border-purple-100 text-xs font-bold text-[#795CEE] shadow-xs hover:bg-[#F6EFFF] transition-all no-print">
+          <Link to="/" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 transition-all no-print">
             <ArrowLeft size={15} /> Back to Portal Home
           </Link>
-          <div className="clay-card p-8 sm:p-12 text-center">
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-8 sm:p-12 text-center shadow-xs">
             <EmptyState
               title="No submissions found"
               description={teacherName ? `No submitted evaluation records found for teacher "${teacherName}".` : 'No teacher specified in the link.'}
-              icon={<User size={32} className="text-[#8B72F4]" />}
+              icon={<User size={32} className="text-blue-600" />}
             />
           </div>
         </div>
@@ -101,44 +101,44 @@ export function TeacherSubmissionsPage() {
         <div className="flex items-center justify-between gap-3 flex-wrap no-print">
           <Link
             to="/"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-white border border-white text-xs font-black text-[#795CEE] shadow-xs hover:bg-[#F6EFFF] hover:shadow-md transition-all cursor-pointer"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 transition-all cursor-pointer"
           >
             <ArrowLeft size={15} />
             <span>Back to Portal Home</span>
           </Link>
 
-          <span className="text-xs font-extrabold text-[#795CEE] bg-[#F6EFFF] px-3.5 py-1.5 rounded-full border border-[#8B72F4]/20 shadow-2xs">
+          <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-3.5 py-1.5 rounded-xl border border-blue-100 shadow-2xs">
             🔒 Public Teacher Submission Record (Read-Only)
           </span>
         </div>
 
-        {/* Soft Pastel Claymorphic Teacher Profile Card */}
-        <div className="bg-gradient-to-r from-[#A88BEB] via-[#8B72F4] to-[#795CEE] text-white rounded-[36px] p-6 sm:p-9 shadow-[0_20px_40px_rgba(139,114,244,0.28)] border-4 border-white relative overflow-hidden no-print">
+        {/* Clean Teacher Profile Card */}
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-xs relative overflow-hidden no-print">
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-white border border-white/30 text-xs font-bold backdrop-blur-md shadow-xs">
-                <Sparkles size={14} className="text-amber-300" /> DepEd Concepcion District Evaluation Archive
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-blue-50 text-blue-700 border border-blue-100 text-xs font-semibold">
+                <Sparkles size={14} className="text-amber-500" /> DepEd Concepcion District Evaluation Archive
               </div>
-              <h1 className="text-2xl sm:text-3xl font-black tracking-tight font-display flex items-center gap-2.5">
-                <User size={28} className="text-purple-200 shrink-0" />
+              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
+                <User size={28} className="text-blue-600 shrink-0" />
                 <span className="truncate">{teacherName}</span>
               </h1>
               {schoolName && (
-                <p className="text-xs sm:text-sm text-purple-100 flex items-center gap-2 font-medium">
-                  <Building2 size={16} className="text-purple-200 shrink-0" />
+                <p className="text-xs sm:text-sm text-slate-500 flex items-center gap-2 font-medium">
+                  <Building2 size={16} className="text-slate-400 shrink-0" />
                   <span>{schoolName}</span>
                 </p>
               )}
             </div>
 
             <div className="grid grid-cols-2 gap-3 w-full sm:w-auto">
-              <div className="px-5 py-3 bg-white/20 backdrop-blur-md rounded-2xl border border-white/30 text-center shadow-xs">
-                <p className="text-[10px] font-extrabold uppercase tracking-wider text-purple-100">Total Submissions</p>
-                <p className="text-xl sm:text-2xl font-black text-white mt-0.5">{submissions.length}</p>
+              <div className="px-5 py-3 bg-slate-50 rounded-xl border border-slate-200 text-center shadow-2xs">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Total Submissions</p>
+                <p className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5">{submissions.length}</p>
               </div>
-              <div className="px-5 py-3 bg-white/20 backdrop-blur-md rounded-2xl border border-white/30 text-center shadow-xs">
-                <p className="text-[10px] font-extrabold uppercase tracking-wider text-purple-100">Grades Evaluated</p>
-                <p className="text-xl sm:text-2xl font-black text-amber-300 mt-0.5">{gradeGroups.length}</p>
+              <div className="px-5 py-3 bg-slate-50 rounded-xl border border-slate-200 text-center shadow-2xs">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Grades Evaluated</p>
+                <p className="text-xl sm:text-2xl font-bold text-blue-600 mt-0.5">{gradeGroups.length}</p>
               </div>
             </div>
           </div>
@@ -147,7 +147,7 @@ export function TeacherSubmissionsPage() {
         {/* Grouped Submissions per Grade Level */}
         <div className="space-y-8 no-print">
           {gradeGroups.map(group => (
-            <div key={group.gradeName} className="clay-card p-6 sm:p-7 space-y-4">
+            <div key={group.gradeName} className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-7 space-y-4 shadow-xs">
               {/* Grade Level Header */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-purple-100 pb-4">
                 <div className="flex items-center justify-between sm:justify-start gap-3 w-full sm:w-auto">

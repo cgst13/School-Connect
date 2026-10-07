@@ -397,7 +397,7 @@ export function PublicOrgChartPage() {
   }
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-[#FAF9FE] text-[#2D2638] font-sans flex flex-col">
+    <div className="h-screen w-screen overflow-hidden bg-[#F8FAFC] text-slate-900 font-sans flex flex-col">
       {/* Printable CSS Rules */}
       <style>{`
         @media print {
@@ -408,12 +408,12 @@ export function PublicOrgChartPage() {
       `}</style>
 
       {/* PUBLIC HEADER BAR WITH INTEGRATED SEARCH & SCHOOL FILTER */}
-      <header className="no-print sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-purple-100 px-4 sm:px-8 py-3 shadow-md flex flex-col md:flex-row items-center justify-between gap-4">
+      <header className="no-print sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-8 py-3 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center justify-between w-full md:w-auto gap-3">
           <div className="flex items-center gap-3">
             <Link
               to="/portal"
-              className="p-2 rounded-2xl bg-[#FAF5F0] hover:bg-[#F6EFFF] text-[#8B72F4] transition-all cursor-pointer border border-white shrink-0"
+              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer border border-slate-200 shrink-0"
               title="Back to School Connect Portal"
             >
               <ArrowLeft size={18} />
@@ -427,14 +427,14 @@ export function PublicOrgChartPage() {
 
             <div className="border-l border-slate-200 pl-3 min-w-0">
               <div className="flex items-center gap-2">
-                <h1 className="text-sm sm:text-base font-black text-[#2D2638] tracking-tight font-display truncate">
+                <h1 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight truncate">
                   Org Chart Directory
                 </h1>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black border border-emerald-200 shrink-0 flex items-center gap-1">
+                <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-semibold border border-emerald-200 shrink-0 flex items-center gap-1">
                   <Globe size={10} /> Public
                 </span>
               </div>
-              <p className="text-[11px] text-[#7A7289] font-medium hidden lg:block truncate">
+              <p className="text-xs text-slate-500 font-medium hidden lg:block truncate">
                 PSDS &rarr; School Heads &rarr; AO IIs &rarr; Teachers
               </p>
             </div>
@@ -445,19 +445,19 @@ export function PublicOrgChartPage() {
         <div className="flex items-center gap-3 w-full md:w-auto justify-end flex-wrap sm:flex-nowrap">
           {/* Inset Search Input Pill */}
           <div className="relative w-full sm:w-72">
-            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#A39BAF]" />
+            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               placeholder="Search personnel by name or position..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 rounded-full text-xs bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] placeholder-[#A39BAF] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/30 focus:bg-white transition-all font-semibold"
+              className="w-full pl-9 pr-4 py-2 rounded-xl text-xs bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all font-medium"
             />
           </div>
 
           {/* School Dropdown Filter Pill */}
           <div className="relative w-full sm:w-72">
-            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-[#8B72F4]">
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-blue-600">
               <Building2 size={15} />
             </div>
             <select

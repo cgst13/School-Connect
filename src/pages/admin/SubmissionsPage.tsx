@@ -875,41 +875,41 @@ export function SubmissionsPage() {
             <>
               <button
                 onClick={(e) => { captureGenieOrigin(e); setIsImportModalOpen(true) }}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-xs font-black shadow-md hover:shadow-lg transition-all active:scale-[0.98] cursor-pointer"
+                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-md bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-semibold shadow-2xs transition-all cursor-pointer"
               >
                 <FileSpreadsheet size={15} />
                 <span>Import (Excel)</span>
               </button>
 
-              <div className="inline-flex p-1 bg-white/90 rounded-2xl border border-purple-100 shadow-2xs">
+              <div className="inline-flex p-1 bg-slate-100 rounded-md border border-slate-200">
                 <button
                   onClick={() => setActiveTab('submissions')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs transition-all cursor-pointer ${
                     activeTab === 'submissions'
-                      ? 'bg-gradient-to-r from-[#A88BEB] via-[#8B72F4] to-[#795CEE] text-white shadow-md'
-                      : 'text-[#7A7289] hover:text-[#2D2638] hover:bg-[#F6EFFF]/50'
+                      ? 'bg-white text-[#2563EB] font-bold shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
                   <FileText size={15} />
                   <span>Submissions List</span>
-                  <span className={`ml-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                    activeTab === 'submissions' ? 'bg-white/20 text-white' : 'bg-[#F6EFFF] text-[#8B72F4] border border-[#8B72F4]/20'
+                  <span className={`ml-1 px-1.5 py-0.2 rounded text-[10px] font-bold ${
+                    activeTab === 'submissions' ? 'bg-blue-50 text-[#2563EB] border border-blue-100' : 'bg-slate-200 text-slate-700'
                   }`}>
                     {total}
                   </span>
                 </button>
                 <button
                   onClick={() => setActiveTab('status')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs transition-all cursor-pointer ${
                     activeTab === 'status'
-                      ? 'bg-gradient-to-r from-[#A88BEB] via-[#8B72F4] to-[#795CEE] text-white shadow-md'
-                      : 'text-[#7A7289] hover:text-[#2D2638] hover:bg-[#F6EFFF]/50'
+                      ? 'bg-white text-[#2563EB] font-bold shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
                   <CheckCircle2 size={15} />
                   <span>Status & Compliance</span>
                   {summaryStats.missing > 0 && (
-                    <span className="ml-1 px-2 py-0.5 rounded-full bg-[#FFE0E6] text-[#E11D48] text-[10px] font-black border border-[#FFCCD4]">
+                    <span className="ml-1 px-1.5 py-0.2 rounded bg-rose-50 text-rose-600 text-[10px] font-bold border border-rose-200">
                       {summaryStats.missing} Missing
                     </span>
                   )}
@@ -925,10 +925,10 @@ export function SubmissionsPage() {
             {/* Search & Filter Toggle */}
             <div className="flex gap-2.5">
               <div className="relative flex-1">
-                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#A39BAF]" aria-hidden="true" />
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true" />
                 <input
                   type="search"
-                  className="w-full px-4 py-2.5 pl-9 rounded-2xl bg-white border border-purple-100 text-xs font-semibold text-[#2D2638] placeholder-[#A39BAF] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-xs"
+                  className="w-full px-3 py-2 pl-9 rounded-md bg-white border border-slate-200 text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-2xs"
                   placeholder="Search teacher name..."
                   value={filters.search || ''}
                   onChange={e => setFilter('search', e.target.value)}
@@ -936,10 +936,10 @@ export function SubmissionsPage() {
                 />
               </div>
               <button
-                className={`px-4 py-2.5 rounded-2xl text-xs font-extrabold transition-all cursor-pointer inline-flex items-center gap-2 shadow-2xs border ${
+                className={`px-3.5 py-2 rounded-md text-xs font-semibold transition-all cursor-pointer inline-flex items-center gap-2 border ${
                   showFilters
-                    ? 'bg-[#8B72F4] text-white border-[#8B72F4]'
-                    : 'bg-white text-[#7A7289] border-purple-100 hover:text-[#2D2638] hover:bg-[#F6EFFF]/50'
+                    ? 'bg-[#2563EB] text-white border-[#2563EB]'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                 }`}
                 onClick={() => setShowFilters(v => !v)}
                 aria-expanded={showFilters}
@@ -948,14 +948,14 @@ export function SubmissionsPage() {
                 <Filter size={15} />
                 <span>Filters</span>
                 {activeFilterCount > 0 && (
-                  <span className="w-4 h-4 rounded-full bg-[#8B72F4] text-white text-[10px] flex items-center justify-center font-bold">
+                  <span className="w-4 h-4 rounded-full bg-[#2563EB] text-white text-[10px] flex items-center justify-center font-bold">
                     {activeFilterCount}
                   </span>
                 )}
               </button>
               {activeFilterCount > 0 && (
                 <button
-                  className="p-2.5 rounded-2xl text-[#E11D48] hover:bg-[#FFE0E6] transition-all cursor-pointer border border-[#FFCCD4]/60"
+                  className="p-2 rounded-md text-rose-600 hover:bg-rose-50 transition-all cursor-pointer border border-rose-200"
                   onClick={clearFilters}
                   aria-label="Clear all filters"
                 >
@@ -966,53 +966,53 @@ export function SubmissionsPage() {
 
             {/* Filter Panel */}
             {showFilters && (
-              <div id="filter-panel" className="clay-card p-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5 bg-gradient-to-br from-white via-white to-[#F6EFFF]/40 border border-purple-100 animate-slide-up">
+              <div id="filter-panel" className="p-4 rounded-lg bg-white border border-slate-200 shadow-2xs grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 animate-slide-up">
                 <div>
-                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 block">School Year</label>
-                  <select className="w-full px-3 py-2 rounded-xl bg-white border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs" value={filters.school_year_id || ''} onChange={e => setFilter('school_year_id', e.target.value)}>
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1 block">School Year</label>
+                  <select className="w-full px-2.5 py-1.5 rounded-md bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={filters.school_year_id || ''} onChange={e => setFilter('school_year_id', e.target.value)}>
                     <option value="">All</option>
                     {schoolYears.map(sy => <option key={sy.id} value={sy.id}>{sy.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 block">Term</label>
-                  <select className="w-full px-3 py-2 rounded-xl bg-white border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs" value={filters.term_id || ''} onChange={e => setFilter('term_id', e.target.value)}>
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1 block">Term</label>
+                  <select className="w-full px-2.5 py-1.5 rounded-md bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={filters.term_id || ''} onChange={e => setFilter('term_id', e.target.value)}>
                     <option value="">All</option>
                     {terms.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 block">School</label>
-                  <select className="w-full px-3 py-2 rounded-xl bg-white border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs" value={filters.school_id || ''} onChange={e => setFilter('school_id', e.target.value)}>
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1 block">School</label>
+                  <select className="w-full px-2.5 py-1.5 rounded-md bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={filters.school_id || ''} onChange={e => setFilter('school_id', e.target.value)}>
                     <option value="">All Schools ({filteredSchoolsForSubmissions.length})</option>
                     {filteredSchoolsForSubmissions.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 block">School Type</label>
-                  <select className="w-full px-3 py-2 rounded-xl bg-white border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs" value={filters.school_type || ''} onChange={e => setFilter('school_type', e.target.value)}>
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1 block">School Type</label>
+                  <select className="w-full px-2.5 py-1.5 rounded-md bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={filters.school_type || ''} onChange={e => setFilter('school_type', e.target.value)}>
                     <option value="">All</option>
                     <option value="elementary">ES (Elementary)</option>
                     <option value="secondary">HS (Secondary)</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 block">Grade Level</label>
-                  <select className="w-full px-3 py-2 rounded-xl bg-white border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs" value={filters.grade_level_id || ''} onChange={e => setFilter('grade_level_id', e.target.value)}>
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1 block">Grade Level</label>
+                  <select className="w-full px-2.5 py-1.5 rounded-md bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={filters.grade_level_id || ''} onChange={e => setFilter('grade_level_id', e.target.value)}>
                     <option value="">All Grades ({filteredGradesForSubmissions.length})</option>
                     {filteredGradesForSubmissions.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 block">Learning Area</label>
-                  <select className="w-full px-3 py-2 rounded-xl bg-white border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs" value={filters.learning_area_id || ''} onChange={e => setFilter('learning_area_id', e.target.value)}>
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1 block">Learning Area</label>
+                  <select className="w-full px-2.5 py-1.5 rounded-md bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={filters.learning_area_id || ''} onChange={e => setFilter('learning_area_id', e.target.value)}>
                     <option value="">All Subjects ({filteredLearningAreasForSubmissions.length})</option>
                     {filteredLearningAreasForSubmissions.map(la => <option key={la.id} value={la.id}>{la.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 block">Key Stage</label>
-                  <select className="w-full px-3 py-2 rounded-xl bg-white border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs" value={filters.key_stage || ''} onChange={e => setFilter('key_stage', e.target.value)}>
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1 block">Key Stage</label>
+                  <select className="w-full px-2.5 py-1.5 rounded-md bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={filters.key_stage || ''} onChange={e => setFilter('key_stage', e.target.value)}>
                     <option value="">All</option>
                     <option value="ks1">Key Stage 1</option>
                     <option value="ks2">Key Stage 2</option>
@@ -1021,15 +1021,15 @@ export function SubmissionsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 block">Teacher Name</label>
-                  <select className="w-full px-3 py-2 rounded-xl bg-white border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs" value={filters.teacher_name || ''} onChange={e => setFilter('teacher_name', e.target.value)}>
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1 block">Teacher Name</label>
+                  <select className="w-full px-2.5 py-1.5 rounded-md bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={filters.teacher_name || ''} onChange={e => setFilter('teacher_name', e.target.value)}>
                     <option value="">All Teachers ({filteredTeachersForSubmissions.length})</option>
                     {filteredTeachersForSubmissions.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-[#7A7289] mb-1 block">Status</label>
-                  <select className="w-full px-3 py-2 rounded-xl bg-white border border-purple-100 text-xs font-semibold text-[#2D2638] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]/40 shadow-2xs" value={filters.status || ''} onChange={e => setFilter('status', e.target.value)}>
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1 block">Status</label>
+                  <select className="w-full px-2.5 py-1.5 rounded-md bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={filters.status || ''} onChange={e => setFilter('status', e.target.value)}>
                     <option value="">All</option>
                     <option value="submitted">Submitted</option>
                     <option value="reviewed">Reviewed</option>
@@ -1041,7 +1041,7 @@ export function SubmissionsPage() {
             )}
 
             {/* Submissions Table */}
-            <div className="clay-card overflow-hidden p-1.5 bg-white border border-purple-100 shadow-md rounded-3xl">
+            <div className="bg-white border border-slate-200 shadow-2xs rounded-lg overflow-hidden">
               <div className="hidden lg:block">
                 {loading ? (
                   <TableSkeleton rows={8} cols={8} />
@@ -1053,64 +1053,64 @@ export function SubmissionsPage() {
                   />
                 ) : (
                   <table className="w-full text-left border-collapse">
-                    <thead className="bg-gradient-to-r from-[#F6EFFF] via-[#EEF0FF] to-[#FAF5F0] border-b border-purple-100 text-[#7A7289] font-extrabold text-[11px] uppercase tracking-wider">
+                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold text-xs uppercase tracking-wider">
                       <tr>
-                        <th className="py-3 px-4 rounded-l-2xl"><button onClick={() => toggleSort('reference_number')} className="flex items-center gap-1 hover:text-[#2D2638] transition-colors">Ref No. <SortIcon field="reference_number" /></button></th>
-                        <th className="py-3 px-4"><button onClick={() => toggleSort('teacher_name')} className="flex items-center gap-1 hover:text-[#2D2638] transition-colors">Teacher <SortIcon field="teacher_name" /></button></th>
-                        <th className="py-3 px-4">School</th>
-                        <th className="py-3 px-4">Grade</th>
-                        <th className="py-3 px-4">Learning Area</th>
-                        <th className="py-3 px-4">Term</th>
-                        <th className="py-3 px-4">Status</th>
-                        <th className="py-3 px-4"><button onClick={() => toggleSort('submitted_at')} className="flex items-center gap-1 hover:text-[#2D2638] transition-colors">Date <SortIcon field="submitted_at" /></button></th>
-                        <th className="py-3 px-4 text-right rounded-r-2xl">Actions</th>
+                        <th className="py-2.5 px-4"><button onClick={() => toggleSort('reference_number')} className="flex items-center gap-1 hover:text-slate-900 transition-colors">Ref No. <SortIcon field="reference_number" /></button></th>
+                        <th className="py-2.5 px-4"><button onClick={() => toggleSort('teacher_name')} className="flex items-center gap-1 hover:text-slate-900 transition-colors">Teacher <SortIcon field="teacher_name" /></button></th>
+                        <th className="py-2.5 px-4">School</th>
+                        <th className="py-2.5 px-4">Grade</th>
+                        <th className="py-2.5 px-4">Learning Area</th>
+                        <th className="py-2.5 px-4">Term</th>
+                        <th className="py-2.5 px-4">Status</th>
+                        <th className="py-2.5 px-4"><button onClick={() => toggleSort('submitted_at')} className="flex items-center gap-1 hover:text-slate-900 transition-colors">Date <SortIcon field="submitted_at" /></button></th>
+                        <th className="py-2.5 px-4 text-right">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-purple-50/70 text-xs">
+                    <tbody className="divide-y divide-slate-100 text-xs">
                       {submissions.map(sub => (
-                        <tr key={sub.id} className="hover:bg-[#F6EFFF]/30 transition-colors">
-                          <td className="py-3 px-4"><span className="font-mono text-xs font-extrabold text-[#8B72F4] bg-[#F6EFFF] px-2.5 py-1 rounded-xl border border-[#8B72F4]/20 shadow-2xs inline-block">{sub.reference_number}</span></td>
-                          <td className="py-3 px-4 font-bold text-[#2D2638]">
+                        <tr key={sub.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="py-2.5 px-4"><span className="font-mono text-xs font-semibold text-[#2563EB] bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100 inline-block">{sub.reference_number}</span></td>
+                          <td className="py-2.5 px-4 font-semibold text-slate-900">
                             <a
                               href={`/teacher-submissions?name=${encodeURIComponent(sub.teacher_name)}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-[#2D2638] hover:text-[#8B72F4] transition-colors inline-flex items-center gap-1.5"
+                              className="text-slate-900 hover:text-[#2563EB] transition-colors inline-flex items-center gap-1.5"
                               title={`Click to view all public submissions by ${sub.teacher_name} (opens in new tab)`}
                             >
                               {sub.teacher_name}
-                              <ExternalLink size={12} className="text-[#8B72F4] opacity-60" />
+                              <ExternalLink size={12} className="text-[#2563EB] opacity-60" />
                             </a>
                           </td>
-                          <td className="py-3 px-4 max-w-[180px]">
+                          <td className="py-2.5 px-4 max-w-[180px]">
                             <a
                               href={`/school-submissions?id=${sub.school_id}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-[#2D2638] font-bold hover:text-[#8B72F4] transition-colors inline-flex items-center gap-1 group"
+                              className="text-slate-900 font-semibold hover:text-[#2563EB] transition-colors inline-flex items-center gap-1 group"
                               title={`Click to view all data linked to ${sub.school?.name} in a new tab`}
                             >
                               <span className="truncate">{sub.school?.name}</span>
-                              <ExternalLink size={12} className="text-[#8B72F4] opacity-60 group-hover:opacity-100 shrink-0" />
+                              <ExternalLink size={12} className="text-[#2563EB] opacity-60 group-hover:opacity-100 shrink-0" />
                             </a>
                           </td>
-                          <td className="py-3 px-4 font-semibold text-[#2D2638]">{sub.grade_level?.name}</td>
-                          <td className="py-3 px-4 font-semibold text-[#2D2638]">{sub.learning_area?.name}</td>
-                          <td className="py-3 px-4 font-semibold text-[#7A7289]">{sub.term?.name}</td>
-                          <td className="py-3 px-4"><StatusBadge status={sub.status} size="sm" /></td>
-                          <td className="py-3 px-4 text-[#7A7289] text-xs font-medium">{format(new Date(sub.submitted_at), 'MMM d, yyyy')}</td>
-                          <td className="py-3 px-4 text-right">
+                          <td className="py-2.5 px-4 font-medium text-slate-800">{sub.grade_level?.name}</td>
+                          <td className="py-2.5 px-4 font-medium text-slate-800">{sub.learning_area?.name}</td>
+                          <td className="py-2.5 px-4 font-medium text-slate-500">{sub.term?.name}</td>
+                          <td className="py-2.5 px-4"><StatusBadge status={sub.status} size="sm" /></td>
+                          <td className="py-2.5 px-4 text-slate-500 text-xs font-medium">{format(new Date(sub.submitted_at), 'MMM d, yyyy')}</td>
+                          <td className="py-2.5 px-4 text-right">
                             <div className="flex items-center justify-end gap-1.5">
                               <Link
                                 to={`/admin/submissions/${sub.id}`}
-                                className="px-3 py-1.5 text-xs font-bold rounded-xl bg-[#F6EFFF] text-[#8B72F4] border border-[#8B72F4]/20 hover:bg-[#8B72F4] hover:text-white transition-all shadow-2xs inline-flex items-center gap-1 cursor-pointer"
+                                className="px-2.5 py-1 text-xs font-medium rounded-md bg-blue-50 text-[#2563EB] border border-blue-200 hover:bg-[#2563EB] hover:text-white transition-all inline-flex items-center gap-1 cursor-pointer"
                                 title="View Details"
                               >
                                 <Eye size={12} /> View
                               </Link>
                               <Link
                                 to={`/admin/submissions/${sub.id}/edit`}
-                                className="px-3 py-1.5 text-xs font-bold rounded-xl bg-[#EEF0FF] text-[#6366F1] border border-[#6366F1]/20 hover:bg-[#6366F1] hover:text-white transition-all shadow-2xs inline-flex items-center gap-1 cursor-pointer"
+                                className="px-2.5 py-1 text-xs font-medium rounded-md bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 transition-all inline-flex items-center gap-1 cursor-pointer"
                                 title="Edit Submission"
                               >
                                 <Pencil size={12} /> Edit
@@ -1118,7 +1118,7 @@ export function SubmissionsPage() {
                               <button
                                 type="button"
                                 onClick={(e) => { captureGenieOrigin(e); setSubToDelete(sub) }}
-                                className="px-3 py-1.5 text-xs font-bold rounded-xl bg-[#FFE0E6] text-[#E11D48] border border-[#FFCCD4] hover:bg-[#E11D48] hover:text-white transition-all shadow-2xs inline-flex items-center gap-1 cursor-pointer active:scale-95"
+                                className="px-2.5 py-1 text-xs font-medium rounded-md bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-600 hover:text-white transition-all inline-flex items-center gap-1 cursor-pointer"
                                 title="Delete Submission"
                               >
                                 <Trash2 size={12} /> Delete
@@ -1174,7 +1174,7 @@ export function SubmissionsPage() {
         {activeTab === 'status' && (
           <div className="space-y-6 animate-fade-in">
             {/* Top Control & Selector Bar */}
-            <div className="clay-card p-5 space-y-4 bg-gradient-to-br from-white via-white to-[#F6EFFF]/40 border border-purple-100">
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-5 space-y-4 shadow-xs">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-3 flex-wrap">
                   <div className="flex items-center gap-2 text-xs font-bold text-[#2D2638] bg-[#F6EFFF] px-3.5 py-2 rounded-2xl border border-[#8B72F4]/20 shadow-2xs">

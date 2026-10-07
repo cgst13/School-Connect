@@ -1,71 +1,63 @@
 /* ============================================================
-   SCHOOL CONNECT SUPER MINIMAL DASHBOARD DESIGN SYSTEM
-   Strictly matched with modern SaaS minimal dashboard reference UI
+   SCHOOL CONNECT MINIMALIST ROYAL BLUE CRM DASHBOARD DESIGN SYSTEM
+   Exact match with CRM Dashboard reference UI (Minimalist, Small sizes, Low border radius)
    ============================================================ */
 
 :root {
-  /* Minimal Main Canvas & Surfaces */
-  --sc-background: #F4F5FB;
+  /* Main Canvas & Surfaces - Inspired by Reference UI */
+  --sc-background: #F8FAFC;
   --sc-sidebar-bg: #FFFFFF;
   --sc-surface: #FFFFFF;
-  --sc-surface-soft: #F8F9FD;
-  --sc-surface-hover: #FFEBEB;
-  --sc-text-primary: #1E202A;
+  --sc-surface-soft: #F8FAFC;
+  --sc-surface-hover: #F1F5F9;
+  --sc-text-primary: #0F172A;
   --sc-text-secondary: #64748B;
   --sc-text-muted: #94A3B8;
-  --sc-border: #EAECEF;
-  --sc-border-subtle: #F1F3F7;
+  --sc-border: #E2E8F0;
+  --sc-border-subtle: #F1F5F9;
 
-  /* Primary Accent - Warm Salmon Coral */
-  --sc-primary: #FA6B6B;
-  --sc-primary-soft: #FFEBEB;
-  --sc-primary-hover: #F05555;
-  --sc-primary-active: #E04444;
-  --sc-primary-text: #FA6B6B;
-  --sc-primary-gradient: linear-gradient(135deg, #FF7E6C 0%, #FA6B6B 100%);
-  --sc-primary-btn-gradient: linear-gradient(135deg, #FF7E6C 0%, #FA6B6B 100%);
+  /* Primary Accent - Vibrant Royal Blue */
+  --sc-primary: #2563EB;
+  --sc-primary-soft: #EFF6FF;
+  --sc-primary-hover: #1D4ED8;
+  --sc-primary-active: #1E40AF;
+  --sc-primary-text: #2563EB;
 
-  /* Dark Highlight Card */
-  --sc-dark-card: #1F2430;
-  --sc-dark-card-text: #FFFFFF;
-
-  /* Pastel Palette Accents */
-  --sc-mint: #28C76F;
-  --sc-mint-soft: #E6F9F0;
+  /* Soft Pastel Accent Badges */
+  --sc-mint: #10B981;
+  --sc-mint-soft: #ECFDF5;
   --sc-mint-border: #A7F3D0;
 
-  --sc-coral: #FA6B6B;
-  --sc-coral-soft: #FFEBEB;
-  --sc-coral-border: #FFCCD4;
+  --sc-coral: #F43F5E;
+  --sc-coral-soft: #FFE4E6;
+  --sc-coral-border: #FECDD3;
 
-  --sc-purple: #7367F0;
-  --sc-purple-soft: #EEF2FF;
-  --sc-purple-border: #C4B5FD;
+  --sc-purple: #8B5CF6;
+  --sc-purple-soft: #F3E8FF;
+  --sc-purple-border: #DDD6FE;
 
-  --sc-amber: #FF9F43;
-  --sc-amber-soft: #FFF5E6;
+  --sc-amber: #F59E0B;
+  --sc-amber-soft: #FEF3C7;
   --sc-amber-border: #FDE68A;
 
-  --sc-blue: #0284C7;
-  --sc-blue-soft: #F0F9FF;
-  --sc-blue-border: #BAE6FD;
+  --sc-blue: #2563EB;
+  --sc-blue-soft: #EFF6FF;
+  --sc-blue-border: #BFDBFE;
 
-  /* Minimal Clean Shadows */
-  --sc-clay-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03);
-  --sc-clay-shadow-sm: 0 2px 10px -1px rgba(0, 0, 0, 0.02);
-  --sc-clay-shadow-lg: 0 10px 25px -3px rgba(0, 0, 0, 0.06);
-  --sc-clay-inset: inset 0 2px 4px rgba(0, 0, 0, 0.02);
-  --sc-clay-btn: 0 4px 14px rgba(250, 107, 107, 0.35);
+  /* Elevation Shadows & Radius */
+  --sc-shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.04);
+  --sc-shadow-card: 0 1px 3px 0 rgba(15, 23, 42, 0.05), 0 1px 2px -1px rgba(15, 23, 42, 0.03);
+  --sc-shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.06), 0 4px 6px -4px rgba(15, 23, 42, 0.03);
 
-  /* Radius System */
-  --sc-radius-sm: 10px;
-  --sc-radius-md: 14px;
-  --sc-radius-lg: 18px;
-  --sc-radius-xl: 22px;
-  --sc-radius-2xl: 26px;
+  --sc-radius-sm: 8px;
+  --sc-radius-md: 10px;
+  --sc-radius-lg: 12px;
+  --sc-radius-xl: 16px;
+  --sc-radius-2xl: 20px;
   --sc-radius-full: 9999px;
 
-  /* Smooth Transitions */
   --sc-transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --sc-transition-normal: 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+

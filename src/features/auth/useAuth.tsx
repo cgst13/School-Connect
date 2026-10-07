@@ -13,6 +13,9 @@ interface AuthContextType {
   signOut: () => Promise<void>
   updateAdminProfile: (updatedFields: Partial<AdminProfile>) => void
   hasFullAccess: () => boolean
+  canEditData: (targetSchoolId?: string, targetGradeId?: string, targetSubjectId?: string) => boolean
+  isReadOnlyUser: () => boolean
+  isDistrictAdminAO2: () => boolean
   getPermittedSchoolIds: (allSchoolIds?: string[]) => string[]
   isSchoolPermitted: (schoolId: string, allSchoolIds?: string[]) => boolean
   getPermittedSchools: <T extends { id: string }>(schools: T[]) => T[]
@@ -76,14 +79,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
   }
 
-  // Returns true if user has global unrestricted access across ALL schools (superadmin, admin, psds, or user without assigned school restrictions)
+  // Returns true if user is a read-only inspector (PSDS or School Head)
+  const isReadOnlyUser = () => {
+    if (!admin) return false
+    return admin.role === 'psds' || admin.role === 'school_head'
+  }
+
+  // Returns true if user is an AO II assigned to district (acting like System Administrator for that district)
+  const isDistrictAdminAO2 = () => {
+    if (!admin) return false
+    return admin.role === 'ao_2' && Boolean(admin.district_name)
+  }
+
+  // Returns true if user has global unrestricted access across ALL schools
   const hasFullAccess = () => {
-    if (!admin) return true // Default fallback for unauthenticated / demo
-    if (admin.role === 'superadmin' || admin.role === 'admin' || admin.role === 'psds' || admin.role === 'ao_2') return true
+    if (!admin) return true // Fallback for unauthenticated
+    if (admin.role === 'superadmin' || admin.role === 'admin' || isDistrictAdminAO2()) return true
+    if (admin.role === 'psds') return true // PSDS sees all schools in district
     if (!admin.assigned_school_ids || admin.assigned_school_ids.length === 0) {
       return true
     }
     return false
+  }
+
+  // Evaluates whether current user can Add, Edit, Delete, or Update data for a target school, grade, and subject
+  const canEditData = (targetSchoolId?: string, targetGradeId?: string, targetSubjectId?: string) => {
+    if (!admin) return true // Default fallback
+    if (isReadOnlyUser()) return false // PSDS and School Heads are STRICTLY View-Only (Read-Only)
+
+    // Superadmin, Admin, and District-Assigned AO II have full CRUD access
+    if (admin.role === 'superadmin' || admin.role === 'admin' || isDistrictAdminAO2()) return true
+
+    // Standard AO II: Full CRUD access on assigned schools
+    if (admin.role === 'ao_2') {
+      if (!targetSchoolId || !admin.assigned_school_ids || admin.assigned_school_ids.length === 0) return true
+      return admin.assigned_school_ids.includes(targetSchoolId)
+    }
+
+    // Teacher: Access strictly restricted to assigned school, assigned grade levels, and assigned subjects
+    if (admin.role === 'teacher') {
+      if (targetSchoolId && admin.assigned_school_ids && admin.assigned_school_ids.length > 0) {
+        if (!admin.assigned_school_ids.includes(targetSchoolId)) return false
+      }
+      if (targetGradeId && admin.assigned_grade_ids && admin.assigned_grade_ids.length > 0) {
+        if (!admin.assigned_grade_ids.includes(targetGradeId)) return false
+      }
+      if (targetSubjectId && admin.assigned_subject_ids && admin.assigned_subject_ids.length > 0) {
+        if (!admin.assigned_subject_ids.includes(targetSubjectId)) return false
+      }
+      return true
+    }
+
+    return true
   }
 
   const getPermittedSchoolIds = (allSchoolIds: string[] = []) => {
@@ -115,6 +162,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signOut,
         updateAdminProfile,
         hasFullAccess,
+        canEditData,
+        isReadOnlyUser,
+        isDistrictAdminAO2,
         getPermittedSchoolIds,
         isSchoolPermitted,
         getPermittedSchools,

@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { SchoolConnectLayout } from '@/components/layouts/SchoolConnectLayout'
+import { platformAdminNavGroups } from '@/config/navConfigs'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { DepEdSpinner } from '@/components/ui/DepEdSpinner'
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog'
 import {
@@ -45,7 +47,7 @@ import { format } from 'date-fns'
 import { captureGenieOrigin, useGenieModal } from '@/utils/genieAnimation'
 
 export function FacultyStaffPage() {
-  const { admin, updateAdminProfile } = useAuth()
+  const { admin, updateAdminProfile, canEditData } = useAuth()
   const { toast } = useToast()
 
   const [staffList, setStaffList] = useState<AdminProfile[]>([])
@@ -759,60 +761,51 @@ export function FacultyStaffPage() {
   }
 
   return (
-    <SchoolConnectLayout systemTitle="Faculty & Staff Governance Directory">
+    <SchoolConnectLayout systemTitle="Faculty & Staff Governance Directory" navGroups={platformAdminNavGroups}>
       <div className="space-y-6 w-full pb-12 animate-fade-in">
         {/* Top Header Section Banner */}
-        <div className="bg-gradient-to-r from-[#A88BEB] via-[#8B72F4] to-[#795CEE] text-white rounded-[36px] p-6 sm:p-9 shadow-[0_20px_40px_rgba(139,114,244,0.28)] border-4 border-white relative overflow-hidden">
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 flex-wrap">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-white border border-white/30 text-xs font-bold backdrop-blur-md shadow-xs">
-                  <Users size={14} className="text-amber-300" />
-                  Personnel & Staff Governance
-                </div>
-
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/30 text-emerald-100 border border-emerald-300/40 text-xs font-extrabold backdrop-blur-md shadow-xs">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                  <span>{onlineCount} Online Now</span>
-                </div>
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-black tracking-tight font-display">Faculty & Staff Directory</h1>
-              <p className="text-xs sm:text-sm text-white/90 max-w-2xl leading-relaxed font-medium">
-                Add, edit, update, or delete faculty & staff profiles across schools, configure school & grade assignments, and manage system access permissions.
-              </p>
-            </div>
-
+        <PageHeader
+          badge="Personnel & Staff Governance"
+          title="Faculty & Staff Directory"
+          description="Add, edit, update, or delete faculty & staff profiles across schools, configure school & grade assignments, and manage system access permissions."
+          actions={
             <div className="flex items-center gap-3 shrink-0 flex-wrap">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>{onlineCount} Online Now</span>
+              </div>
               <a
                 href="/org-chart"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-5 py-3.5 rounded-full bg-white/20 hover:bg-white/30 text-white font-black text-xs shadow-md transition-all flex items-center justify-center gap-2 border border-white/30 backdrop-blur-md cursor-pointer"
+                className="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold text-xs shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
                 title="Open Public Org Chart in a new browser tab"
               >
                 <Network size={16} />
                 Public Org Chart ↗
               </a>
 
-              <button
-                onClick={(e) => handleOpenAdd(e)}
-                className="px-6 py-3.5 rounded-full bg-white text-[#795CEE] hover:bg-[#F6EFFF] font-black text-xs shadow-md transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer active:animate-button-sparkle border border-white"
-              >
-                <Plus size={16} />
-                Add Personnel
-              </button>
+              {canEditData() && (
+                <button
+                  onClick={(e) => handleOpenAdd(e)}
+                  className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer"
+                >
+                  <Plus size={16} />
+                  Add Personnel
+                </button>
+              )}
             </div>
-          </div>
-        </div>
+          }
+        />
 
         {/* MAIN 2-COLUMN LAYOUT WITH ORG CHART SIDEBAR */}
         <div className="flex flex-col lg:flex-row gap-6 items-start">
           {/* LEFT SIDEBAR: ORGANIZATIONAL CHART NAVIGATION */}
-          <div className="clay-card p-5 space-y-4 w-full lg:w-84 xl:w-96 shrink-0 self-start">
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 space-y-4 w-full lg:w-84 xl:w-96 shrink-0 self-start shadow-xs">
             {/* Sidebar Title Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-[#F0E6DD]">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <div className="p-2 rounded-xl bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] text-white shadow-xs">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
                   <Network size={16} />
                 </div>
                 <div>
@@ -1040,17 +1033,17 @@ export function FacultyStaffPage() {
               </div>
             )}
 
-            {/* 3D Clay Filter Controls Bar */}
-            <div className="clay-card p-4 sm:p-5 flex flex-col md:flex-row items-center justify-between gap-3.5">
+            {/* Filter Controls Bar */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 sm:p-5 flex flex-col md:flex-row items-center justify-between gap-3.5">
               {/* Search Bar */}
               <div className="relative w-full md:w-80">
-                <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#A39BAF]" />
+                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   placeholder="Search staff by name or email..."
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-11 pr-4 py-2.5 rounded-full text-xs bg-[#FAF5F0] border border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)] text-[#2D2638] placeholder-[#A39BAF] focus:outline-none focus:ring-4 focus:ring-[#8B72F4]/20 focus:bg-white transition-all font-semibold"
+                  className="w-full pl-9 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#2563EB] transition-all font-medium"
                 />
               </div>
 
@@ -1058,32 +1051,32 @@ export function FacultyStaffPage() {
               <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
                 {/* Online Status Dropdown Filter */}
                 <div className="relative w-full sm:w-48">
-                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-[#8B72F4]">
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-[#2563EB]">
                     <Globe size={14} />
                   </div>
                   <select
                     value={onlineStatusFilter}
                     onChange={e => setOnlineStatusFilter(e.target.value as 'all' | 'online' | 'offline')}
-                    className="w-full pl-9 pr-8 py-2.5 rounded-full text-xs font-extrabold bg-[#FAF5F0] border border-white text-[#2D2638] focus:outline-none focus:ring-4 focus:ring-[#8B72F4]/20 focus:bg-white transition-all shadow-2xs appearance-none cursor-pointer"
+                    className="w-full pl-9 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#2563EB] transition-all appearance-none cursor-pointer"
                   >
                     <option value="all">All Statuses ({staffList.length})</option>
                     <option value="online">🟢 Online ({onlineCount})</option>
                     <option value="offline">⚪ Offline ({offlineCount})</option>
                   </select>
-                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-[#A39BAF]">
+                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
                     <ChevronDown size={14} />
                   </div>
                 </div>
 
                 {/* Role Filter Dropdown */}
                 <div className="relative w-full sm:w-56">
-                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-[#8B72F4]">
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-[#2563EB]">
                     <Users size={14} />
                   </div>
                   <select
                     value={selectedRoleFilter}
                     onChange={e => setSelectedRoleFilter(e.target.value)}
-                    className="w-full pl-9 pr-8 py-2.5 rounded-full text-xs font-extrabold bg-[#FAF5F0] border border-white text-[#2D2638] focus:outline-none focus:ring-4 focus:ring-[#8B72F4]/20 focus:bg-white transition-all shadow-2xs appearance-none cursor-pointer"
+                    className="w-full pl-9 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#2563EB] transition-all appearance-none cursor-pointer"
                   >
                     <option value="all">All Roles</option>
                     <option value="teacher">Teachers</option>
@@ -1092,7 +1085,7 @@ export function FacultyStaffPage() {
                     <option value="ao_2">Administrative Officer II (AO II)</option>
                     <option value="admin">System Administrators</option>
                   </select>
-                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-[#A39BAF]">
+                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
                     <ChevronDown size={14} />
                   </div>
                 </div>
@@ -1100,16 +1093,16 @@ export function FacultyStaffPage() {
             </div>
 
             {/* Staff Table Container */}
-            <div className="clay-card overflow-hidden p-1">
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden p-1">
               {loading ? (
                 <div className="p-12">
                   <DepEdSpinner size="lg" label="Loading Faculty & Staff Directory..." subtitle="Fetching assigned schools and grade scope from Supabase" />
                 </div>
               ) : filteredStaff.length === 0 ? (
                 <div className="p-12 text-center">
-                  <Users size={32} className="mx-auto text-[#A39BAF] mb-2" />
-                  <h3 className="text-sm font-black text-[#2D2638]">No staff members match your criteria</h3>
-                  <p className="text-xs text-[#7A7289] mt-1 font-medium">Try clearing your search query or role/school filter.</p>
+                  <Users size={32} className="mx-auto text-slate-400 mb-2" />
+                  <h3 className="text-sm font-bold text-slate-900">No staff members match your criteria</h3>
+                  <p className="text-xs text-slate-500 mt-1 font-medium">Try clearing your search query or role/school filter.</p>
                 </div>
               ) : (
                 <>
@@ -1117,7 +1110,7 @@ export function FacultyStaffPage() {
                   <div className="hidden md:block overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                       <thead>
-                        <tr className="bg-[#FAFBFF] border-b border-[#E8EAF0] text-[11px] font-extrabold uppercase tracking-wider text-[#64748B]">
+                        <tr className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-semibold uppercase tracking-wider text-slate-600">
                           <th className="py-3.5 px-4 sm:px-6">Staff Member</th>
                           <th className="py-3.5 px-4">Online Status</th>
                           <th className="py-3.5 px-4">Designation</th>
@@ -2115,7 +2108,7 @@ export function FacultyStaffPage() {
                         {selectedStaffDetail.is_active ? 'Active Access' : 'Disabled'}
                       </span>
 
-                      {selectedStaffDetail.id !== admin?.id && (
+                      {canEditData() && selectedStaffDetail.id !== admin?.id && (
                         <button
                           type="button"
                           onClick={() => {
@@ -2214,31 +2207,35 @@ export function FacultyStaffPage() {
                 {/* Modal Action Footer Buttons */}
                 <div className="flex items-center justify-between pt-4 border-t border-[#F0E6DD] gap-2">
                   <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        closeDetailModal()
-                        handleOpenEdit(selectedStaffDetail, e)
-                      }}
-                      className="px-4 py-2.5 rounded-full bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] text-white text-xs font-black shadow-xs hover:brightness-105 transition-all flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <Edit2 size={13} />
-                      Edit Profile
-                    </button>
+                    {canEditData() && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            closeDetailModal()
+                            handleOpenEdit(selectedStaffDetail, e)
+                          }}
+                          className="px-4 py-2.5 rounded-full bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] text-white text-xs font-black shadow-xs hover:brightness-105 transition-all flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Edit2 size={13} />
+                          Edit Profile
+                        </button>
 
-                    {selectedStaffDetail.id !== admin?.id && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          captureGenieOrigin(e)
-                          closeDetailModal()
-                          setStaffToDelete(selectedStaffDetail)
-                        }}
-                        className="px-4 py-2.5 rounded-full bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-black transition-all border border-rose-200 cursor-pointer flex items-center gap-1.5"
-                      >
-                        <Trash2 size={13} />
-                        Delete Profile
-                      </button>
+                        {selectedStaffDetail.id !== admin?.id && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              captureGenieOrigin(e)
+                              closeDetailModal()
+                              setStaffToDelete(selectedStaffDetail)
+                            }}
+                            className="px-4 py-2.5 rounded-full bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-black transition-all border border-rose-200 cursor-pointer flex items-center gap-1.5"
+                          >
+                            <Trash2 size={13} />
+                            Delete Profile
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
 

@@ -574,9 +574,8 @@ export function LandingPage() {
 
           {/* Expandable Schools Accordion List */}
           {loading || fetchingSubmissions ? (
-            <div className="card p-12 text-center text-slate-500 space-y-3">
-              <Loader2 size={32} className="animate-spin mx-auto text-deped-blue" />
-              <p className="text-sm font-medium">Loading school submission status matrix...</p>
+            <div className="py-12 flex justify-center bg-transparent">
+              <img src="/images/loading.gif" alt="Loading..." className="w-20 h-20 object-contain bg-transparent" />
             </div>
           ) : filteredSchoolStatuses.length === 0 ? (
             <div className="card p-10 text-center text-slate-500 space-y-2">

@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { SchoolConnectLayout } from '@/components/layouts/SchoolConnectLayout'
+import { academicMasterDataNavGroups } from '@/config/navConfigs'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { DepEdSpinner } from '@/components/ui/DepEdSpinner'
@@ -519,7 +520,7 @@ export function LearningAreasPage() {
   const selectedGradeObj = grades.find(g => g.id === selectedGradeId)
 
   return (
-    <SchoolConnectLayout systemTitle="Learning Areas Master Data">
+    <SchoolConnectLayout systemTitle="Learning Areas Master Data" navGroups={academicMasterDataNavGroups}>
       <div className="space-y-6 w-full pb-12 animate-fade-in">
         {/* Header Banner */}
         <PageHeader
@@ -529,7 +530,7 @@ export function LearningAreasPage() {
           actions={
             <button
               onClick={() => setModal({ open: true })}
-              className="px-5 py-2.5 rounded-full bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] text-white font-black text-xs shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer active:animate-button-sparkle"
+              className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <Plus size={16} />
               <span>Add Learning Area</span>
@@ -540,12 +541,12 @@ export function LearningAreasPage() {
         {/* Split Grid: Left Grade Levels Sidebar + Right Main View */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           
-          {/* 3D Clay Sidebar on the Left */}
-          <div className="lg:col-span-4 bg-[#EFE6FA] rounded-[32px] border-2 border-white p-4 shadow-[0_14px_30px_rgba(185,170,210,0.18)] space-y-3 font-sans shrink-0">
-            <div className="px-3 py-2 flex items-center justify-between border-b border-purple-200/60">
+          {/* Clean Sidebar on the Left */}
+          <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs space-y-3 shrink-0">
+            <div className="px-3 py-2 flex items-center justify-between border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <GraduationCap size={18} className="text-[#8B72F4]" />
-                <h3 className="text-xs font-black text-[#2D2638] uppercase tracking-wider font-display">Curriculum Navigation</h3>
+                <GraduationCap size={18} className="text-blue-600" />
+                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Curriculum Navigation</h3>
               </div>
             </div>
 
@@ -553,22 +554,22 @@ export function LearningAreasPage() {
               {/* Option 1: Unassigned Teacher Detector Option */}
               <button
                 onClick={() => setSelectedGradeId('unassigned')}
-                className={`w-full flex items-center justify-between p-3.5 rounded-2xl text-xs font-extrabold transition-all cursor-pointer text-left ${
+                className={`w-full flex items-center justify-between p-3.5 rounded-xl text-xs font-bold transition-all cursor-pointer text-left ${
                   selectedGradeId === 'unassigned'
-                    ? 'bg-gradient-to-r from-[#FF5E7E] via-[#FF5252] to-[#EE4444] text-white shadow-md shadow-rose-500/25 scale-[1.01]'
-                    : 'bg-rose-50/90 text-[#2D2638] hover:bg-rose-100/90 hover:shadow-2xs border border-rose-200/70'
+                    ? 'bg-rose-600 text-white shadow-xs'
+                    : 'bg-rose-50 text-slate-800 hover:bg-rose-100 border border-rose-100'
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <UserX size={16} className={selectedGradeId === 'unassigned' ? 'text-white' : 'text-rose-600'} />
                   <div>
-                    <span className="block font-black text-xs font-display">Unassigned Detector</span>
-                    <span className={`text-[10px] font-medium block ${selectedGradeId === 'unassigned' ? 'text-white/90' : 'text-rose-700'}`}>
+                    <span className="block font-bold text-xs">Unassigned Detector</span>
+                    <span className={`text-[10px] font-medium block ${selectedGradeId === 'unassigned' ? 'text-white/90' : 'text-rose-600'}`}>
                       Missing teacher allocation scan
                     </span>
                   </div>
                 </div>
-                <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full shrink-0 ${
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md shrink-0 ${
                   selectedGradeId === 'unassigned' ? 'bg-white text-rose-600' : 'bg-rose-600 text-white'
                 }`}>
                   {unassignedSlots.length}

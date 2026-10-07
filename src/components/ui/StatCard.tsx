@@ -16,62 +16,62 @@ export interface StatCardProps {
   className?: string
 }
 
-const variantStyles: Record<StatCardVariant, { bg: string; iconGradient: string; iconColor: string; trendBg: string; trendColor: string }> = {
+const variantStyles: Record<StatCardVariant, { bg: string; iconBg: string; iconColor: string; trendBg: string; trendColor: string }> = {
   purple: {
-    bg: 'bg-[#F4F1FD]',
-    iconGradient: 'from-[#DDD6FE] to-[#C4B5FD]',
-    iconColor: 'text-[#6D28D9]',
-    trendBg: 'bg-[#EDE9FE]',
-    trendColor: 'text-[#6D28D9]',
+    bg: 'bg-white',
+    iconBg: 'bg-[#F3E8FF] border border-[#DDD6FE]',
+    iconColor: 'text-[#8B5CF6]',
+    trendBg: 'bg-[#F3E8FF]',
+    trendColor: 'text-[#8B5CF6]',
   },
   blue: {
-    bg: 'bg-[#F0F5FF]',
-    iconGradient: 'from-[#BFDBFE] to-[#93C5FD]',
-    iconColor: 'text-[#1D4ED8]',
-    trendBg: 'bg-[#DBEAFE]',
-    trendColor: 'text-[#1D4ED8]',
+    bg: 'bg-white',
+    iconBg: 'bg-[#EFF6FF] border border-[#BFDBFE]',
+    iconColor: 'text-[#2563EB]',
+    trendBg: 'bg-[#EFF6FF]',
+    trendColor: 'text-[#2563EB]',
   },
   green: {
-    bg: 'bg-[#ECFDF5]',
-    iconGradient: 'from-[#A7F3D0] to-[#6EE7B7]',
-    iconColor: 'text-[#047857]',
-    trendBg: 'bg-[#D1FAE5]',
-    trendColor: 'text-[#047857]',
+    bg: 'bg-white',
+    iconBg: 'bg-[#ECFDF5] border border-[#A7F3D0]',
+    iconColor: 'text-[#10B981]',
+    trendBg: 'bg-[#ECFDF5]',
+    trendColor: 'text-[#10B981]',
   },
   yellow: {
-    bg: 'bg-[#FFFBEB]',
-    iconGradient: 'from-[#FDE68A] to-[#FCD34D]',
-    iconColor: 'text-[#B45309]',
+    bg: 'bg-white',
+    iconBg: 'bg-[#FEF3C7] border border-[#FDE68A]',
+    iconColor: 'text-[#D97706]',
     trendBg: 'bg-[#FEF3C7]',
-    trendColor: 'text-[#B45309]',
+    trendColor: 'text-[#D97706]',
   },
   pink: {
-    bg: 'bg-[#FEF2F2]',
-    iconGradient: 'from-[#FECACA] to-[#FCA5A5]',
-    iconColor: 'text-[#B91C1C]',
-    trendBg: 'bg-[#FEE2E2]',
-    trendColor: 'text-[#B91C1C]',
+    bg: 'bg-white',
+    iconBg: 'bg-[#FFE4E6] border border-[#FECDD3]',
+    iconColor: 'text-[#E11D48]',
+    trendBg: 'bg-[#FFE4E6]',
+    trendColor: 'text-[#E11D48]',
   },
   lavender: {
-    bg: 'bg-[#F5F3FF]',
-    iconGradient: 'from-[#EDE9FE] to-[#DDD6FE]',
-    iconColor: 'text-[#6D28D9]',
-    trendBg: 'bg-[#EDE9FE]',
-    trendColor: 'text-[#6D28D9]',
+    bg: 'bg-white',
+    iconBg: 'bg-[#F3E8FF] border border-[#DDD6FE]',
+    iconColor: 'text-[#8B5CF6]',
+    trendBg: 'bg-[#F3E8FF]',
+    trendColor: 'text-[#8B5CF6]',
   },
   peach: {
-    bg: 'bg-[#FFF7ED]',
-    iconGradient: 'from-[#FFEDD5] to-[#FDBA74]',
-    iconColor: 'text-[#C2410C]',
+    bg: 'bg-white',
+    iconBg: 'bg-[#FFEDD5] border border-[#FED7AA]',
+    iconColor: 'text-[#EA580C]',
     trendBg: 'bg-[#FFEDD5]',
-    trendColor: 'text-[#C2410C]',
+    trendColor: 'text-[#EA580C]',
   },
   mint: {
-    bg: 'bg-[#F0FDF4]',
-    iconGradient: 'from-[#DCFCE7] to-[#86EFAC]',
-    iconColor: 'text-[#15803D]',
-    trendBg: 'bg-[#DCFCE7]',
-    trendColor: 'text-[#15803D]',
+    bg: 'bg-white',
+    iconBg: 'bg-[#ECFDF5] border border-[#A7F3D0]',
+    iconColor: 'text-[#10B981]',
+    trendBg: 'bg-[#ECFDF5]',
+    trendColor: 'text-[#10B981]',
   },
 }
 
@@ -81,42 +81,42 @@ export function StatCard({
   icon,
   description,
   trend,
-  variant = 'purple',
+  variant = 'blue',
   onClick,
   className = '',
 }: StatCardProps) {
-  const style = variantStyles[variant] || variantStyles.purple
+  const style = variantStyles[variant] || variantStyles.blue
 
   return (
     <div
       onClick={onClick}
-      className={`rounded-[24px] ${style.bg} p-5 shadow-neu-out border border-white/60 transition-all duration-300 hover:-translate-y-1 hover:shadow-neu-out-lg ${
-        onClick ? 'cursor-pointer' : ''
+      className={`rounded-2xl bg-white p-5 border border-slate-200/80 shadow-xs transition-all duration-200 hover:border-slate-300 hover:shadow-sm font-sans ${
+        onClick ? 'cursor-pointer hover:-translate-y-0.5' : ''
       } ${className}`}
     >
       <div className="flex items-center gap-4">
         {icon && (
-          <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${style.iconGradient} ${style.iconColor} shadow-md flex items-center justify-center shrink-0 border border-white/80`}>
+          <div className={`w-11 h-11 rounded-xl ${style.iconBg} ${style.iconColor} flex items-center justify-center shrink-0 shadow-2xs`}>
             {icon}
           </div>
         )}
 
-        <div className="space-y-0.5">
-          <p className="text-[11px] font-extrabold uppercase tracking-wider text-[#64748B]">{title}</p>
-          <p className="text-2xl font-black text-[#2D3748] tracking-tight">{value}</p>
+        <div className="space-y-1 min-w-0 flex-1">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider truncate">{title}</p>
+          <p className="text-2xl font-extrabold text-slate-900 tracking-tight leading-none">{value}</p>
         </div>
       </div>
 
       {(description || trend) && (
-        <div className="mt-3 pt-2.5 border-t border-black/5 flex items-center justify-between text-xs">
-          {description && <span className="text-[#64748B] font-semibold text-[11px]">{description}</span>}
+        <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
+          {description && <span className="text-slate-500 font-medium text-xs truncate">{description}</span>}
           {trend && (
             <span
-              className={`inline-flex items-center gap-1 font-bold text-[10px] px-2 py-0.5 rounded-full ${
-                trend.isUpward ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+              className={`inline-flex items-center gap-1 font-bold text-xs px-2 py-0.5 rounded-full ${
+                trend.isUpward ? 'text-emerald-700 bg-emerald-50 border border-emerald-200/60' : 'text-rose-700 bg-rose-50 border border-rose-200/60'
               }`}
             >
-              {trend.isUpward ? '↑' : '↓'} {trend.value}
+              {trend.isUpward ? '↑' : '↓'} {trend.value} <span className="text-slate-400 font-normal ml-0.5">vs last month</span>
             </span>
           )}
         </div>

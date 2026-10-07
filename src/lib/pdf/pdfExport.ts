@@ -325,3 +325,128 @@ export async function exportToPdfDirect({
     }
   }
 }
+
+export interface ExportDTRPdfOptions {
+  elementOrQuery?: HTMLElement | string | null
+  filename?: string
+}
+
+/**
+ * Dedicated DTR CS Form 48 2-in-1 Dual Copy PDF Exporter
+ * Captures the side-by-side 8.5" CS Form 48 cards with exact margins, signature space, and formatting
+ * matching browser print mode.
+ */
+export async function exportDTRToPdf({
+  elementOrQuery = '.dtr-dual-container',
+  filename = 'CS_Form_48_DTR.pdf'
+}: ExportDTRPdfOptions = {}): Promise<boolean> {
+  let wrapperContainer: HTMLElement | null = null
+
+  try {
+    let targetElement: HTMLElement | null = null
+
+    if (typeof elementOrQuery === 'string') {
+      targetElement = document.querySelector(elementOrQuery) as HTMLElement | null
+    } else if (elementOrQuery instanceof HTMLElement) {
+      targetElement = elementOrQuery
+    }
+
+    if (!targetElement) {
+      targetElement = document.querySelector('.dtr-dual-container') as HTMLElement | null
+    }
+
+    if (!targetElement) {
+      targetElement = document.querySelector('.dtr-print-only-root') as HTMLElement | null
+    }
+
+    if (!targetElement) {
+      console.warn('DTR PDF export failed: Target printable element not found')
+      return false
+    }
+
+    const currentScrollY = window.scrollY || window.pageYOffset || 0
+
+    // 1. Create temporary clean wrapper container at current scroll position for exact html2canvas rendering
+    wrapperContainer = document.createElement('div')
+    wrapperContainer.id = 'dtr-pdf-export-wrapper'
+    wrapperContainer.style.position = 'absolute'
+    wrapperContainer.style.left = '0'
+    wrapperContainer.style.top = `${currentScrollY}px`
+    wrapperContainer.style.width = '8.1in'
+    wrapperContainer.style.minHeight = '10.5in'
+    wrapperContainer.style.zIndex = '999999'
+    wrapperContainer.style.backgroundColor = '#ffffff'
+    wrapperContainer.style.color = '#000000'
+    wrapperContainer.style.padding = '0.15in'
+    wrapperContainer.style.margin = '0'
+    wrapperContainer.style.boxSizing = 'border-box'
+    wrapperContainer.style.fontFamily = 'Arial, "Helvetica Neue", Helvetica, sans-serif'
+    wrapperContainer.style.display = 'block'
+    wrapperContainer.style.visibility = 'visible'
+    wrapperContainer.style.opacity = '1'
+
+    // 2. Clone target element and strip screen-hiding classes (e.g. dtr-print-only-root)
+    const clone = targetElement.cloneNode(true) as HTMLElement
+    clone.classList.remove('dtr-print-only-root')
+    clone.classList.remove('hidden')
+    clone.removeAttribute('id')
+
+    // Force clone container styles to be visible flex container
+    clone.style.display = 'flex'
+    clone.style.flexDirection = 'row'
+    clone.style.justifyContent = 'space-between'
+    clone.style.alignItems = 'flex-start'
+    clone.style.gap = '12px'
+    clone.style.width = '100%'
+    clone.style.maxWidth = '100%'
+    clone.style.backgroundColor = '#ffffff'
+    clone.style.color = '#000000'
+    clone.style.visibility = 'visible'
+    clone.style.opacity = '1'
+
+    // Ensure all descendant elements in clone are visible and un-hidden
+    clone.querySelectorAll('*').forEach(el => {
+      const htmlEl = el as HTMLElement
+      htmlEl.classList.remove('dtr-print-only-root')
+      htmlEl.style.visibility = 'visible'
+      htmlEl.style.opacity = '1'
+      if (htmlEl.classList.contains('hidden') && !htmlEl.classList.contains('dtr-cut-divider')) {
+        htmlEl.classList.remove('hidden')
+      }
+    })
+
+    wrapperContainer.appendChild(clone)
+    document.body.appendChild(wrapperContainer)
+
+    const options = {
+      margin: [0.15, 0.15, 0.15, 0.15] as [number, number, number, number],
+      filename: filename,
+      image: { type: 'jpeg' as const, quality: 0.98 },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        scrollY: 0,
+        scrollX: 0
+      },
+      jsPDF: {
+        unit: 'in' as const,
+        format: 'letter' as const, // 8.5 x 11 in
+        orientation: 'portrait' as const,
+        compress: true
+      }
+    }
+
+    const html2pdf = (await import('html2pdf.js')).default
+    await html2pdf().set(options).from(clone).save()
+    return true
+  } catch (error) {
+    console.error('Error generating DTR PDF file download:', error)
+    return false
+  } finally {
+    if (wrapperContainer && wrapperContainer.parentNode) {
+      wrapperContainer.parentNode.removeChild(wrapperContainer)
+    }
+  }
+}

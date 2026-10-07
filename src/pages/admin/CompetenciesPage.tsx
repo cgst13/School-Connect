@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { AdminLayout } from '@/components/layouts/AdminLayout'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { DepEdSpinner } from '@/components/ui/DepEdSpinner'
 import type { LearningCompetency } from '@/types'
 import {
@@ -366,99 +367,90 @@ export function CompetenciesPage() {
   return (
     <AdminLayout>
       <div className="space-y-6 pb-12">
-        {/* Top Header Banner - Claymorphism Warm Theme */}
-        <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-r from-[#FAF5F0] via-[#FFF9F2] to-[#F5EFE6] p-6 sm:p-8 border border-[#EFE6DB] shadow-xs">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#8B72F4]/15 text-[#8B72F4] text-xs font-semibold uppercase tracking-wider">
-                <Sparkles size={14} /> DepEd K-12 / MATATAG Curriculum
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-[#2D2A26] tracking-tight">
-                Budget of Work — Learning Competencies
-              </h1>
-              <p className="text-sm sm:text-base text-[#6E675F] max-w-2xl">
-                Official DepEd Three-Term Budget of Work (BOW) for Learning Competencies across Grade 1 to Grade 6 primary learning areas.
-              </p>
-            </div>
-
+        {/* Top Header Banner */}
+        <PageHeader
+          badge="DepEd K-12 / MATATAG Curriculum"
+          title="Budget of Work — Learning Competencies"
+          description="Official DepEd Three-Term Budget of Work (BOW) for Learning Competencies across Grade 1 to Grade 6 primary learning areas."
+          actions={
             <div className="flex items-center gap-3">
               <button
                 onClick={loadData}
-                className="p-3 rounded-2xl bg-white border border-[#EFE6DB] text-[#6E675F] hover:text-[#2D2A26] hover:bg-[#FAF5F0] transition-all duration-200 shadow-2xs"
+                className="p-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-all shadow-xs cursor-pointer"
                 title="Refresh Data"
               >
                 <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
               </button>
               <button
                 onClick={() => setIsImportModalOpen(true)}
-                className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-white border border-[#8B72F4]/30 text-[#8B72F4] font-semibold shadow-2xs hover:bg-[#8B72F4]/10 transition-all duration-200 active:scale-98"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold text-xs shadow-xs transition-all cursor-pointer"
               >
-                <UploadCloud size={18} />
+                <UploadCloud size={16} />
                 <span>Import to Supabase</span>
               </button>
               <button
                 onClick={handleOpenAdd}
-                className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-[#8B72F4] text-white font-semibold shadow-md hover:bg-[#785EE3] transition-all duration-200 active:scale-98"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition-all cursor-pointer"
               >
-                <Plus size={18} />
+                <Plus size={16} />
                 <span>Add Competency</span>
               </button>
             </div>
-          </div>
-        </div>
+          }
+        />
 
         {/* Stats Cards Row */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="bg-white rounded-[24px] p-5 border border-[#EFE6DB] shadow-2xs space-y-2">
-            <div className="flex items-center justify-between text-[#8B72F4]">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#6E675F]">Total Competencies</span>
-              <div className="p-2 rounded-xl bg-[#8B72F4]/10">
+          <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs space-y-2 hover:border-slate-300 hover:shadow-sm transition-all">
+            <div className="flex items-center justify-between text-blue-600">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Competencies</span>
+              <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
                 <BookOpen size={18} />
               </div>
             </div>
-            <div className="text-2xl font-black text-[#2D2A26]">{stats.total}</div>
-            <p className="text-xs text-[#9E958A]">Grades 1 to 6 Total</p>
+            <div className="text-2xl font-bold text-slate-900">{stats.total}</div>
+            <p className="text-xs text-slate-500">Grades 1 to 6 Total</p>
           </div>
 
-          <div className="bg-white rounded-[24px] p-5 border border-[#EFE6DB] shadow-2xs space-y-2">
-            <div className="flex items-center justify-between text-[#3B82F6]">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#6E675F]">1st Term / Q1</span>
-              <div className="p-2 rounded-xl bg-[#3B82F6]/10">
+          <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs space-y-2 hover:border-slate-300 hover:shadow-sm transition-all">
+            <div className="flex items-center justify-between text-purple-600">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">1st Term / Q1</span>
+              <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
                 <Calendar size={18} />
               </div>
             </div>
-            <div className="text-2xl font-black text-[#2D2A26]">{stats.term1Count}</div>
-            <p className="text-xs text-[#9E958A]">1st Quarter BOW</p>
+            <div className="text-2xl font-bold text-slate-900">{stats.term1Count}</div>
+            <p className="text-xs text-slate-500">1st Quarter BOW</p>
           </div>
 
-          <div className="bg-white rounded-[24px] p-5 border border-[#EFE6DB] shadow-2xs space-y-2">
-            <div className="flex items-center justify-between text-[#F59E0B]">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#6E675F]">2nd Term / Q2</span>
-              <div className="p-2 rounded-xl bg-[#F59E0B]/10">
+          <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs space-y-2 hover:border-slate-300 hover:shadow-sm transition-all">
+            <div className="flex items-center justify-between text-amber-600">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">2nd Term / Q2</span>
+              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
                 <Calendar size={18} />
               </div>
             </div>
-            <div className="text-2xl font-black text-[#2D2A26]">{stats.term2Count}</div>
-            <p className="text-xs text-[#9E958A]">2nd Quarter BOW</p>
+            <div className="text-2xl font-bold text-slate-900">{stats.term2Count}</div>
+            <p className="text-xs text-slate-500">2nd Quarter BOW</p>
           </div>
 
-          <div className="bg-white rounded-[24px] p-5 border border-[#EFE6DB] shadow-2xs space-y-2">
-            <div className="flex items-center justify-between text-[#10B981]">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#6E675F]">3rd Term / Q3</span>
-              <div className="p-2 rounded-xl bg-[#10B981]/10">
+          <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs space-y-2 hover:border-slate-300 hover:shadow-sm transition-all">
+            <div className="flex items-center justify-between text-emerald-600">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">3rd Term / Q3</span>
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
                 <Calendar size={18} />
               </div>
             </div>
-            <div className="text-2xl font-black text-[#2D2A26]">{stats.term3Count}</div>
-            <p className="text-xs text-[#9E958A]">3rd Quarter BOW</p>
+            <div className="text-2xl font-bold text-slate-900">{stats.term3Count}</div>
+            <p className="text-xs text-slate-500">3rd Quarter BOW</p>
           </div>
         </div>
 
         {/* Filter Controls Panel */}
-        <div className="bg-white rounded-[24px] p-5 border border-[#EFE6DB] shadow-2xs space-y-4">
-          <div className="flex items-center justify-between border-b border-[#F5EFE6] pb-3">
-            <div className="flex items-center gap-2 text-[#2D2A26] font-bold text-sm">
-              <Filter size={16} className="text-[#8B72F4]" />
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
+            <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
+              <Filter size={16} className="text-blue-600" />
               <span>Filter Budget of Work</span>
             </div>
             {(selectedGrade !== 'all' || selectedLearningArea !== 'all' || selectedTerm !== 'all' || searchQuery) && (
@@ -469,7 +461,7 @@ export function CompetenciesPage() {
                   setSelectedTerm('all')
                   setSearchQuery('')
                 }}
-                className="text-xs text-[#8B72F4] hover:underline font-semibold"
+                className="text-xs text-blue-600 hover:underline font-semibold cursor-pointer"
               >
                 Reset All Filters
               </button>
@@ -479,11 +471,11 @@ export function CompetenciesPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Grade Level Filter */}
             <div>
-              <label className="block text-xs font-semibold text-[#6E675F] mb-1.5">Grade Level</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Grade Level</label>
               <select
                 value={selectedGrade}
                 onChange={e => setSelectedGrade(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-                className="w-full px-3 py-2.5 rounded-xl border border-[#EFE6DB] bg-[#FAF5F0] text-sm text-[#2D2A26] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
               >
                 <option value="all">All Grades (Grade 1 - 12)</option>
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(g => (
@@ -496,11 +488,11 @@ export function CompetenciesPage() {
 
             {/* Learning Area Filter */}
             <div>
-              <label className="block text-xs font-semibold text-[#6E675F] mb-1.5">Learning Area</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Learning Area</label>
               <select
                 value={selectedLearningArea}
                 onChange={e => setSelectedLearningArea(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl border border-[#EFE6DB] bg-[#FAF5F0] text-sm text-[#2D2A26] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
               >
                 <option value="all">All Learning Areas</option>
                 {availableLearningAreas
@@ -515,11 +507,11 @@ export function CompetenciesPage() {
 
             {/* Term / Quarter Filter */}
             <div>
-              <label className="block text-xs font-semibold text-[#6E675F] mb-1.5">Term / Quarter</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Term / Quarter</label>
               <select
                 value={selectedTerm}
                 onChange={e => setSelectedTerm(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl border border-[#EFE6DB] bg-[#FAF5F0] text-sm text-[#2D2A26] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
               >
                 <option value="all">All Terms / Quarters</option>
                 {availableTerms
@@ -534,15 +526,15 @@ export function CompetenciesPage() {
 
             {/* Search Filter */}
             <div>
-              <label className="block text-xs font-semibold text-[#6E675F] mb-1.5">Search Competency</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Search Competency</label>
               <div className="relative">
-                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9E958A]" />
+                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   placeholder="Code, strand, description..."
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-[#EFE6DB] bg-[#FAF5F0] text-sm text-[#2D2A26] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]"
+                  className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
               </div>
             </div>
@@ -550,12 +542,12 @@ export function CompetenciesPage() {
         </div>
 
         {/* Data Table Container */}
-        <div className="bg-white rounded-[24px] border border-[#EFE6DB] shadow-2xs overflow-hidden">
-          <div className="px-6 py-4 border-b border-[#F5EFE6] flex items-center justify-between">
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-200/80 flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <BookMarked size={18} className="text-[#8B72F4]" />
-              <h2 className="font-bold text-[#2D2A26] text-base">Competencies Directory</h2>
-              <span className="px-2.5 py-0.5 rounded-full bg-[#FAF5F0] text-[#6E675F] text-xs font-semibold">
+              <BookMarked size={18} className="text-blue-600" />
+              <h2 className="font-bold text-slate-900 text-base">Competencies Directory</h2>
+              <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold">
                 {filteredCompetencies.length} entries
               </span>
               {isLiveFromSupabase ? (
@@ -570,7 +562,7 @@ export function CompetenciesPage() {
             </div>
 
             {/* Rows Per Page Selector */}
-            <div className="flex items-center gap-2 text-xs text-[#6E675F]">
+            <div className="flex items-center gap-2 text-xs text-slate-600">
               <span>Show</span>
               <select
                 value={pageSize}
@@ -578,7 +570,7 @@ export function CompetenciesPage() {
                   setPageSize(Number(e.target.value))
                   setCurrentPage(1)
                 }}
-                className="px-2 py-1 rounded-lg border border-[#EFE6DB] bg-[#FAF5F0] text-xs font-semibold text-[#2D2A26]"
+                className="px-2 py-1 rounded-lg border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-800 focus:outline-none"
               >
                 <option value={25}>25 per page</option>
                 <option value={50}>50 per page</option>
@@ -589,14 +581,14 @@ export function CompetenciesPage() {
           </div>
 
           {loading ? (
-            <div className="p-12 text-center text-[#6E675F]">
+            <div className="p-12 text-center text-slate-500">
               <DepEdSpinner size="lg" label="Loading DepEd Budget of Work competencies..." subtitle="Fetching active learning competencies and grade level targets" />
             </div>
           ) : filteredCompetencies.length === 0 ? (
-            <div className="p-12 text-center text-[#6E675F] space-y-3">
-              <AlertCircle size={32} className="mx-auto text-[#F59E0B]" />
-              <p className="font-semibold text-base">No competencies found</p>
-              <p className="text-xs text-[#9E958A] max-w-md mx-auto">
+            <div className="p-12 text-center text-slate-500 space-y-3">
+              <AlertCircle size={32} className="mx-auto text-amber-500" />
+              <p className="font-semibold text-base text-slate-800">No competencies found</p>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
                 No DepEd learning competencies match your selected filter criteria. Try adjusting your filters or search query.
               </p>
             </div>
@@ -605,7 +597,7 @@ export function CompetenciesPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-[#FAF5F0] text-[#6E675F] text-xs font-bold uppercase tracking-wider border-b border-[#EFE6DB]">
+                    <tr className="bg-slate-50/80 text-slate-600 text-xs font-semibold uppercase tracking-wider border-b border-slate-200/80">
                       <th className="py-3.5 px-4 pl-6">Code / ID</th>
                       <th className="py-3.5 px-4">Grade & Subject</th>
                       <th className="py-3.5 px-4">Term</th>
@@ -615,49 +607,49 @@ export function CompetenciesPage() {
                       <th className="py-3.5 px-4 pr-6 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#F5EFE6] text-sm text-[#2D2A26]">
+                  <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
                     {paginatedCompetencies.map(item => (
-                      <tr key={item.id} className="hover:bg-[#FFF9F2] transition-colors duration-150">
-                        <td className="py-4 px-4 pl-6 font-mono text-xs font-bold text-[#8B72F4]">
+                      <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="py-4 px-4 pl-6 font-mono text-xs font-bold text-blue-600">
                           {item.code || 'N/A'}
                         </td>
                         <td className="py-4 px-4 space-y-1">
                           <div className="flex items-center gap-2 font-semibold">
-                            <span className="px-2 py-0.5 rounded-md bg-[#8B72F4]/10 text-[#8B72F4] text-xs font-bold">
+                            <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 text-xs font-semibold">
                               Grade {item.grade_number}
                             </span>
                             <span>{item.learning_area_name}</span>
                           </div>
                         </td>
                         <td className="py-4 px-4">
-                          <span className="inline-block px-2.5 py-1 rounded-full bg-[#FAF5F0] border border-[#EFE6DB] text-xs font-medium text-[#6E675F]">
+                          <span className="inline-block px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-xs font-medium text-slate-700">
                             {item.term_name}
                           </span>
                         </td>
-                        <td className="py-4 px-4 font-medium text-[#6E675F]">
+                        <td className="py-4 px-4 font-medium text-slate-600">
                           {item.domain_strand || 'General'}
                         </td>
-                        <td className="py-4 px-4 text-xs space-y-0.5 text-[#6E675F]">
-                          <div className="font-semibold text-[#2D2A26]">{item.target_week || 'Week 1-2'}</div>
+                        <td className="py-4 px-4 text-xs space-y-0.5 text-slate-600">
+                          <div className="font-semibold text-slate-900">{item.target_week || 'Week 1-2'}</div>
                           <div>{item.target_days || 5} Days Target</div>
                         </td>
-                        <td className="py-4 px-4 text-sm text-[#2D2A26] max-w-md leading-relaxed">
+                        <td className="py-4 px-4 text-xs text-slate-800 max-w-md leading-relaxed">
                           {item.competency_description}
                         </td>
                         <td className="py-4 px-4 pr-6 text-right space-x-2">
                           <button
                             onClick={() => handleOpenEdit(item)}
-                            className="p-2 rounded-xl text-[#6E675F] hover:text-[#8B72F4] hover:bg-[#8B72F4]/10 transition-colors"
+                            className="p-2 rounded-xl text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
                             title="Edit Competency"
                           >
-                            <Edit2 size={16} />
+                            <Edit2 size={15} />
                           </button>
                           <button
                             onClick={() => handleDelete(item.id)}
-                            className="p-2 rounded-xl text-[#6E675F] hover:text-red-600 hover:bg-red-50 transition-colors"
+                            className="p-2 rounded-xl text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                             title="Delete Competency"
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={15} />
                           </button>
                         </td>
                       </tr>
@@ -667,42 +659,42 @@ export function CompetenciesPage() {
               </div>
 
               {/* Pagination Bar */}
-              <div className="px-6 py-4 border-t border-[#F5EFE6] flex items-center justify-between text-xs text-[#6E675F]">
+              <div className="px-6 py-4 border-t border-slate-200/80 flex items-center justify-between text-xs text-slate-600">
                 <div>
-                  Showing <span className="font-bold text-[#2D2A26]">{(currentPage - 1) * pageSize + 1}</span> to{' '}
-                  <span className="font-bold text-[#2D2A26]">{Math.min(currentPage * pageSize, filteredCompetencies.length)}</span> of{' '}
-                  <span className="font-bold text-[#2D2A26]">{filteredCompetencies.length}</span> entries
+                  Showing <span className="font-bold text-slate-900">{(currentPage - 1) * pageSize + 1}</span> to{' '}
+                  <span className="font-bold text-slate-900">{Math.min(currentPage * pageSize, filteredCompetencies.length)}</span> of{' '}
+                  <span className="font-bold text-slate-900">{filteredCompetencies.length}</span> entries
                 </div>
 
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setCurrentPage(1)}
                     disabled={currentPage === 1}
-                    className="px-2.5 py-1.5 rounded-lg border border-[#EFE6DB] bg-[#FAF5F0] hover:bg-[#EFE6DB] disabled:opacity-40 font-semibold"
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 font-semibold cursor-pointer"
                   >
                     First
                   </button>
                   <button
                     onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                     disabled={currentPage === 1}
-                    className="px-2.5 py-1.5 rounded-lg border border-[#EFE6DB] bg-[#FAF5F0] hover:bg-[#EFE6DB] disabled:opacity-40 font-semibold"
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 font-semibold cursor-pointer"
                   >
                     Prev
                   </button>
-                  <span className="px-3 py-1 font-bold text-[#2D2A26]">
+                  <span className="px-3 py-1 font-bold text-slate-900">
                     Page {currentPage} of {totalPages}
                   </span>
                   <button
                     onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                     disabled={currentPage === totalPages}
-                    className="px-2.5 py-1.5 rounded-lg border border-[#EFE6DB] bg-[#FAF5F0] hover:bg-[#EFE6DB] disabled:opacity-40 font-semibold"
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 font-semibold cursor-pointer"
                   >
                     Next
                   </button>
                   <button
                     onClick={() => setCurrentPage(totalPages)}
                     disabled={currentPage === totalPages}
-                    className="px-2.5 py-1.5 rounded-lg border border-[#EFE6DB] bg-[#FAF5F0] hover:bg-[#EFE6DB] disabled:opacity-40 font-semibold"
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 font-semibold cursor-pointer"
                   >
                     Last
                   </button>
@@ -716,15 +708,15 @@ export function CompetenciesPage() {
       {/* Add / Edit Competency Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
-          <div className="bg-white rounded-[28px] max-w-lg w-full border border-[#EFE6DB] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="px-6 py-5 bg-gradient-to-r from-[#FAF5F0] to-[#FFF9F2] border-b border-[#EFE6DB] flex items-center justify-between">
-              <div className="flex items-center gap-2 text-[#2D2A26] font-bold text-lg">
-                <BookOpen size={20} className="text-[#8B72F4]" />
+          <div className="bg-white rounded-2xl max-w-lg w-full border border-slate-200/80 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-6 py-5 bg-slate-50 border-b border-slate-200/80 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-slate-900 font-bold text-base">
+                <BookOpen size={20} className="text-blue-600" />
                 <span>{editingItem ? 'Edit Budget of Work Entry' : 'Add New DepEd Competency'}</span>
               </div>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="p-1.5 rounded-full hover:bg-[#EFE6DB] text-[#6E675F] transition-colors"
+                className="p-1.5 rounded-full hover:bg-slate-200/60 text-slate-500 transition-colors cursor-pointer"
               >
                 <X size={18} />
               </button>
@@ -733,11 +725,11 @@ export function CompetenciesPage() {
             <form onSubmit={handleSave} className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-[#6E675F] mb-1">Grade Level</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Grade Level</label>
                   <select
                     value={formData.grade_number}
                     onChange={e => setFormData({ ...formData, grade_number: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl border border-[#EFE6DB] bg-[#FAF5F0] text-sm text-[#2D2A26] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   >
                     {[1, 2, 3, 4, 5, 6].map(g => (
                       <option key={g} value={g}>
@@ -748,25 +740,25 @@ export function CompetenciesPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-[#6E675F] mb-1">Learning Area</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Learning Area</label>
                   <input
                     type="text"
                     required
                     placeholder="e.g. Mathematics, Science"
                     value={formData.learning_area_name}
                     onChange={e => setFormData({ ...formData, learning_area_name: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-[#EFE6DB] bg-[#FAF5F0] text-sm text-[#2D2A26] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-[#6E675F] mb-1">Term / Quarter</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Term / Quarter</label>
                   <select
                     value={formData.term_name}
                     onChange={e => setFormData({ ...formData, term_name: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-[#EFE6DB] bg-[#FAF5F0] text-sm text-[#2D2A26] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   >
                     <option value="1st Term / Quarter 1">1st Term / Quarter 1</option>
                     <option value="2nd Term / Quarter 2">2nd Term / Quarter 2</option>
@@ -775,77 +767,77 @@ export function CompetenciesPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-[#6E675F] mb-1">Competency Code</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Competency Code</label>
                   <input
                     type="text"
                     placeholder="e.g. M1NS-Ia-1.1"
                     value={formData.code}
                     onChange={e => setFormData({ ...formData, code: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-[#EFE6DB] bg-[#FAF5F0] text-sm text-[#2D2A26] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#6E675F] mb-1">Domain / Strand</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Domain / Strand</label>
                 <input
                   type="text"
                   placeholder="e.g. Numbers and Number Sense, Matter"
                   value={formData.domain_strand}
                   onChange={e => setFormData({ ...formData, domain_strand: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border border-[#EFE6DB] bg-[#FAF5F0] text-sm text-[#2D2A26] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-[#6E675F] mb-1">Target Week</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Target Week</label>
                   <input
                     type="text"
                     placeholder="e.g. Week 1 - Day 1-5"
                     value={formData.target_week}
                     onChange={e => setFormData({ ...formData, target_week: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-[#EFE6DB] bg-[#FAF5F0] text-sm text-[#2D2A26] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-[#6E675F] mb-1">Target Days</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Target Days</label>
                   <input
                     type="number"
                     min={1}
                     max={30}
                     value={formData.target_days}
                     onChange={e => setFormData({ ...formData, target_days: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl border border-[#EFE6DB] bg-[#FAF5F0] text-sm text-[#2D2A26] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#6E675F] mb-1">DepEd Learning Competency Text *</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">DepEd Learning Competency Text *</label>
                 <textarea
                   required
                   rows={3}
                   placeholder="Enter official DepEd learning competency description..."
                   value={formData.competency_description}
                   onChange={e => setFormData({ ...formData, competency_description: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border border-[#EFE6DB] bg-[#FAF5F0] text-sm text-[#2D2A26] focus:outline-none focus:ring-2 focus:ring-[#8B72F4]"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
               </div>
 
-              <div className="pt-3 border-t border-[#F5EFE6] flex items-center justify-end gap-3">
+              <div className="pt-3 border-t border-slate-200/80 flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-[#EFE6DB] text-sm font-semibold text-[#6E675F] hover:bg-[#FAF5F0]"
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="px-5 py-2 rounded-xl bg-[#8B72F4] text-white text-sm font-semibold shadow-md hover:bg-[#785EE3] disabled:opacity-50"
+                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs disabled:opacity-50 cursor-pointer"
                 >
                   {isSaving ? 'Saving...' : editingItem ? 'Save Changes' : 'Add Competency'}
                 </button>
@@ -858,45 +850,45 @@ export function CompetenciesPage() {
       {/* Import BOW Competencies to Supabase Modal */}
       {isImportModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
-          <div className="bg-white rounded-[28px] max-w-lg w-full border border-[#EFE6DB] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="px-6 py-5 bg-gradient-to-r from-[#FAF5F0] to-[#FFF9F2] border-b border-[#EFE6DB] flex items-center justify-between">
-              <div className="flex items-center gap-2 text-[#2D2A26] font-bold text-lg">
-                <UploadCloud size={20} className="text-[#8B72F4]" />
+          <div className="bg-white rounded-2xl max-w-lg w-full border border-slate-200/80 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-6 py-5 bg-slate-50 border-b border-slate-200/80 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-slate-900 font-bold text-base">
+                <UploadCloud size={20} className="text-blue-600" />
                 <span>Import Competencies to Supabase</span>
               </div>
               <button
                 disabled={isImporting}
                 onClick={() => setIsImportModalOpen(false)}
-                className="p-1.5 rounded-full hover:bg-[#EFE6DB] text-[#6E675F] transition-colors disabled:opacity-40"
+                className="p-1.5 rounded-full hover:bg-slate-200/60 text-slate-500 transition-colors disabled:opacity-40 cursor-pointer"
               >
                 <X size={18} />
               </button>
             </div>
 
             <div className="p-6 space-y-6">
-              <div className="p-4 rounded-2xl bg-[#8B72F4]/10 border border-[#8B72F4]/20 space-y-2">
-                <div className="flex items-center gap-2 text-[#8B72F4] font-bold text-sm">
+              <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 space-y-2">
+                <div className="flex items-center gap-2 text-blue-700 font-bold text-xs">
                   <Database size={16} />
                   <span>Target Table: sc_budget_of_work</span>
                 </div>
-                <p className="text-xs text-[#6E675F] leading-relaxed">
-                  Importing will save competencies into the Supabase database table <code className="bg-white px-1.5 py-0.5 rounded border border-[#8B72F4]/30 font-mono text-[#8B72F4]">sc_budget_of_work</code>.
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Importing will save competencies into the Supabase database table <code className="bg-white px-1.5 py-0.5 rounded border border-blue-200 font-mono text-blue-700">sc_budget_of_work</code>.
                 </p>
               </div>
 
               {isImporting ? (
                 <div className="space-y-4 py-4 text-center">
-                  <RefreshCw size={28} className="animate-spin mx-auto text-[#8B72F4]" />
+                  <RefreshCw size={28} className="animate-spin mx-auto text-blue-600" />
                   <div className="space-y-1">
-                    <p className="font-bold text-[#2D2A26] text-sm">{importStatusText}</p>
-                    <p className="text-xs text-[#6E675F]">
+                    <p className="font-bold text-slate-900 text-sm">{importStatusText}</p>
+                    <p className="text-xs text-slate-500">
                       {importProgress.processed.toLocaleString()} / {importProgress.total.toLocaleString()} competencies uploaded
                     </p>
                   </div>
                   {/* Progress Bar */}
-                  <div className="w-full bg-[#FAF5F0] rounded-full h-3 overflow-hidden border border-[#EFE6DB]">
+                  <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden border border-slate-200">
                     <div
-                      className="bg-[#8B72F4] h-full transition-all duration-300 rounded-full"
+                      className="bg-blue-600 h-full transition-all duration-300 rounded-full"
                       style={{
                         width: `${importProgress.total > 0 ? (importProgress.processed / importProgress.total) * 100 : 0}%`,
                       }}
@@ -905,24 +897,24 @@ export function CompetenciesPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {/* Option 1: Sync 6,406 Extracted BOW Competencies */}
-                  <div className="p-5 rounded-2xl border border-[#EFE6DB] bg-[#FAF5F0] hover:border-[#8B72F4] transition-all space-y-3">
+                  {/* Option 1: Sync Extracted BOW Competencies */}
+                  <div className="p-5 rounded-2xl border border-slate-200/80 bg-slate-50/50 hover:border-blue-300 transition-all space-y-3">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-[#2D2A26] font-bold text-sm">
-                        <FileJson size={18} className="text-[#8B72F4]" />
+                      <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
+                        <FileJson size={18} className="text-blue-600" />
                         <span>Extracted BOW PDF Dataset</span>
                       </div>
-                      <span className="px-2.5 py-0.5 rounded-full bg-[#8B72F4]/15 text-[#8B72F4] text-xs font-bold">
+                      <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold">
                         {extractedCompetencies.length.toLocaleString()} items
                       </span>
                     </div>
-                    <p className="text-xs text-[#6E675F]">
+                    <p className="text-xs text-slate-600">
                       Upload all {extractedCompetencies.length.toLocaleString()} DepEd Budget of Work competencies extracted from your 126 PDF files directly into Supabase.
                     </p>
                     <button
                       type="button"
                       onClick={handleImportSyncExtracted}
-                      className="w-full py-2.5 rounded-xl bg-[#8B72F4] text-white font-semibold text-sm shadow-md hover:bg-[#785EE3] transition-all flex items-center justify-center gap-2"
+                      className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <UploadCloud size={16} />
                       <span>Sync Extracted JSON to Supabase</span>
@@ -930,16 +922,16 @@ export function CompetenciesPage() {
                   </div>
 
                   {/* Option 2: Upload Custom JSON File */}
-                  <div className="p-5 rounded-2xl border border-[#EFE6DB] bg-white space-y-3">
-                    <div className="flex items-center gap-2 text-[#2D2A26] font-bold text-sm">
-                      <Plus size={18} className="text-[#F59E0B]" />
+                  <div className="p-5 rounded-2xl border border-slate-200/80 bg-white space-y-3">
+                    <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
+                      <Plus size={18} className="text-amber-500" />
                       <span>Upload Custom JSON File</span>
                     </div>
-                    <p className="text-xs text-[#6E675F]">
+                    <p className="text-xs text-slate-600">
                       Select an external JSON file from your computer containing custom BOW competencies.
                     </p>
-                    <label className="w-full py-2.5 rounded-xl border border-[#EFE6DB] bg-[#FAF5F0] hover:bg-[#EFE6DB] text-[#2D2A26] font-semibold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer">
-                      <FileJson size={16} className="text-[#8B72F4]" />
+                    <label className="w-full py-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer">
+                      <FileJson size={16} className="text-blue-600" />
                       <span>Choose JSON File</span>
                       <input
                         type="file"
@@ -956,7 +948,7 @@ export function CompetenciesPage() {
                       <button
                         type="button"
                         onClick={handleClearTable}
-                        className="text-xs text-red-500 hover:text-red-700 font-semibold hover:underline"
+                        className="text-xs text-rose-600 hover:text-rose-800 font-semibold hover:underline cursor-pointer"
                       >
                         Clear all data in sc_budget_of_work table in Supabase
                       </button>

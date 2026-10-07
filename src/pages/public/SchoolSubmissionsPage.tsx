@@ -322,11 +322,11 @@ export function SchoolSubmissionsPage() {
           <Link to="/admin/submissions" className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-white border border-purple-100 text-xs font-bold text-[#795CEE] shadow-xs hover:bg-[#F6EFFF] transition-all no-print">
             <ArrowLeft size={15} /> Back to Submissions
           </Link>
-          <div className="clay-card p-8 sm:p-12 text-center">
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-8 sm:p-12 text-center shadow-xs">
             <EmptyState
               title="School not found"
               description="The requested school profile could not be loaded or specified."
-              icon={<Building2 size={32} className="text-[#8B72F4]" />}
+              icon={<Building2 size={32} className="text-blue-600" />}
             />
           </div>
         </div>

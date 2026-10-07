@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { SchoolConnectLayout } from '@/components/layouts/SchoolConnectLayout'
+import { platformAdminNavGroups } from '@/config/navConfigs'
 import { DepEdSpinner } from '@/components/ui/DepEdSpinner'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog'
@@ -296,7 +297,7 @@ export function AdministratorsPage() {
   const activeCount = adminProfiles.filter(a => a.is_active).length
 
   return (
-    <SchoolConnectLayout systemTitle="Administrators & System Access Governance">
+    <SchoolConnectLayout systemTitle="Administrators & System Access Governance" navGroups={platformAdminNavGroups}>
       <div className="space-y-6 w-full pb-12 animate-fade-in">
         {/* Header Banner */}
         <PageHeader
@@ -306,7 +307,7 @@ export function AdministratorsPage() {
           actions={
             <button
               onClick={(e) => handleOpenGrantAccess(e)}
-              className="px-5 py-2.5 rounded-full bg-gradient-to-r from-[#A88BEB] to-[#8B72F4] text-white font-black text-xs shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer active:animate-button-sparkle"
+              className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <UserPlus size={16} />
               <span>Grant System Access</span>
@@ -314,89 +315,89 @@ export function AdministratorsPage() {
           }
         />
 
-        {/* Neumorphic 3D Stats Row */}
+        {/* Clean Stats Row */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="p-5 rounded-[24px] bg-[#EFF3F9] shadow-neu-out border border-white/80 flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#BFDBFE] to-[#93C5FD] text-[#1D4ED8] flex items-center justify-center shrink-0 shadow-md border border-white">
+          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-center gap-3.5 hover:border-slate-300 hover:shadow-sm transition-all">
+            <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 font-bold">
               <Shield size={22} />
             </div>
             <div>
-              <p className="text-[11px] font-extrabold uppercase text-[#64748B]">Total Admins</p>
-              <p className="text-2xl font-black text-[#2D3748]">{adminProfiles.length}</p>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Admins</p>
+              <p className="text-2xl font-bold text-slate-900">{adminProfiles.length}</p>
             </div>
           </div>
 
-          <div className="p-5 rounded-[24px] bg-[#EFF3F9] shadow-neu-out border border-white/80 flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#DDD6FE] to-[#C4B5FD] text-[#6D28D9] flex items-center justify-center shrink-0 shadow-md border border-white">
+          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-center gap-3.5 hover:border-slate-300 hover:shadow-sm transition-all">
+            <div className="w-11 h-11 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 font-bold">
               <ShieldCheck size={22} />
             </div>
             <div>
-              <p className="text-[11px] font-extrabold uppercase text-[#64748B]">Super Admins</p>
-              <p className="text-2xl font-black text-[#2D3748]">{superAdminCount}</p>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Super Admins</p>
+              <p className="text-2xl font-bold text-slate-900">{superAdminCount}</p>
             </div>
           </div>
 
-          <div className="p-5 rounded-[24px] bg-[#EFF3F9] shadow-neu-out border border-white/80 flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#FDE68A] to-[#FCD34D] text-[#B45309] flex items-center justify-center shrink-0 shadow-md border border-white">
+          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-center gap-3.5 hover:border-slate-300 hover:shadow-sm transition-all">
+            <div className="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 font-bold">
               <Users size={22} />
             </div>
             <div>
-              <p className="text-[11px] font-extrabold uppercase text-[#64748B]">Evaluators</p>
-              <p className="text-2xl font-black text-[#2D3748]">{sysAdminCount}</p>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Evaluators</p>
+              <p className="text-2xl font-bold text-slate-900">{sysAdminCount}</p>
             </div>
           </div>
 
-          <div className="p-5 rounded-[24px] bg-[#EFF3F9] shadow-neu-out border border-white/80 flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#A7F3D0] to-[#6EE7B7] text-[#047857] flex items-center justify-center shrink-0 shadow-md border border-white">
+          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-center gap-3.5 hover:border-slate-300 hover:shadow-sm transition-all">
+            <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 font-bold">
               <CheckCircle2 size={22} />
             </div>
             <div>
-              <p className="text-[11px] font-extrabold uppercase text-[#64748B]">Active Logins</p>
-              <p className="text-2xl font-black text-[#047857]">{activeCount}</p>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active Logins</p>
+              <p className="text-2xl font-bold text-emerald-600">{activeCount}</p>
             </div>
           </div>
         </div>
 
         {/* Filter & Search Bar */}
-        <div className="p-5 rounded-[28px] bg-[#EFF3F9] shadow-neu-out border border-white/80 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="relative w-full sm:w-80">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               placeholder="Search admin by name or email..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-2xl text-xs bg-[#EFF3F9] shadow-neu-in border border-transparent text-[#2D3748] placeholder-[#94A3B8] focus:bg-white focus:outline-none focus:border-[#6675E8] transition-all"
+              className="w-full pl-10 pr-4 py-2 rounded-xl text-xs bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
             />
           </div>
 
           <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto">
             <button
               onClick={() => setSelectedRoleFilter('all')}
-              className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
                 selectedRoleFilter === 'all'
-                  ? 'bg-white shadow-neu-out-sm text-[#1D4ED8] border border-white'
-                  : 'bg-[#EFF3F9] text-[#64748B] hover:bg-white/60'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
               All Admins ({adminProfiles.length})
             </button>
             <button
               onClick={() => setSelectedRoleFilter('superadmin')}
-              className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
                 selectedRoleFilter === 'superadmin'
-                  ? 'bg-white shadow-neu-out-sm text-[#6D28D9] border border-white'
-                  : 'bg-[#EFF3F9] text-[#64748B] hover:bg-white/60'
+                  ? 'bg-purple-600 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
               Super Administrators ({superAdminCount})
             </button>
             <button
               onClick={() => setSelectedRoleFilter('admin')}
-              className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
                 selectedRoleFilter === 'admin'
-                  ? 'bg-white shadow-neu-out-sm text-[#6675E8] border border-white'
-                  : 'bg-[#EFF3F9] text-[#64748B] hover:bg-white/60'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
               System Evaluators ({sysAdminCount})
@@ -405,7 +406,7 @@ export function AdministratorsPage() {
         </div>
 
         {/* Administrator Directory: Table on Desktop, Cards on Mobile */}
-        <div className="bg-[#EFF3F9] rounded-[28px] shadow-neu-out border border-white/80 overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
           {loading ? (
             <div className="p-12">
               <DepEdSpinner size="lg" label="Loading Administrators..." subtitle="Fetching system access permissions from database" />
@@ -420,7 +421,7 @@ export function AdministratorsPage() {
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-[#FAFBFF] border-b border-[#E8EAF0] text-[11px] font-extrabold uppercase tracking-wider text-[#64748B]">
+                    <tr className="bg-slate-50/80 border-b border-slate-200/80 text-xs font-semibold uppercase tracking-wider text-slate-600">
                       <th className="py-3.5 px-4 sm:px-6">Administrator / Personnel</th>
                       <th className="py-3.5 px-4">System Access Level</th>
                       <th className="py-3.5 px-4">Assigned Schools</th>
@@ -429,7 +430,7 @@ export function AdministratorsPage() {
                       <th className="py-3.5 px-4 sm:px-6 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#F0F2F7]">
+                  <tbody className="divide-y divide-slate-100">
                     {filteredAdmins.map(ap => {
                       const isCurrentSelf = ap.id === admin?.id
                       const isSuper = ap.role === 'superadmin'

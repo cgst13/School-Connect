@@ -10,47 +10,54 @@ export interface DepEdSpinnerProps {
 
 export function DepEdSpinner({
   size = 'md',
-  label = 'Loading System Data...',
-  subtitle = 'Department of Education - School Connect Suite',
   className = '',
 }: DepEdSpinnerProps) {
-  return (
-    <SchoolConnectLogoWaveLoader
-      size={size}
-      label={label}
-      subtitle={subtitle}
-      className={className}
-      showMultiWaveLogos={size === 'lg' || size === 'xl'}
-    />
-  )
-}
+  const sizeMap = {
+    sm: 'w-[400px] h-[400px]',
+    md: 'w-[640px] h-[640px]',
+    lg: 'w-[960px] h-[960px]',
+    xl: 'w-[1280px] h-[1280px]',
+  }
+  const imgSize = sizeMap[size] || sizeMap.md
 
-export function DepEdPageLoader({
-  label = 'Loading System Data...',
-  subtitle = 'Department of Education - School Connect Suite'
-}: {
-  label?: string
-  subtitle?: string
-}) {
   return (
-    <div className="min-h-[380px] w-full flex items-center justify-center py-12">
-      <SchoolConnectLogoWaveLoader size="lg" label={label} subtitle={subtitle} />
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#fcfcff] select-none">
+      <img
+        src="/images/loading.gif"
+        alt="Loading..."
+        className={`${imgSize} max-w-[90vw] max-h-[90vh] object-contain bg-transparent ${className}`}
+      />
     </div>
   )
 }
 
-export function DepEdFullScreenLoader({
-  label = 'Initializing School Connect...',
-  subtitle = 'Authenticating and fetching secure database records'
-}: {
+export function DepEdPageLoader(_props?: {
   label?: string
   subtitle?: string
 }) {
   return (
-    <div className="fixed inset-0 z-50 bg-[#1E1B29]/50 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in font-sans">
-      <div className="bg-white/95 rounded-[36px] p-8 border-4 border-white shadow-[0_24px_60px_rgba(139,114,244,0.3)] max-w-md w-full text-center space-y-2">
-        <SchoolConnectLogoWaveLoader size="xl" label={label} subtitle={subtitle} />
-      </div>
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#fcfcff] select-none">
+      <img
+        src="/images/loading.gif"
+        alt="Loading..."
+        className="w-[450px] h-[450px] sm:w-[700px] sm:h-[700px] max-w-[90vw] max-h-[90vh] object-contain bg-transparent"
+      />
     </div>
   )
 }
+
+export function DepEdFullScreenLoader(_props?: {
+  label?: string
+  subtitle?: string
+}) {
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#fcfcff] select-none">
+      <img
+        src="/images/loading.gif"
+        alt="Loading..."
+        className="w-[500px] h-[500px] sm:w-[800px] sm:h-[800px] max-w-[90vw] max-h-[90vh] object-contain bg-transparent"
+      />
+    </div>
+  )
+}
+
