@@ -10,12 +10,14 @@ import {
   fetchGradeLevels,
   fetchSections,
   fetchLearningAreas,
+  fetchLearningAreaGrades,
   fetchLearnerGradesByLearner,
   saveLearnerGradesBatch,
   upsertLearner,
   insertAuditLog,
 } from '@/lib/supabase/queries'
 import { calculateAge } from '@/utils/sf1Parser'
+import { getAllocatedLearningAreasForGrade } from '@/utils/gradeUtils'
 import { useAuth } from '@/features/auth/useAuth'
 import { useToast } from '@/hooks/useToast'
 import { captureGenieOrigin, useGenieModal } from '@/utils/genieAnimation'
@@ -154,7 +156,8 @@ export function LearnerProfilePage() {
     learnerData: Learner,
     laList: LearningArea[],
     gradeList: GradeLevel[],
-    dbGrades: LearnerGrade[] = []
+    dbGrades: LearnerGrade[] = [],
+    lagList: any[] = []
   ) => {
     const storageKey = `sc_learner_grades_${learnerData.id}`
     let cachedGrades: SubjectGradeRecord[] = []
@@ -170,12 +173,14 @@ export function LearnerProfilePage() {
       }
     }
 
-    // Determine subject list from learning areas or grade level
+    // Determine subject list from allocated learning areas for this grade level
     const gradeObj = gradeList.find(g => g.id === learnerData.grade_level_id)
     const isSecondary = (gradeObj?.grade_number || 0) >= 7
 
-    const subjectsToUse = laList.length > 0
-      ? laList.map(la => ({ id: la.id, name: la.name }))
+    const allocatedLAs = getAllocatedLearningAreasForGrade(laList, learnerData.grade_level_id, lagList, gradeList)
+
+    const subjectsToUse = allocatedLAs.length > 0
+      ? allocatedLAs.map(la => ({ id: la.id, name: la.name }))
       : (isSecondary ? DEFAULT_SECONDARY_SUBJECTS : DEFAULT_ELEMENTARY_SUBJECTS).map((s, idx) => ({ id: `subj-${idx}`, name: s }))
 
     // Map saved database grades. Do NOT add default fake grades!
@@ -214,18 +219,19 @@ export function LearnerProfilePage() {
     if (!id) return
     setLoading(true)
     try {
-      const [learnerData, schoolsData, gradesData, sectionsData, laData, dbGrades] = await Promise.all([
+      const [learnerData, schoolsData, gradesData, sectionsData, laData, lagData, dbGrades] = await Promise.all([
         fetchLearnerById(id),
         fetchSchools().catch(() => []),
         fetchGradeLevels().catch(() => []),
         fetchSections().catch(() => []),
         fetchLearningAreas(true).catch(() => []),
+        fetchLearningAreaGrades().catch(() => []),
         fetchLearnerGradesByLearner(id).catch(() => [])
       ])
 
       if (learnerData) {
         setLearner(learnerData)
-        const initialGrades = initializeLearnerGrades(learnerData, laData, gradesData, dbGrades)
+        const initialGrades = initializeLearnerGrades(learnerData, laData, gradesData, dbGrades, lagData)
         setGrades(initialGrades)
       } else {
         toast('Learner profile not found.', 'error')

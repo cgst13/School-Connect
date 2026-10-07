@@ -7,17 +7,20 @@ import { DepEdSpinner } from '@/components/ui/DepEdSpinner'
 import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog'
 import {
   fetchSections,
+  syncSectionsFromLearners,
   fetchSchools,
   fetchGradeLevels,
+  fetchLearners,
   fetchAllAdmins,
   upsertSection,
   deleteSection,
   insertAuditLog,
 } from '@/lib/supabase/queries'
+import { isGradeMatch } from '@/utils/gradeUtils'
 import { useAuth } from '@/features/auth/useAuth'
 import { useToast } from '@/hooks/useToast'
 import { formatDetailedError } from '@/utils/formatError'
-import type { Section, School, GradeLevel, AdminProfile } from '@/types'
+import type { Section, School, GradeLevel, AdminProfile, Learner } from '@/types'
 import {
   Plus,
   Edit2,
@@ -30,7 +33,8 @@ import {
   Sparkles,
   X,
   Zap,
-  Bookmark
+  Bookmark,
+  Users
 } from 'lucide-react'
 import { captureGenieOrigin, useGenieModal } from '@/utils/genieAnimation'
 
@@ -42,6 +46,7 @@ export function SectionsPage() {
   const [schools, setSchools] = useState<School[]>([])
   const [grades, setGrades] = useState<GradeLevel[]>([])
   const [teachers, setTeachers] = useState<AdminProfile[]>([])
+  const [learners, setLearners] = useState<Learner[]>([])
   const [loading, setLoading] = useState(true)
 
   // Permitted Schools for current user role scope
@@ -94,17 +99,19 @@ export function SectionsPage() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [secList, schList, gList, sList] = await Promise.all([
-        fetchSections(),
+      const [secList, schList, gList, sList, lList] = await Promise.all([
+        syncSectionsFromLearners(),
         fetchSchools(true),
         fetchGradeLevels(),
         fetchAllAdmins(),
+        fetchLearners()
       ])
 
       setSections(secList)
       setSchools(schList)
       setGrades(gList)
       setTeachers(sList.filter(s => s.role === 'teacher' && s.is_active !== false))
+      setLearners(lList)
 
       const permitted = getPermittedSchools(schList)
       const defaultSchoolId = permitted[0]?.id || schList[0]?.id || ''
@@ -327,13 +334,21 @@ export function SectionsPage() {
     }
   }
 
+  // Helper to count enrolled learners from LIS for this section
+  const getSectionLearnerCount = (sec: Section) => {
+    return learners.filter(l =>
+      l.section_id === sec.id ||
+      (l.school_id === sec.school_id && l.section_name && l.section_name.toLowerCase().trim() === sec.name.toLowerCase().trim())
+    ).length
+  }
+
   // Filtered Sections List
   const filteredSections = useMemo(() => {
     const permittedIds = new Set(permittedSchools.map(s => s.id))
     return sections.filter(sec => {
       if (permittedSchools.length > 0 && !permittedIds.has(sec.school_id)) return false
       if (selectedSchoolFilter !== 'all' && sec.school_id !== selectedSchoolFilter) return false
-      if (selectedGradeFilter !== 'all' && sec.grade_level_id !== selectedGradeFilter) return false
+      if (selectedGradeFilter !== 'all' && !isGradeMatch({ grade_level_id: sec.grade_level_id }, selectedGradeFilter, grades)) return false
 
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase().trim()
@@ -502,6 +517,7 @@ export function SectionsPage() {
                     <th>Grade Level</th>
                     <th>Track / Strand</th>
                     <th>Class Adviser</th>
+                    <th>Enrolled Learners (LIS)</th>
                     <th>Status</th>
                     <th className="text-right">Actions</th>
                   </tr>
@@ -510,6 +526,7 @@ export function SectionsPage() {
                   {filteredSections.map(sec => {
                     const schObj = schools.find(s => s.id === sec.school_id)
                     const gObj = grades.find(g => g.id === sec.grade_level_id)
+                    const learnerCount = getSectionLearnerCount(sec)
 
                     return (
                       <tr key={sec.id}>
@@ -529,6 +546,16 @@ export function SectionsPage() {
                         </td>
                         <td>
                           <span className="text-xs font-medium text-slate-800">{sec.adviser_name || 'Unassigned'}</span>
+                        </td>
+                        <td>
+                          {learnerCount > 0 ? (
+                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-[#2563EB] border border-blue-200 inline-flex items-center gap-1.5 shadow-2xs">
+                              <Users size={12} />
+                              <span>{learnerCount} Enrolled</span>
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-slate-400 font-normal italic">0 Enrolled</span>
+                          )}
                         </td>
                         <td>
                           {sec.is_active ? (

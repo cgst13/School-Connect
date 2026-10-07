@@ -9,6 +9,7 @@ import {
   fetchGradeLevels,
   fetchSections,
   fetchLearningAreas,
+  fetchLearningAreaGrades,
   fetchLearners,
   fetchClassRecord,
   upsertClassRecord,
@@ -22,7 +23,7 @@ import {
   SubjectWeightConfig
 } from '@/utils/gradingCalculator'
 import { isGradeMatch } from '@/utils/gradeUtils'
-import type { School, GradeLevel, Section, LearningArea, Learner, ClassRecord, LearnerGrade } from '@/types'
+import type { School, GradeLevel, Section, LearningArea, Learner, ClassRecord, LearnerGrade, LearningAreaGrade } from '@/types'
 import {
   ClipboardList,
   Save,
@@ -62,6 +63,7 @@ export function GradingClassRecordPage() {
   const [gradeLevels, setGradeLevels] = useState<GradeLevel[]>([])
   const [sections, setSections] = useState<Section[]>([])
   const [learningAreas, setLearningAreas] = useState<LearningArea[]>([])
+  const [learningAreaGrades, setLearningAreaGrades] = useState<LearningAreaGrade[]>([])
   const [learners, setLearners] = useState<Learner[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -82,33 +84,38 @@ export function GradingClassRecordPage() {
   // Student Score Matrix
   const [studentScores, setStudentScores] = useState<Record<string, StudentECRScore>>({})
 
-  // Scoped / Permitted Options based on logged-in user assignments
+  // Scoped / Permitted Options based on logged-in user assignments and Grade Level Allocation
   const permittedSchools = useMemo(() => getPermittedSchools(schools), [schools, getPermittedSchools])
   const permittedGradeLevels = useMemo(() => getPermittedGradeLevels(gradeLevels), [gradeLevels, getPermittedGradeLevels])
-  const permittedLearningAreas = useMemo(() => getPermittedLearningAreas(learningAreas, selectedGradeId), [learningAreas, selectedGradeId, getPermittedLearningAreas])
+  const permittedLearningAreas = useMemo(
+    () => getPermittedLearningAreas(learningAreas, selectedGradeId, learningAreaGrades, gradeLevels),
+    [learningAreas, selectedGradeId, learningAreaGrades, gradeLevels, getPermittedLearningAreas]
+  )
 
   // Load Base Reference Data
   useEffect(() => {
     async function loadData() {
       setLoading(true)
       try {
-        const [sch, gr, sec, la, ln] = await Promise.all([
+        const [sch, gr, sec, la, lag, ln] = await Promise.all([
           fetchSchools(true, true),
           fetchGradeLevels(undefined, true),
           fetchSections(),
           fetchLearningAreas(),
+          fetchLearningAreaGrades(),
           fetchLearners()
         ])
         setSchools(sch)
         setGradeLevels(gr)
         setSections(sec)
         setLearningAreas(la)
+        setLearningAreaGrades(lag)
         setLearners(ln)
 
         const pSch = getPermittedSchools(sch)
         const pGr = getPermittedGradeLevels(gr)
         const initialGradeId = pGr[0]?.id || ''
-        const pLa = getPermittedLearningAreas(la, initialGradeId)
+        const pLa = getPermittedLearningAreas(la, initialGradeId, lag, gr)
 
         if (pSch.length > 0) setSelectedSchoolId(pSch[0].id)
         if (pGr.length > 0) setSelectedGradeId(pGr[0].id)

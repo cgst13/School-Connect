@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { authenticateWithUserTable, fetchAdminProfile } from '@/lib/supabase/queries'
-import type { AdminProfile } from '@/types'
+import { getAllocatedLearningAreasForGrade } from '@/utils/gradeUtils'
+import type { AdminProfile, GradeLevel } from '@/types'
 
 const CURRENT_USER_KEY = 'schoolconnect_current_user_profile'
 
@@ -21,7 +22,12 @@ interface AuthContextType {
   isSchoolPermitted: (schoolId: string, allSchoolIds?: string[]) => boolean
   getPermittedSchools: <T extends { id: string }>(schools: T[]) => T[]
   getPermittedGradeLevels: <T extends { id: string }>(gradeLevels: T[]) => T[]
-  getPermittedLearningAreas: <T extends { id: string }>(learningAreas: T[], targetGradeId?: string) => T[]
+  getPermittedLearningAreas: <T extends { id: string; is_active?: boolean; name?: string }>(
+    learningAreas: T[],
+    targetGradeId?: string,
+    learningAreaGrades?: { learning_area_id: string; grade_level_id: string }[],
+    gradeLevels?: GradeLevel[]
+  ) => T[]
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
@@ -232,24 +238,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return gradeLevels
   }
 
-  // Returns permitted Learning Areas / Subjects for the current user
-  const getPermittedLearningAreas = <T extends { id: string }>(learningAreas: T[], targetGradeId?: string): T[] => {
-    if (hasFullAccess()) return learningAreas
+  // Returns permitted Learning Areas / Subjects for the current user and target grade level
+  const getPermittedLearningAreas = <T extends { id: string; is_active?: boolean; name?: string }>(
+    learningAreas: T[],
+    targetGradeId?: string,
+    learningAreaGrades?: { learning_area_id: string; grade_level_id: string }[],
+    gradeLevels?: GradeLevel[]
+  ): T[] => {
+    // 1. First, narrow down learning areas based on Learning Areas & Subject Allocation matrix for the grade
+    let gradeScopedAreas = learningAreas
+    if (targetGradeId && targetGradeId !== 'all' && learningAreaGrades && learningAreaGrades.length > 0) {
+      gradeScopedAreas = getAllocatedLearningAreasForGrade(learningAreas, targetGradeId, learningAreaGrades, gradeLevels)
+    }
+
+    if (hasFullAccess()) return gradeScopedAreas
+
     if (admin?.role === 'teacher') {
       // 1. Check grade-specific subject assignments first
       if (targetGradeId && admin.assigned_grade_subject_ids?.[targetGradeId]?.length) {
         const gradeSubjects = admin.assigned_grade_subject_ids[targetGradeId]
-        return learningAreas.filter(la => gradeSubjects.includes(la.id))
+        return gradeScopedAreas.filter(la => gradeSubjects.includes(la.id))
       }
       // 2. Check general assigned subjects
       if (admin.assigned_subject_ids && admin.assigned_subject_ids.length > 0) {
-        return learningAreas.filter(la => admin.assigned_subject_ids!.includes(la.id))
+        return gradeScopedAreas.filter(la => admin.assigned_subject_ids!.includes(la.id))
       }
     }
     if (admin?.assigned_subject_ids && admin.assigned_subject_ids.length > 0) {
-      return learningAreas.filter(la => admin.assigned_subject_ids!.includes(la.id))
+      return gradeScopedAreas.filter(la => admin.assigned_subject_ids!.includes(la.id))
     }
-    return learningAreas
+    return gradeScopedAreas
   }
 
   return (

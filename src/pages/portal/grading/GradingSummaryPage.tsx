@@ -9,12 +9,13 @@ import {
   fetchGradeLevels,
   fetchSections,
   fetchLearningAreas,
+  fetchLearningAreaGrades,
   fetchLearners,
   fetchLearnerGradesByFilters,
 } from '@/lib/supabase/queries'
 import { getDepEdProficiencyLevel } from '@/utils/gradingCalculator'
 import { isGradeMatch } from '@/utils/gradeUtils'
-import type { School, GradeLevel, Section, LearningArea, Learner, LearnerGrade } from '@/types'
+import type { School, GradeLevel, Section, LearningArea, Learner, LearnerGrade, LearningAreaGrade } from '@/types'
 import {
   BarChart3,
   Award,
@@ -36,6 +37,7 @@ export function GradingSummaryPage() {
   const [gradeLevels, setGradeLevels] = useState<GradeLevel[]>([])
   const [sections, setSections] = useState<Section[]>([])
   const [learningAreas, setLearningAreas] = useState<LearningArea[]>([])
+  const [learningAreaGrades, setLearningAreaGrades] = useState<LearningAreaGrade[]>([])
   const [learners, setLearners] = useState<Learner[]>([])
   const [dbGrades, setDbGrades] = useState<LearnerGrade[]>([])
   const [loading, setLoading] = useState(true)
@@ -46,26 +48,31 @@ export function GradingSummaryPage() {
   const [selectedSectionId, setSelectedSectionId] = useState<string>('')
   const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>('2025-2026')
 
-  // Scoped / Permitted Options based on logged-in user assignments
+  // Scoped / Permitted Options based on logged-in user assignments & Grade Level Allocation
   const permittedSchools = useMemo(() => getPermittedSchools(schools), [schools, getPermittedSchools])
   const permittedGradeLevels = useMemo(() => getPermittedGradeLevels(gradeLevels), [gradeLevels, getPermittedGradeLevels])
-  const permittedLearningAreas = useMemo(() => getPermittedLearningAreas(learningAreas, selectedGradeId), [learningAreas, selectedGradeId, getPermittedLearningAreas])
+  const permittedLearningAreas = useMemo(
+    () => getPermittedLearningAreas(learningAreas, selectedGradeId, learningAreaGrades, gradeLevels),
+    [learningAreas, selectedGradeId, learningAreaGrades, gradeLevels, getPermittedLearningAreas]
+  )
 
   useEffect(() => {
     async function loadData() {
       setLoading(true)
       try {
-        const [sch, gr, sec, la, ln] = await Promise.all([
+        const [sch, gr, sec, la, lag, ln] = await Promise.all([
           fetchSchools(true, true),
           fetchGradeLevels(undefined, true),
           fetchSections(),
           fetchLearningAreas(),
+          fetchLearningAreaGrades(),
           fetchLearners()
         ])
         setSchools(sch)
         setGradeLevels(gr)
         setSections(sec)
         setLearningAreas(la)
+        setLearningAreaGrades(lag)
         setLearners(ln)
 
         const pSch = getPermittedSchools(sch)
@@ -194,12 +201,12 @@ export function GradingSummaryPage() {
         honorAward
       }
     }).sort((a, b) => (b.generalAverage || 0) - (a.generalAverage || 0))
-  }, [sectionLearners, learningAreas, dbGrades])
+  }, [sectionLearners, permittedLearningAreas, dbGrades])
 
   // Calculate Subject MPS (Mean Percentage Score)
   const subjectMPS = useMemo(() => {
     const result: Record<string, number> = {}
-    learningAreas.forEach(la => {
+    permittedLearningAreas.forEach(la => {
       let sum = 0
       let total = 0
       studentMasterRatings.forEach(r => {
@@ -212,7 +219,7 @@ export function GradingSummaryPage() {
       result[la.id] = total > 0 ? Math.round((sum / total) * 10) / 10 : 0
     })
     return result
-  }, [learningAreas, studentMasterRatings])
+  }, [permittedLearningAreas, studentMasterRatings])
 
   // Overall Section MPS
   const overallSectionAverage = useMemo(() => {
@@ -402,7 +409,7 @@ export function GradingSummaryPage() {
                   <td colSpan={3} className="py-2.5 px-3 text-right uppercase tracking-wider text-xs border-r border-slate-800">
                     Subject Mean Percentage Score (MPS)
                   </td>
-                  {learningAreas.map(la => (
+                  {permittedLearningAreas.map(la => (
                     <td key={`mps-${la.id}`} className="py-2.5 px-2 text-center font-mono font-black text-amber-300 border-r border-slate-800">
                       {subjectMPS[la.id] ? `${subjectMPS[la.id]}%` : '—'}
                     </td>

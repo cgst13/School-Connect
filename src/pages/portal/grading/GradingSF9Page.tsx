@@ -9,14 +9,15 @@ import {
   fetchGradeLevels,
   fetchSections,
   fetchLearningAreas,
+  fetchLearningAreaGrades,
   fetchLearners,
   fetchLearnerGradesByLearner,
 } from '@/lib/supabase/queries'
 import { getDepEdProficiencyLevel } from '@/utils/gradingCalculator'
 import { getLearnerQRValue } from '@/utils/qrCodeGenerator'
-import { isGradeMatch } from '@/utils/gradeUtils'
+import { isGradeMatch, getAllocatedLearningAreasForGrade } from '@/utils/gradeUtils'
 import { QRCodeSVG } from 'qrcode.react'
-import type { School, GradeLevel, Section, LearningArea, Learner, LearnerGrade } from '@/types'
+import type { School, GradeLevel, Section, LearningArea, Learner, LearnerGrade, LearningAreaGrade } from '@/types'
 import {
   Printer,
   FileSpreadsheet,
@@ -36,6 +37,7 @@ export function GradingSF9Page() {
   const [gradeLevels, setGradeLevels] = useState<GradeLevel[]>([])
   const [sections, setSections] = useState<Section[]>([])
   const [learningAreas, setLearningAreas] = useState<LearningArea[]>([])
+  const [learningAreaGrades, setLearningAreaGrades] = useState<LearningAreaGrade[]>([])
   const [learners, setLearners] = useState<Learner[]>([])
   const [dbGrades, setDbGrades] = useState<LearnerGrade[]>([])
   const [loading, setLoading] = useState(true)
@@ -55,17 +57,19 @@ export function GradingSF9Page() {
     async function loadData() {
       setLoading(true)
       try {
-        const [sch, gr, sec, la, ln] = await Promise.all([
+        const [sch, gr, sec, la, lag, ln] = await Promise.all([
           fetchSchools(true, true),
           fetchGradeLevels(undefined, true),
           fetchSections(),
           fetchLearningAreas(),
+          fetchLearningAreaGrades(),
           fetchLearners()
         ])
         setSchools(sch)
         setGradeLevels(gr)
         setSections(sec)
         setLearningAreas(la)
+        setLearningAreaGrades(lag)
         setLearners(ln)
 
         const pSch = getPermittedSchools(sch)
@@ -160,7 +164,10 @@ export function GradingSF9Page() {
       } catch {}
     }
 
-    return learningAreas.map((la) => {
+    const learnerGradeId = selectedLearner.grade_level_id || selectedGradeId
+    const allocatedLAs = getAllocatedLearningAreasForGrade(learningAreas, learnerGradeId, learningAreaGrades, gradeLevels)
+
+    return allocatedLAs.map((la) => {
       const dbQ1 = dbGrades.find(g => (g.learning_area_id === la.id || g.learning_area_id === la.name) && g.quarter === 1)?.quarterly_grade
       const dbQ2 = dbGrades.find(g => (g.learning_area_id === la.id || g.learning_area_id === la.name) && g.quarter === 2)?.quarterly_grade
       const dbQ3 = dbGrades.find(g => (g.learning_area_id === la.id || g.learning_area_id === la.name) && g.quarter === 3)?.quarterly_grade
@@ -187,7 +194,7 @@ export function GradingSF9Page() {
         remarks
       }
     })
-  }, [selectedLearner, learningAreas, dbGrades])
+  }, [selectedLearner, selectedGradeId, learningAreas, learningAreaGrades, gradeLevels, dbGrades])
 
   // Compute General Average
   const generalAverage = useMemo(() => {

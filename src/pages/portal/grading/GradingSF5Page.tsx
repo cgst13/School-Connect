@@ -9,12 +9,13 @@ import {
   fetchGradeLevels,
   fetchSections,
   fetchLearningAreas,
+  fetchLearningAreaGrades,
   fetchLearners,
   fetchLearnerGradesByFilters
 } from '@/lib/supabase/queries'
 import { getDepEdProficiencyLevel } from '@/utils/gradingCalculator'
-import { isGradeMatch } from '@/utils/gradeUtils'
-import type { School, GradeLevel, Section, LearningArea, Learner, LearnerGrade } from '@/types'
+import { isGradeMatch, getAllocatedLearningAreasForGrade } from '@/utils/gradeUtils'
+import type { School, GradeLevel, Section, LearningArea, Learner, LearnerGrade, LearningAreaGrade } from '@/types'
 import {
   Printer,
   FileCheck,
@@ -32,6 +33,7 @@ export function GradingSF5Page() {
   const [gradeLevels, setGradeLevels] = useState<GradeLevel[]>([])
   const [sections, setSections] = useState<Section[]>([])
   const [learningAreas, setLearningAreas] = useState<LearningArea[]>([])
+  const [learningAreaGrades, setLearningAreaGrades] = useState<LearningAreaGrade[]>([])
   const [learners, setLearners] = useState<Learner[]>([])
   const [dbGrades, setDbGrades] = useState<LearnerGrade[]>([])
   const [loading, setLoading] = useState(true)
@@ -49,17 +51,19 @@ export function GradingSF5Page() {
     async function loadData() {
       setLoading(true)
       try {
-        const [sch, gr, sec, la, ln] = await Promise.all([
+        const [sch, gr, sec, la, lag, ln] = await Promise.all([
           fetchSchools(true, true),
           fetchGradeLevels(undefined, true),
           fetchSections(),
           fetchLearningAreas(),
+          fetchLearningAreaGrades(),
           fetchLearners()
         ])
         setSchools(sch)
         setGradeLevels(gr)
         setSections(sec)
         setLearningAreas(la)
+        setLearningAreaGrades(lag)
         setLearners(ln)
 
         const pSch = getPermittedSchools(sch)
@@ -156,7 +160,10 @@ export function GradingSF5Page() {
 
       let sum = 0
       let count = 0
-      learningAreas.forEach((la) => {
+      const learnerGradeId = learner.grade_level_id || selectedGradeId
+      const allocatedLAs = getAllocatedLearningAreasForGrade(learningAreas, learnerGradeId, learningAreaGrades, gradeLevels)
+
+      allocatedLAs.forEach((la) => {
         const matchedDB = dbGrades.filter(g => g.learner_id === learner.id && g.learning_area_id === la.id && g.quarterly_grade !== null && g.quarterly_grade !== undefined)
         let rating: number | null = null
 
@@ -189,7 +196,7 @@ export function GradingSF5Page() {
         descriptor
       }
     })
-  }, [sectionLearners, learningAreas, dbGrades])
+  }, [sectionLearners, selectedGradeId, learningAreas, learningAreaGrades, gradeLevels, dbGrades])
 
   // Split Male & Female
   const maleList = processedPromotionList.filter(p => p.learner.sex === 'Male')

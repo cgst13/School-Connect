@@ -330,18 +330,23 @@ export function LISDirectoryPage() {
         }
       }
 
-      // 3. Resolve or Create Section dynamically from File Header
+      // 3. Resolve or Create Section dynamically from File Header for this school
       let targetSectionObj = sections.find(
-        s => fileSection && s.name.toLowerCase() === fileSection.toLowerCase()
+        s => fileSection &&
+             s.school_id === targetSchoolObj.id &&
+             s.name.toLowerCase().trim() === fileSection.toLowerCase().trim()
       )
       if (!targetSectionObj && fileSection && targetSchoolObj) {
         try {
           targetSectionObj = await upsertSection({
-            name: fileSection,
+            name: fileSection.trim(),
             school_id: targetSchoolObj.id,
             grade_level_id: targetGradeObj?.id,
             is_active: true
           })
+          if (targetSectionObj) {
+            setSections(prev => [...prev.filter(sec => sec.id !== targetSectionObj!.id), targetSectionObj!])
+          }
         } catch (err) {
           console.warn('Could not auto-create section record:', err)
         }

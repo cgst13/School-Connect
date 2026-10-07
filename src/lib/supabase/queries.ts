@@ -2702,6 +2702,74 @@ export async function deleteSection(sectionId: string): Promise<void> {
   }
 }
 
+/**
+ * Automatically reconciles and discovers all sections from imported LIS learners (sc_learners),
+ * ensuring any section imported via LIS exists in sc_sections and reflects across the system.
+ */
+export async function syncSectionsFromLearners(): Promise<Section[]> {
+  try {
+    const [existingSections, allLearners] = await Promise.all([
+      fetchSections(),
+      fetchLearners()
+    ])
+
+    const createdOrUpdated: Section[] = [...existingSections]
+    const sectionMap = new Map<string, Section>()
+
+    // Index existing sections by school_id and lower-cased section name
+    createdOrUpdated.forEach(sec => {
+      const key = `${sec.school_id}:::${sec.name.toLowerCase().trim()}`
+      sectionMap.set(key, sec)
+    })
+
+    const newSectionsToInsert: Partial<Section>[] = []
+
+    allLearners.forEach(l => {
+      if (!l.school_id || !l.section_name) return
+      const cleanSecName = l.section_name.trim()
+      if (!cleanSecName) return
+
+      const key = `${l.school_id}:::${cleanSecName.toLowerCase()}`
+      const existing = sectionMap.get(key)
+
+      if (!existing) {
+        const newSec: Section = {
+          id: l.section_id || crypto.randomUUID(),
+          school_id: l.school_id,
+          grade_level_id: l.grade_level_id || '',
+          name: cleanSecName,
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }
+        sectionMap.set(key, newSec)
+        createdOrUpdated.push(newSec)
+        newSectionsToInsert.push(newSec)
+      } else if (!existing.grade_level_id && l.grade_level_id) {
+        existing.grade_level_id = l.grade_level_id
+        newSectionsToInsert.push(existing)
+      }
+    })
+
+    if (newSectionsToInsert.length > 0) {
+      for (const s of newSectionsToInsert) {
+        try {
+          await upsertSection(s)
+        } catch (e) {
+          console.warn('[syncSectionsFromLearners] Auto-sync notice:', s.name, e)
+        }
+      }
+    }
+
+    cachedSectionsStore = { data: createdOrUpdated, timestamp: Date.now() }
+    localStorage.setItem(LOCAL_SECTIONS_KEY, JSON.stringify(createdOrUpdated))
+    return createdOrUpdated
+  } catch (err) {
+    console.warn('[syncSectionsFromLearners] Failed to sync:', err)
+    return fetchSections()
+  }
+}
+
 // --- LEARNER INFORMATION SYSTEM (LIS) QUERIES ---
 
 const LOCAL_LEARNERS_KEY = 'schoolconnect_local_learners'

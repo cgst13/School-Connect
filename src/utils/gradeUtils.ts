@@ -91,3 +91,57 @@ export function isGradeMatch(
 
   return false
 }
+
+/**
+ * Returns the learning areas allocated to a specific grade level based on the Learning Areas & Subject Allocation matrix
+ */
+export function getAllocatedLearningAreasForGrade<T extends { id: string; is_active?: boolean; name?: string }>(
+  allLearningAreas: T[],
+  gradeLevelId: string | undefined | null,
+  learningAreaGrades: { learning_area_id: string; grade_level_id: string }[],
+  gradeLevels: GradeLevel[] = []
+): T[] {
+  if (!gradeLevelId || gradeLevelId === 'all') {
+    return allLearningAreas.filter(la => la.is_active !== false)
+  }
+
+  const targetGradeObj = gradeLevels.find(g => g.id === gradeLevelId)
+  const isTargetKinder = targetGradeObj ? isKindergartenGrade(targetGradeObj.name, targetGradeObj.grade_number) : isKindergartenGrade(gradeLevelId)
+
+  // Collect all gradeLevelIds in the database that represent this target grade level
+  const matchingGradeIds = new Set<string>([gradeLevelId])
+  if (gradeLevels.length > 0) {
+    gradeLevels.forEach(g => {
+      if (g.id === gradeLevelId) return
+      if (isTargetKinder && isKindergartenGrade(g.name, g.grade_number)) {
+        matchingGradeIds.add(g.id)
+      } else if (
+        !isTargetKinder &&
+        targetGradeObj &&
+        targetGradeObj.grade_number !== undefined &&
+        targetGradeObj.grade_number !== null &&
+        g.grade_number === targetGradeObj.grade_number
+      ) {
+        matchingGradeIds.add(g.id)
+      }
+    })
+  }
+
+  // Find all learning_area_ids allocated to any of the matchingGradeIds
+  const allocatedIds = new Set<string>()
+  learningAreaGrades.forEach(lag => {
+    if (matchingGradeIds.has(lag.grade_level_id)) {
+      allocatedIds.add(lag.learning_area_id)
+    }
+  })
+
+  // If specific allocations exist for this grade level in Learning Areas & Subject Allocation, filter by them
+  if (allocatedIds.size > 0) {
+    const allocated = allLearningAreas.filter(la => allocatedIds.has(la.id) && la.is_active !== false)
+    if (allocated.length > 0) return allocated
+  }
+
+  // Fallback: If no explicit allocations exist yet for this grade level in sc_learning_area_grades,
+  // return all active learning areas
+  return allLearningAreas.filter(la => la.is_active !== false)
+}
